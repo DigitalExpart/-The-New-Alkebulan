@@ -9,8 +9,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // Remove output: 'standalone' as it can cause issues
-  // Remove experimental.appDir as it's no longer needed in Next.js 15
+  // Basic configuration for Vercel
   trailingSlash: false,
 }
 
