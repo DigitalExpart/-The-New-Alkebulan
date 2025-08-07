@@ -1,10 +1,13 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
+import { useAuth } from "@/hooks/use-auth"
+import { supabase } from "@/lib/supabase"
 import {
   Mail,
   MapPin,
@@ -25,33 +28,124 @@ import {
 } from "lucide-react"
 
 export default function ProfilePage() {
-  // Mock user data
-  const user = {
-    id: "1",
-    name: "John Doe",
-    email: "john@example.com",
-    avatar: "/placeholder.svg?height=120&width=120",
-    location: "New York, USA",
-    joinDate: "January 2023",
-    bio: "Passionate entrepreneur and community builder focused on connecting diaspora communities worldwide. I believe in the power of technology to bridge cultures and create opportunities.",
-    website: "https://johndoe.com",
-    phone: "+1 (555) 123-4567",
-    occupation: "Product Manager",
-    education: "MBA, Harvard Business School",
-    verified: true,
-    stats: {
-      communities: 8,
-      posts: 127,
-      followers: 1247,
-      following: 892,
-      reputation: 4.8,
-    },
-    badges: [
-      { name: "Early Adopter", icon: "🚀", color: "bg-blue-100 text-blue-800" },
-      { name: "Community Leader", icon: "👑", color: "bg-purple-100 text-purple-800" },
-      { name: "Verified Creator", icon: "✅", color: "bg-green-100 text-green-800" },
-      { name: "Top Contributor", icon: "⭐", color: "bg-yellow-100 text-yellow-800" },
-    ],
+  const { user } = useAuth()
+  const [profile, setProfile] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (user) {
+      fetchProfile()
+    }
+  }, [user])
+
+  const fetchProfile = async () => {
+    if (!user || !supabase) return
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single()
+
+      if (error) {
+        console.error('Error fetching profile:', error)
+        // Create default profile if none exists
+        await createDefaultProfile()
+      } else {
+        setProfile(data)
+      }
+    } catch (error) {
+      console.error('Error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const createDefaultProfile = async () => {
+    if (!user || !supabase) return
+
+    const defaultProfile = {
+      user_id: user.id,
+      email: user.email,
+      full_name: (user as any)?.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+      bio: '',
+      location: '',
+      website: '',
+      phone: '',
+      occupation: '',
+      education: '',
+      avatar_url: null,
+      is_public: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert([defaultProfile])
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Error creating profile:', error)
+      } else {
+        setProfile(data)
+      }
+    } catch (error) {
+      console.error('Error:', error)
+    }
+  }
+
+  // Default stats and badges
+  const defaultStats = {
+    communities: 0,
+    posts: 0,
+    followers: 0,
+    following: 0,
+    reputation: 0,
+  }
+
+  const defaultBadges = [
+    { name: "New Member", icon: "🌟", color: "bg-blue-100 text-blue-800" },
+  ]
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-muted/30 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading profile...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-muted/30 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Please sign in to view your profile</h1>
+          <Button asChild>
+            <Link href="/auth/signin">Sign In</Link>
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  const userData = profile || {
+    full_name: (user as any)?.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+    email: user.email,
+    bio: '',
+    location: '',
+    website: '',
+    phone: '',
+    occupation: '',
+    education: '',
+    avatar_url: null,
+    created_at: new Date().toISOString(),
   }
 
   return (
@@ -73,11 +167,11 @@ export default function ProfilePage() {
                   {/* Avatar */}
                   <div className="relative">
                     <Avatar className="h-24 w-24">
-                      <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
+                      <AvatarImage src={userData.avatar_url || "/placeholder.svg"} alt={userData.full_name} />
                       <AvatarFallback className="text-2xl">
-                        {user.name
+                        {userData.full_name
                           .split(" ")
-                          .map((n) => n[0])
+                          .map((n: string) => n[0])
                           .join("")}
                       </AvatarFallback>
                     </Avatar>
@@ -96,31 +190,33 @@ export default function ProfilePage() {
                   {/* User Info */}
                   <div className="flex-1 space-y-2">
                     <div className="flex items-center gap-2">
-                      <h2 className="text-2xl font-bold">{user.name}</h2>
-                      {user.verified && (
-                        <Badge variant="secondary" className="bg-green-100 text-green-800">
-                          <Shield className="mr-1 h-3 w-3" />
-                          Verified
-                        </Badge>
-                      )}
+                      <h2 className="text-2xl font-bold">{userData.full_name}</h2>
+                      <Badge variant="secondary" className="bg-green-100 text-green-800">
+                        <Shield className="mr-1 h-3 w-3" />
+                        Member
+                      </Badge>
                     </div>
 
                     <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Mail className="h-4 w-4" />
-                        {user.email}
+                        {userData.email}
                       </div>
-                      <div className="flex items-center gap-1">
-                        <MapPin className="h-4 w-4" />
-                        {user.location}
-                      </div>
+                      {userData.location && (
+                        <div className="flex items-center gap-1">
+                          <MapPin className="h-4 w-4" />
+                          {userData.location}
+                        </div>
+                      )}
                       <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4" />
-                        Joined {user.joinDate}
+                        Joined {new Date(userData.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                       </div>
                     </div>
 
-                    <p className="text-sm text-muted-foreground leading-relaxed">{user.bio}</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {userData.bio || "No bio added yet. Click 'Edit Profile' to add your bio."}
+                    </p>
 
                     {/* Action Buttons */}
                     <div className="flex gap-2 pt-2">
@@ -151,23 +247,23 @@ export default function ProfilePage() {
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{user.stats.communities}</div>
+                    <div className="text-2xl font-bold text-green-600">{defaultStats.communities}</div>
                     <div className="text-sm text-muted-foreground">Communities</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">{user.stats.posts}</div>
+                    <div className="text-2xl font-bold text-blue-600">{defaultStats.posts}</div>
                     <div className="text-sm text-muted-foreground">Posts</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">{user.stats.followers.toLocaleString()}</div>
+                    <div className="text-2xl font-bold text-purple-600">{defaultStats.followers.toLocaleString()}</div>
                     <div className="text-sm text-muted-foreground">Followers</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">{user.stats.following}</div>
+                    <div className="text-2xl font-bold text-orange-600">{defaultStats.following}</div>
                     <div className="text-sm text-muted-foreground">Following</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-yellow-600">{user.stats.reputation}</div>
+                    <div className="text-2xl font-bold text-yellow-600">{defaultStats.reputation}</div>
                     <div className="text-sm text-muted-foreground">Reputation</div>
                   </div>
                 </div>
@@ -184,7 +280,7 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {user.badges.map((badge, index) => (
+                  {defaultBadges.map((badge: any, index: number) => (
                     <div key={index} className="flex items-center gap-3 p-3 rounded-lg border bg-card">
                       <div className="text-2xl">{badge.icon}</div>
                       <div>
@@ -208,36 +304,50 @@ export default function ProfilePage() {
                 <CardTitle className="text-lg">Contact Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <Globe className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <div className="text-sm text-muted-foreground">Website</div>
-                    <a href={user.website} className="text-sm text-blue-600 hover:underline">
-                      {user.website}
-                    </a>
+                {userData.website && (
+                  <div className="flex items-center gap-3">
+                    <Globe className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <div className="text-sm text-muted-foreground">Website</div>
+                      <a href={userData.website} className="text-sm text-blue-600 hover:underline">
+                        {userData.website}
+                      </a>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <div className="text-sm text-muted-foreground">Phone</div>
-                    <div className="text-sm">{user.phone}</div>
+                )}
+                {userData.phone && (
+                  <div className="flex items-center gap-3">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <div className="text-sm text-muted-foreground">Phone</div>
+                      <div className="text-sm">{userData.phone}</div>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Briefcase className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <div className="text-sm text-muted-foreground">Occupation</div>
-                    <div className="text-sm">{user.occupation}</div>
+                )}
+                {userData.occupation && (
+                  <div className="flex items-center gap-3">
+                    <Briefcase className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <div className="text-sm text-muted-foreground">Occupation</div>
+                      <div className="text-sm">{userData.occupation}</div>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <GraduationCap className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <div className="text-sm text-muted-foreground">Education</div>
-                    <div className="text-sm">{user.education}</div>
+                )}
+                {userData.education && (
+                  <div className="flex items-center gap-3">
+                    <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <div className="text-sm text-muted-foreground">Education</div>
+                      <div className="text-sm">{userData.education}</div>
+                    </div>
                   </div>
-                </div>
+                )}
+                {!userData.website && !userData.phone && !userData.occupation && !userData.education && (
+                  <div className="text-center py-4 text-muted-foreground">
+                    <p className="text-sm">No contact information added yet.</p>
+                    <p className="text-xs mt-1">Click "Edit Profile" to add your details.</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 

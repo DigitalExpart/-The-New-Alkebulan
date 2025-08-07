@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -12,24 +12,115 @@ import { AvatarDisplay } from "@/components/avatar/avatar-display"
 import type { AvatarOption, AvatarCustomization } from "@/types/avatar"
 import { ArrowLeft, Save, User, Camera } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useAuth } from "@/hooks/use-auth"
+import { supabase } from "@/lib/supabase"
+import { toast } from "sonner"
+import Link from "next/link"
 
 export default function EditProfilePage() {
   const router = useRouter()
+  const { user } = useAuth()
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
 
-  // Mock current user data
+  // Form data state
   const [formData, setFormData] = useState({
-    name: "John Doe",
-    email: "john@example.com",
-    bio: "Passionate entrepreneur and community builder focused on connecting diaspora communities worldwide. I believe in the power of technology to bridge cultures and create opportunities.",
-    location: "New York, USA",
-    website: "https://johndoe.com",
-    phone: "+1 (555) 123-4567",
-    occupation: "Product Manager",
-    education: "MBA, Harvard Business School",
+    full_name: "",
+    email: "",
+    bio: "",
+    location: "",
+    website: "",
+    phone: "",
+    occupation: "",
+    education: "",
   })
 
   const [selectedAvatar, setSelectedAvatar] = useState<AvatarOption | null>(null)
   const [customization, setCustomization] = useState<AvatarCustomization | null>(null)
+
+  useEffect(() => {
+    if (user) {
+      fetchProfile()
+    }
+  }, [user])
+
+  const fetchProfile = async () => {
+    if (!user || !supabase) return
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single()
+
+      if (error) {
+        console.error('Error fetching profile:', error)
+        // Create default profile if none exists
+        await createDefaultProfile()
+      } else {
+        setFormData({
+          full_name: data.full_name || '',
+          email: data.email || user.email || '',
+          bio: data.bio || '',
+          location: data.location || '',
+          website: data.website || '',
+          phone: data.phone || '',
+          occupation: data.occupation || '',
+          education: data.education || '',
+        })
+      }
+    } catch (error) {
+      console.error('Error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const createDefaultProfile = async () => {
+    if (!user || !supabase) return
+
+    const defaultProfile = {
+      user_id: user.id,
+      email: user.email,
+      full_name: (user as any)?.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+      bio: '',
+      location: '',
+      website: '',
+      phone: '',
+      occupation: '',
+      education: '',
+      avatar_url: null,
+      is_public: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert([defaultProfile])
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Error creating profile:', error)
+      } else {
+        setFormData({
+          full_name: data.full_name || '',
+          email: data.email || '',
+          bio: data.bio || '',
+          location: data.location || '',
+          website: data.website || '',
+          phone: data.phone || '',
+          occupation: data.occupation || '',
+          education: data.education || '',
+        })
+      }
+    } catch (error) {
+      console.error('Error:', error)
+    }
+  }
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -42,16 +133,67 @@ export default function EditProfilePage() {
     }
   }
 
-  const handleSave = () => {
-    // Save profile data and avatar
-    console.log("Saving profile:", formData, selectedAvatar, customization)
+  const handleSave = async () => {
+    if (!user || !supabase) return
 
-    // Show success message and redirect
-    router.push("/profile")
+    setSaving(true)
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: formData.full_name,
+          email: formData.email,
+          bio: formData.bio,
+          location: formData.location,
+          website: formData.website,
+          phone: formData.phone,
+          occupation: formData.occupation,
+          education: formData.education,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id)
+
+      if (error) {
+        console.error('Error updating profile:', error)
+        toast.error('Failed to save profile changes')
+      } else {
+        toast.success('Profile updated successfully!')
+        router.push("/profile")
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Failed to save profile changes')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleCancel = () => {
     router.push("/profile")
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-muted/30 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading profile...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-muted/30 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Please sign in to edit your profile</h1>
+          <Button asChild>
+            <Link href="/auth/signin">Sign In</Link>
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -89,11 +231,11 @@ export default function EditProfilePage() {
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
+                    <Label htmlFor="full_name">Full Name</Label>
                     <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => handleInputChange("name", e.target.value)}
+                      id="full_name"
+                      value={formData.full_name}
+                      onChange={(e) => handleInputChange("full_name", e.target.value)}
                       placeholder="Enter your full name"
                     />
                   </div>
@@ -205,12 +347,12 @@ export default function EditProfilePage() {
 
         {/* Action Buttons */}
         <div className="flex justify-end gap-4 mt-8 pt-6 border-t">
-          <Button variant="outline" onClick={handleCancel}>
+          <Button variant="outline" onClick={handleCancel} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={handleSave} className="bg-green-600 hover:bg-green-700">
+          <Button onClick={handleSave} className="bg-green-600 hover:bg-green-700" disabled={saving}>
             <Save className="w-4 h-4 mr-2" />
-            Save Changes
+            {saving ? 'Saving...' : 'Save Changes'}
           </Button>
         </div>
       </div>
