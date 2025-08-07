@@ -537,3 +537,17 @@ COMMENT ON TABLE user_connections IS 'User connections with RLS ensuring proper 
 
 COMMENT ON FUNCTION public.handle_new_user() IS 'Automatically creates a profile when a user signs up';
 COMMENT ON FUNCTION public.create_notification() IS 'Creates notifications for users with proper security'; 
+
+-- Add the missing user_id column to your existing profiles table
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
+
+-- Make it NOT NULL and UNIQUE
+ALTER TABLE public.profiles ALTER COLUMN user_id SET NOT NULL;
+ALTER TABLE public.profiles ADD CONSTRAINT profiles_user_id_unique UNIQUE (user_id);
+
+-- Enable RLS
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+-- Add basic policy
+CREATE POLICY "Users can manage own profile" ON public.profiles
+    FOR ALL USING (auth.uid() = user_id); 
