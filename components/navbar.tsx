@@ -81,10 +81,10 @@ export function Navbar() {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-[hsl(var(--navbar-bg))] text-[hsl(var(--navbar-text))] border-b border-[hsl(var(--border))] shadow-lg">
       <div className="w-full px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center h-16 gap-2">
+        <div className="flex items-center h-16 gap-4">
           {/* Logo with Text - Fixed width to prevent shifting */}
-          <div className="flex items-center flex-shrink-0 w-auto mr-4">
-            <Link href="/" className="flex items-center space-x-3" onClick={handleLogoClick}>
+          <div className="flex items-center flex-shrink-0 w-auto mr-6">
+            <Link href="/" className="flex items-center space-x-2" onClick={handleLogoClick}>
               <div
                 className={`relative w-12 h-12 flex-shrink-0 transition-transform duration-200 ease-in-out cursor-pointer ${
                   isLogoAnimating ? "heartbeat-animation" : "hover:scale-110"
@@ -99,14 +99,14 @@ export function Navbar() {
                 />
               </div>
               <div className="flex flex-col items-start justify-center text-left leading-tight">
-                <span className="text-sm font-medium text-yellow-500 whitespace-nowrap">The New</span>
-                <span className="text-lg font-bold text-yellow-500 whitespace-nowrap -mt-0.5">Alkebulan</span>
+                <span className="text-xs font-medium text-yellow-500 whitespace-nowrap">The New</span>
+                <span className="text-base font-bold text-yellow-500 whitespace-nowrap -mt-0.5">Alkebulan</span>
               </div>
             </Link>
           </div>
 
           {/* Desktop Navigation - Left aligned with proper spacing */}
-          <div className="hidden lg:flex items-center justify-center space-x-0.5 flex-1 min-w-0">
+          <div className="hidden lg:flex items-center justify-start space-x-1 flex-1 min-w-0 ml-4">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -418,7 +418,7 @@ export function Navbar() {
           </div>
 
           {/* Right Side Icons - Fixed positioning */}
-          <div className="flex items-center space-x-2 flex-shrink-0 ml-auto min-w-0">
+          <div className="flex items-center space-x-3 flex-shrink-0 ml-auto min-w-0">
             {/* Animated Search */}
             <AnimatedSearch
               onSearch={handleSearch}
