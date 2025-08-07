@@ -81,7 +81,7 @@ export function Navbar() {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-[hsl(var(--navbar-bg))] text-[hsl(var(--navbar-text))] border-b border-[hsl(var(--border))] shadow-lg">
       <div className="w-full px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center h-16">
+        <div className="flex items-center h-16 gap-2">
           {/* Logo with Text - Fixed width to prevent shifting */}
           <div className="flex items-center flex-shrink-0 w-auto mr-4">
             <Link href="/" className="flex items-center space-x-3" onClick={handleLogoClick}>
@@ -106,13 +106,13 @@ export function Navbar() {
           </div>
 
           {/* Desktop Navigation - Left aligned with proper spacing */}
-          <div className="hidden lg:flex items-center justify-center space-x-1 flex-1">
+          <div className="hidden lg:flex items-center justify-center space-x-0.5 flex-1 min-w-0">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-3 py-2 text-sm"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-2 text-sm whitespace-nowrap"
                 >
                   <Sprout className="w-4 h-4 mr-1" />
                   Growth
@@ -163,7 +163,7 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-3 py-2 text-sm"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-2 text-sm whitespace-nowrap"
                 >
                   <Users className="w-4 h-4 mr-1" />
                   Community
@@ -214,7 +214,7 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-3 py-2 text-sm"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-2 text-sm whitespace-nowrap"
                 >
                   <ShoppingCart className="w-4 h-4 mr-1" />
                   Marketplace
@@ -247,7 +247,7 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-3 py-2 text-sm"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-2 text-sm whitespace-nowrap"
                 >
                   <Briefcase className="w-4 h-4 mr-1" />
                   Business
@@ -298,7 +298,7 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-3 py-2 text-sm"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-2 text-sm whitespace-nowrap"
                 >
                   <TrendingUp className="w-4 h-4 mr-1" />
                   Finance
@@ -331,7 +331,7 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-3 py-2 text-sm"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-2 text-sm whitespace-nowrap"
                 >
                   <Heart className="w-4 h-4 mr-1" />
                   Health
@@ -364,7 +364,7 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-3 py-2 text-sm"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-2 text-sm whitespace-nowrap"
                 >
                   <Shield className="w-4 h-4 mr-1" />
                   Governance
@@ -408,7 +408,7 @@ export function Navbar() {
               variant="ghost"
               size="sm"
               asChild
-              className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-3 py-2 text-sm"
+              className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-2 text-sm whitespace-nowrap"
             >
               <Link href="/join-the-team">
                 <UserPlus className="w-4 h-4 mr-1" />
@@ -418,12 +418,12 @@ export function Navbar() {
           </div>
 
           {/* Right Side Icons - Fixed positioning */}
-          <div className="flex items-center space-x-2 flex-shrink-0 ml-auto">
+          <div className="flex items-center space-x-2 flex-shrink-0 ml-auto min-w-0">
             {/* Animated Search */}
             <AnimatedSearch
               onSearch={handleSearch}
-              placeholder="Search The New Alkebulan..."
-              className="hidden md:flex"
+              placeholder="Search..."
+              className="hidden md:flex w-48 lg:w-56"
             />
 
             {/* Join Alkebulan Button */}
