@@ -9,22 +9,9 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // Add output configuration for Vercel
-  output: 'standalone',
-  // Ensure proper static generation
+  // Remove output: 'standalone' as it can cause issues
+  // Remove experimental.appDir as it's no longer needed in Next.js 15
   trailingSlash: false,
-  // Handle potential build issues
-  experimental: {
-    // Enable app directory features
-    appDir: true,
-  },
-  // Ensure proper routing
-  async redirects() {
-    return []
-  },
-  async rewrites() {
-    return []
-  }
 }
 
 export default nextConfig
