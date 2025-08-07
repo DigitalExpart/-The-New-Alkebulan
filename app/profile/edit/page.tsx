@@ -138,27 +138,67 @@ export default function EditProfilePage() {
 
     setSaving(true)
     try {
-      const { error } = await supabase
+      // First, check if profile exists
+      const { data: existingProfile, error: fetchError } = await supabase
         .from('profiles')
-        .update({
-          full_name: formData.full_name,
-          email: formData.email,
-          bio: formData.bio,
-          location: formData.location,
-          website: formData.website,
-          phone: formData.phone,
-          occupation: formData.occupation,
-          education: formData.education,
-          updated_at: new Date().toISOString()
-        })
+        .select('id')
         .eq('user_id', user.id)
+        .single()
 
-      if (error) {
-        console.error('Error updating profile:', error)
-        toast.error('Failed to save profile changes')
+      if (fetchError && fetchError.code === 'PGRST116') {
+        // Profile doesn't exist, create it
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert([{
+            user_id: user.id,
+            email: formData.email,
+            full_name: formData.full_name,
+            bio: formData.bio,
+            location: formData.location,
+            website: formData.website,
+            phone: formData.phone,
+            occupation: formData.occupation,
+            education: formData.education,
+            avatar_url: null,
+            is_public: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }])
+
+        if (insertError) {
+          console.error('Error creating profile:', insertError)
+          toast.error('Failed to create profile: ' + insertError.message)
+        } else {
+          toast.success('Profile created successfully!')
+          router.push("/profile")
+        }
+      } else if (fetchError) {
+        console.error('Error fetching profile:', fetchError)
+        toast.error('Failed to save profile changes: ' + fetchError.message)
       } else {
-        toast.success('Profile updated successfully!')
-        router.push("/profile")
+        // Profile exists, update it
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            full_name: formData.full_name,
+            email: formData.email,
+            bio: formData.bio,
+            location: formData.location,
+            website: formData.website,
+            phone: formData.phone,
+            occupation: formData.occupation,
+            education: formData.education,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id)
+
+        if (updateError) {
+          console.error('Error updating profile:', updateError)
+          toast.error('Failed to save profile changes: ' + updateError.message)
+        } else {
+          toast.success('Profile updated successfully!')
+          router.push("/profile")
+        }
       }
     } catch (error) {
       console.error('Error:', error)

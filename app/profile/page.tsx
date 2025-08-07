@@ -42,6 +42,7 @@ export default function ProfilePage() {
     if (!user || !supabase) return
 
     try {
+      console.log('Fetching profile for user:', user.id)
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -50,9 +51,14 @@ export default function ProfilePage() {
 
       if (error) {
         console.error('Error fetching profile:', error)
-        // Create default profile if none exists
-        await createDefaultProfile()
+        if (error.code === 'PGRST116') {
+          // Profile doesn't exist, create it
+          await createDefaultProfile()
+        } else {
+          console.error('Unexpected error:', error)
+        }
       } else {
+        console.log('Profile fetched successfully:', data)
         setProfile(data)
       }
     } catch (error) {
