@@ -36,12 +36,15 @@ import {
   ClipboardList,
   Scale,
   Map,
+  Settings,
+  LogOut,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { UserAvatar } from "@/components/user-avatar"
 import { AnimatedSearch } from "@/components/animated-search"
 import { NotificationsDropdown } from "@/components/notifications/notifications-dropdown"
+import { useAuth } from "@/hooks/use-auth"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,6 +58,7 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const [isLogoAnimating, setIsLogoAnimating] = useState(false)
   const pathname = usePathname()
+  const { user, signOut } = useAuth()
 
   const toggleMenu = () => setIsOpen(!isOpen)
 
@@ -447,34 +451,83 @@ export function Navbar() {
               <Zap className="w-4 h-4" />
             </Button>
 
-            {/* User Menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+            {/* User Menu - Show when logged in */}
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] p-1"
+                  >
+                    <UserAvatar 
+                      size="sm" 
+                      fallbackName={user.email?.split('@')[0] || 'User'} 
+                    />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">
+                        {(user as any)?.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
+                      </p>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        {user.email}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard">
+                      <Monitor className="w-4 h-4 mr-2" />
+                      Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile">
+                      <UserCheck className="w-4 h-4 mr-2" />
+                      Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile/edit">
+                      <UserCheck className="w-4 h-4 mr-2" />
+                      Edit Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>
+                    <Settings className="w-4 h-4 mr-2" />
+                    Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={signOut}>
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              /* Show login/signup buttons when not logged in */
+              <div className="flex items-center space-x-2">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] p-1"
+                  asChild
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))]"
                 >
-                  <UserAvatar size="sm" />
+                  <Link href="/auth/signin">Sign In</Link>
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/profile">Profile</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/profile/edit">Edit Profile</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/profile/account-protection">Account Protection</Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>Settings</DropdownMenuItem>
-                <DropdownMenuItem>Sign out</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                <Button
+                  variant="default"
+                  size="sm"
+                  asChild
+                  className="bg-yellow-500 text-black hover:bg-yellow-600"
+                >
+                  <Link href="/auth/signup">Sign Up</Link>
+                </Button>
+              </div>
+            )}
 
             {/* Mobile menu button */}
             <Button
@@ -496,6 +549,72 @@ export function Navbar() {
               <div className="mb-3 md:hidden">
                 <AnimatedSearch onSearch={handleSearch} placeholder="Search..." className="w-full" />
               </div>
+
+              {/* User Section - Mobile */}
+              {user ? (
+                <div className="border-b border-[hsl(var(--border))] pb-2 mb-2">
+                  <div className="px-3 py-2 text-[hsl(var(--navbar-text))] font-medium text-sm flex items-center">
+                    <UserCheck className="w-4 h-4 mr-2" />
+                    My Account
+                  </div>
+                  <div className="ml-6 space-y-1">
+                    <Link
+                      href="/dashboard"
+                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <Monitor className="w-4 h-4 inline mr-2" />
+                      Dashboard
+                    </Link>
+                    <Link
+                      href="/profile"
+                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <UserCheck className="w-4 h-4 inline mr-2" />
+                      Profile
+                    </Link>
+                    <Link
+                      href="/profile/edit"
+                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <Settings className="w-4 h-4 inline mr-2" />
+                      Edit Profile
+                    </Link>
+                    <button
+                      onClick={() => {
+                        signOut()
+                        setIsOpen(false)
+                      }}
+                      className="block w-full text-left px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
+                    >
+                      <LogOut className="w-4 h-4 inline mr-2" />
+                      Sign Out
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Show login/signup buttons when not logged in - Mobile */
+                <div className="border-b border-[hsl(var(--border))] pb-2 mb-2">
+                  <div className="space-y-2">
+                    <Link
+                      href="/auth/signin"
+                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm text-center"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      Sign In
+                    </Link>
+                    <Link
+                      href="/auth/signup"
+                      className="block px-3 py-2 bg-yellow-500 text-black hover:bg-yellow-600 rounded-md text-sm text-center font-medium"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      Sign Up
+                    </Link>
+                  </div>
+                </div>
+              )}
 
               {/* Join Alkebulan Button Mobile */}
               <Link
