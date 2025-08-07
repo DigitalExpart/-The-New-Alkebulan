@@ -83,7 +83,7 @@ export function Navbar() {
       <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex items-center h-16 gap-4">
           {/* Logo with Text - Fixed width to prevent shifting */}
-          <div className="flex items-center flex-shrink-0 w-auto mr-6">
+          <div className="flex items-center flex-shrink-0 w-auto mr-4">
             <Link href="/" className="flex items-center space-x-2" onClick={handleLogoClick}>
               <div
                 className={`relative w-12 h-12 flex-shrink-0 transition-transform duration-200 ease-in-out cursor-pointer ${
@@ -106,15 +106,15 @@ export function Navbar() {
           </div>
 
           {/* Desktop Navigation - Left aligned with proper spacing */}
-          <div className="hidden lg:flex items-center justify-start space-x-1 flex-1 min-w-0 ml-4">
+          <div className="hidden lg:flex items-center justify-start space-x-0.5 flex-1 min-w-0 ml-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-2 text-sm whitespace-nowrap"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1.5 py-2 text-xs whitespace-nowrap"
                 >
-                  <Sprout className="w-4 h-4 mr-1" />
+                  <Sprout className="w-3 h-3 mr-1" />
                   Growth
                 </Button>
               </DropdownMenuTrigger>
@@ -163,9 +163,9 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-2 text-sm whitespace-nowrap"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1.5 py-2 text-xs whitespace-nowrap"
                 >
-                  <Users className="w-4 h-4 mr-1" />
+                  <Users className="w-3 h-3 mr-1" />
                   Community
                 </Button>
               </DropdownMenuTrigger>
@@ -214,9 +214,9 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-2 text-sm whitespace-nowrap"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1.5 py-2 text-xs whitespace-nowrap"
                 >
-                  <ShoppingCart className="w-4 h-4 mr-1" />
+                  <ShoppingCart className="w-3 h-3 mr-1" />
                   Marketplace
                 </Button>
               </DropdownMenuTrigger>
@@ -247,9 +247,9 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-2 text-sm whitespace-nowrap"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1.5 py-2 text-xs whitespace-nowrap"
                 >
-                  <Briefcase className="w-4 h-4 mr-1" />
+                  <Briefcase className="w-3 h-3 mr-1" />
                   Business
                 </Button>
               </DropdownMenuTrigger>
@@ -298,9 +298,9 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-2 text-sm whitespace-nowrap"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1.5 py-2 text-xs whitespace-nowrap"
                 >
-                  <TrendingUp className="w-4 h-4 mr-1" />
+                  <TrendingUp className="w-3 h-3 mr-1" />
                   Finance
                 </Button>
               </DropdownMenuTrigger>
@@ -331,9 +331,9 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-2 text-sm whitespace-nowrap"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1.5 py-2 text-xs whitespace-nowrap"
                 >
-                  <Heart className="w-4 h-4 mr-1" />
+                  <Heart className="w-3 h-3 mr-1" />
                   Health
                 </Button>
               </DropdownMenuTrigger>
@@ -364,9 +364,9 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-2 text-sm whitespace-nowrap"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1.5 py-2 text-xs whitespace-nowrap"
                 >
-                  <Shield className="w-4 h-4 mr-1" />
+                  <Shield className="w-3 h-3 mr-1" />
                   Governance
                 </Button>
               </DropdownMenuTrigger>
@@ -408,22 +408,22 @@ export function Navbar() {
               variant="ghost"
               size="sm"
               asChild
-              className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-2 text-sm whitespace-nowrap"
+              className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1.5 py-2 text-xs whitespace-nowrap"
             >
               <Link href="/join-the-team">
-                <UserPlus className="w-4 h-4 mr-1" />
+                <UserPlus className="w-3 h-3 mr-1" />
                 Join the Team!
               </Link>
             </Button>
           </div>
 
           {/* Right Side Icons - Fixed positioning */}
-          <div className="flex items-center space-x-3 flex-shrink-0 ml-auto min-w-0">
+          <div className="flex items-center space-x-2 flex-shrink-0 ml-auto min-w-0">
             {/* Animated Search */}
             <AnimatedSearch
               onSearch={handleSearch}
               placeholder="Search..."
-              className="hidden md:flex w-48 lg:w-56"
+              className="hidden md:flex w-40 lg:w-48"
             />
 
             {/* Join Alkebulan Button */}
