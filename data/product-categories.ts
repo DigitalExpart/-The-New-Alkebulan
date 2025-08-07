@@ -1,0 +1,108 @@
+import type { ProductCategory } from "@/types/product-upload"
+
+export const productCategories: ProductCategory[] = [
+  {
+    id: "digital-art",
+    name: "Digital Art & Design",
+    subcategories: [
+      "Illustrations",
+      "Photography",
+      "Graphic Templates",
+      "3D Models",
+      "Icons & Logos",
+      "UI/UX Kits",
+      "Fonts & Typography",
+    ],
+  },
+  {
+    id: "education",
+    name: "Education & Learning",
+    subcategories: [
+      "Online Courses",
+      "E-books",
+      "Study Guides",
+      "Language Learning",
+      "Skill Development",
+      "Certification Prep",
+      "Children's Education",
+    ],
+  },
+  {
+    id: "business",
+    name: "Business & Finance",
+    subcategories: [
+      "Business Plans",
+      "Financial Templates",
+      "Marketing Materials",
+      "Legal Documents",
+      "Consulting Services",
+      "Software Tools",
+      "Investment Guides",
+    ],
+  },
+  {
+    id: "health-wellness",
+    name: "Health & Wellness",
+    subcategories: [
+      "Fitness Programs",
+      "Nutrition Guides",
+      "Mental Health Resources",
+      "Medical Information",
+      "Wellness Products",
+      "Traditional Medicine",
+      "Health Apps",
+    ],
+  },
+  {
+    id: "technology",
+    name: "Technology & Software",
+    subcategories: [
+      "Mobile Apps",
+      "Web Applications",
+      "Software Tools",
+      "Code Templates",
+      "Tech Tutorials",
+      "Hardware Guides",
+      "Development Resources",
+    ],
+  },
+  {
+    id: "culture-arts",
+    name: "Culture & Arts",
+    subcategories: [
+      "Traditional Crafts",
+      "Music & Audio",
+      "Cultural Guides",
+      "Art Collections",
+      "Historical Content",
+      "Language Resources",
+      "Cultural Events",
+    ],
+  },
+  {
+    id: "food-recipes",
+    name: "Food & Recipes",
+    subcategories: [
+      "Recipe Collections",
+      "Cooking Guides",
+      "Nutrition Plans",
+      "Restaurant Resources",
+      "Food Photography",
+      "Culinary Tools",
+      "Diet Programs",
+    ],
+  },
+  {
+    id: "lifestyle",
+    name: "Lifestyle & Personal",
+    subcategories: [
+      "Fashion & Style",
+      "Home & Garden",
+      "Travel Guides",
+      "Personal Development",
+      "Hobbies & Crafts",
+      "Relationships",
+      "Entertainment",
+    ],
+  },
+]

@@ -1,0 +1,235 @@
+import type {
+  NaturalLawPrinciple,
+  IncidentReport,
+  CaseFileEntry,
+  PublicMisconductPost,
+  NaturalCourtRequest,
+  JusticeStats,
+} from "@/types/justice"
+
+export const naturalLawPrinciples: NaturalLawPrinciple[] = [
+  {
+    id: "1",
+    title: "Do No Harm",
+    description:
+      "The fundamental principle that no individual should cause harm to another person or their property without just cause.",
+    category: "fundamental",
+    examples: [
+      "Respecting physical boundaries and personal safety",
+      "Avoiding actions that damage others' property",
+      "Speaking truthfully to prevent emotional or financial harm",
+    ],
+    relatedPrinciples: ["2", "3"],
+    resources: [
+      {
+        id: "r1",
+        title: "Understanding Natural Law Foundations",
+        type: "pdf",
+        url: "/resources/natural-law-foundations.pdf",
+        description: "Comprehensive guide to natural law principles",
+        uploadDate: "2024-01-15",
+      },
+      {
+        id: "r2",
+        title: "Natural Law in Practice",
+        type: "video",
+        url: "/resources/natural-law-practice.mp4",
+        description: "Video explanation of applying natural law principles",
+        uploadDate: "2024-01-20",
+      },
+    ],
+  },
+  {
+    id: "2",
+    title: "Right to Self-Defense",
+    description:
+      "Every individual has the inherent right to defend themselves, their property, and their loved ones from harm.",
+    category: "rights",
+    examples: [
+      "Protecting oneself from physical attack",
+      "Defending property from theft or vandalism",
+      "Safeguarding family members from threats",
+    ],
+    relatedPrinciples: ["1", "4"],
+    resources: [
+      {
+        id: "r3",
+        title: "Self-Defense Rights and Responsibilities",
+        type: "article",
+        url: "/resources/self-defense-rights.html",
+        description: "Legal and ethical aspects of self-defense",
+        uploadDate: "2024-01-18",
+      },
+    ],
+  },
+  {
+    id: "3",
+    title: "Property Rights",
+    description: "Individuals have the right to acquire, use, and dispose of property through honest means.",
+    category: "rights",
+    examples: ["Owning land and buildings", "Intellectual property protection", "Personal belongings and possessions"],
+    relatedPrinciples: ["1", "5"],
+    resources: [],
+  },
+  {
+    id: "4",
+    title: "Personal Responsibility",
+    description: "Each individual is responsible for their actions and must accept the consequences of their choices.",
+    category: "responsibilities",
+    examples: ["Taking accountability for mistakes", "Making amends for harm caused", "Learning from past experiences"],
+    relatedPrinciples: ["1", "2"],
+    resources: [],
+  },
+  {
+    id: "5",
+    title: "Due Process",
+    description: "Fair and impartial procedures must be followed when addressing disputes or alleged wrongdoing.",
+    category: "procedures",
+    examples: ["Right to present evidence", "Impartial hearing process", "Opportunity to respond to accusations"],
+    relatedPrinciples: ["6", "7"],
+    resources: [],
+  },
+]
+
+export const sampleIncidentReports: IncidentReport[] = [
+  {
+    id: "ir1",
+    title: "Workplace Discrimination",
+    description: "Experienced discriminatory treatment based on cultural background during job interview process.",
+    date: "2024-01-15",
+    time: "14:30",
+    location: "Downtown Business District",
+    category: "discrimination",
+    files: [],
+    isAnonymous: false,
+    status: "under_review",
+    submittedBy: "user123",
+    submittedAt: "2024-01-15T14:45:00Z",
+    isPublic: true,
+  },
+  {
+    id: "ir2",
+    title: "Financial Fraud",
+    description: "Fraudulent investment scheme targeting community members.",
+    date: "2024-01-10",
+    time: "10:00",
+    location: "Community Center",
+    category: "fraud",
+    files: [],
+    isAnonymous: true,
+    status: "approved",
+    submittedAt: "2024-01-10T15:20:00Z",
+    isPublic: true,
+  },
+]
+
+export const sampleCaseFileEntries: CaseFileEntry[] = [
+  {
+    id: "cf1",
+    title: "Employment Contract Review",
+    description: "Analysis of employment contract terms and potential violations.",
+    date: "2024-01-20",
+    category: "legal_document",
+    files: [],
+    tags: ["employment", "contract", "review"],
+    createdAt: "2024-01-20T09:00:00Z",
+    updatedAt: "2024-01-20T09:00:00Z",
+  },
+  {
+    id: "cf2",
+    title: "Witness Statement - Market Incident",
+    description: "Testimony from witness regarding marketplace dispute.",
+    date: "2024-01-18",
+    category: "witness_statement",
+    files: [],
+    tags: ["witness", "marketplace", "dispute"],
+    createdAt: "2024-01-18T16:30:00Z",
+    updatedAt: "2024-01-18T16:30:00Z",
+  },
+]
+
+export const samplePublicMisconductPosts: PublicMisconductPost[] = [
+  {
+    id: "pm1",
+    title: "Vendor Overcharging Incident",
+    description: "Multiple reports of a marketplace vendor consistently overcharging customers.",
+    date: "2024-01-22",
+    location: "Central Marketplace",
+    category: "fraud",
+    type: "misconduct",
+    region: "Central District",
+    reactions: {
+      support: 15,
+      concern: 8,
+      question: 3,
+    },
+    comments: [
+      {
+        id: "c1",
+        author: "CommunityMember1",
+        content: "I experienced this too. We need to address this systematically.",
+        timestamp: "2024-01-22T10:30:00Z",
+        replies: [],
+        reactions: { like: 5, dislike: 0 },
+      },
+    ],
+    isApproved: true,
+    reportedAt: "2024-01-22T08:00:00Z",
+  },
+  {
+    id: "pm2",
+    title: "Harassment at Community Event",
+    description: "Reports of inappropriate behavior during community gathering.",
+    date: "2024-01-20",
+    location: "Community Hall",
+    category: "harassment",
+    type: "incident",
+    region: "North District",
+    reactions: {
+      support: 22,
+      concern: 12,
+      question: 1,
+    },
+    comments: [],
+    isApproved: true,
+    reportedAt: "2024-01-20T19:45:00Z",
+  },
+]
+
+export const sampleCourtRequests: NaturalCourtRequest[] = [
+  {
+    id: "ncr1",
+    incidentId: "ir1",
+    caseSummary: "Requesting formal hearing for workplace discrimination case with evidence of systematic bias.",
+    evidence: [],
+    naturalLawPrinciples: ["1", "3"],
+    desiredOutcome: "Fair compensation and policy changes to prevent future discrimination.",
+    priority: "medium",
+    status: "under_review",
+    submittedAt: "2024-01-16T10:00:00Z",
+    estimatedTimeline: "2-3 weeks",
+    assignedArbitrator: "Arbitrator Johnson",
+  },
+  {
+    id: "ncr2",
+    caseSummary: "Property dispute regarding boundary violations and damage to crops.",
+    evidence: [],
+    naturalLawPrinciples: ["3", "5"],
+    desiredOutcome: "Restoration of property boundaries and compensation for damages.",
+    priority: "high",
+    status: "scheduled",
+    submittedAt: "2024-01-14T14:20:00Z",
+    estimatedTimeline: "1-2 weeks",
+    assignedArbitrator: "Arbitrator Smith",
+    hearingDate: "2024-01-28T09:00:00Z",
+  },
+]
+
+export const justiceStats: JusticeStats = {
+  totalReports: 127,
+  resolvedCases: 89,
+  activeInvestigations: 23,
+  communityTrust: 87,
+  averageResolutionTime: "18 days",
+  userSatisfaction: 92,
+}

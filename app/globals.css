@@ -1,0 +1,518 @@
+@font-face {
+  font-family: "Agrandir";
+  src: url("/fonts/Agrandir-Regular.woff2") format("woff2"), url("/fonts/Agrandir-Regular.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Agrandir";
+  src: url("/fonts/Agrandir-Medium.woff2") format("woff2"), url("/fonts/Agrandir-Medium.woff") format("woff");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Agrandir";
+  src: url("/fonts/Agrandir-SemiBold.woff2") format("woff2"), url("/fonts/Agrandir-SemiBold.woff") format("woff");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Agrandir";
+  src: url("/fonts/Agrandir-Bold.woff2") format("woff2"), url("/fonts/Agrandir-Bold.woff") format("woff");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Agrandir";
+  src: url("/fonts/Agrandir-ExtraBold.woff2") format("woff2"), url("/fonts/Agrandir-ExtraBold.woff") format("woff");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Simple design with #142b20 background for all themes */
+    --background: 150 40% 8%; /* #142b20 */
+    --foreground: 0 0% 100%; /* White text */
+    --card: 150 35% 10%; /* Slightly lighter than background */
+    --card-foreground: 0 0% 100%;
+    --popover: 150 35% 10%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 51 100% 50%; /* Fade yellow (#FFD700) */
+    --primary-foreground: 150 40% 8%; /* Dark background for contrast */
+    --secondary: 150 30% 15%; /* Darker green for secondary elements */
+    --secondary-foreground: 0 0% 100%;
+    --muted: 150 25% 12%; /* Muted dark green */
+    --muted-foreground: 0 0% 75%; /* Light gray for muted text */
+    --accent: 51 100% 50%; /* Fade yellow accent */
+    --accent-foreground: 150 40% 8%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 150 25% 18%; /* Subtle border color */
+    --input: 150 30% 15%; /* Input background */
+    --ring: 51 100% 50%; /* Yellow focus ring */
+    --radius: 0.5rem;
+    --chart-1: 51 100% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 80 60% 45%;
+    --chart-4: 200 60% 45%;
+    --chart-5: 280 60% 45%;
+
+    /* Custom theme variables */
+    --navbar-bg: 150 40% 8%; /* Same as background */
+    --navbar-text: 0 0% 100%;
+    --navbar-hover: 150 30% 15%;
+    --navbar-accent: 51 100% 50%; /* Fade yellow accent */
+    --footer-bg: 150 40% 8%;
+    --footer-text: 0 0% 100%;
+    --section-light: 150 35% 10%;
+    --section-dark: 150 40% 8%;
+  }
+
+  .dark {
+    /* Dark theme - Same as light theme for consistency */
+    --background: 150 40% 8%; /* #142b20 */
+    --foreground: 0 0% 100%; /* White text */
+    --card: 150 35% 10%; /* Slightly lighter than background */
+    --card-foreground: 0 0% 100%;
+    --popover: 150 35% 10%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 51 100% 50%; /* Fade yellow (#FFD700) */
+    --primary-foreground: 150 40% 8%; /* Dark background for contrast */
+    --secondary: 150 30% 15%; /* Darker green for secondary elements */
+    --secondary-foreground: 0 0% 100%;
+    --muted: 150 25% 12%; /* Muted dark green */
+    --muted-foreground: 0 0% 75%; /* Light gray for muted text */
+    --accent: 51 100% 50%; /* Fade yellow accent */
+    --accent-foreground: 150 40% 8%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 150 25% 18%; /* Subtle border color */
+    --input: 150 30% 15%; /* Input background */
+    --ring: 51 100% 50%; /* Yellow focus ring */
+    --chart-1: 51 100% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 80 60% 45%;
+    --chart-4: 200 60% 45%;
+    --chart-5: 280 60% 45%;
+
+    /* Custom dark theme variables */
+    --navbar-bg: 150 40% 8%; /* Same as background */
+    --navbar-text: 0 0% 100%;
+    --navbar-hover: 150 30% 15%;
+    --navbar-accent: 51 100% 50%; /* Fade yellow accent */
+    --footer-bg: 150 40% 8%;
+    --footer-text: 0 0% 100%;
+    --section-light: 150 35% 10%;
+    --section-dark: 150 40% 8%;
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+    transition: color 0.3s ease-in-out, background-color 0.3s ease-in-out, border-color 0.3s ease-in-out;
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: "Agrandir", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    transition: color 0.3s ease-in-out, background-color 0.3s ease-in-out;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "Agrandir", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-weight: 700;
+    color: hsl(var(--foreground));
+  }
+
+  /* Enhanced button styles */
+  button {
+    transition: all 0.3s ease-in-out;
+  }
+
+  .bg-primary {
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+  }
+
+  .bg-primary:hover {
+    background-color: hsl(51 100% 45%); /* Slightly darker yellow on hover */
+  }
+
+  /* Enhanced input styles */
+  input,
+  textarea,
+  select {
+    background-color: hsl(var(--input));
+    border-color: hsl(var(--border));
+    color: hsl(var(--foreground));
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    border-color: hsl(var(--ring));
+    box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
+  }
+
+  /* Enhanced card styles */
+  .bg-card {
+    background-color: hsl(var(--card));
+    border-color: hsl(var(--border));
+  }
+
+  /* Enhanced dropdown and popover styles */
+  [data-radix-popper-content-wrapper] {
+    background-color: hsl(var(--popover));
+    border-color: hsl(var(--border));
+  }
+}
+
+/* Simple theme-aware custom classes */
+.section-dark {
+  background-color: hsl(var(--section-dark));
+  color: hsl(var(--foreground));
+  transition: color 0.3s ease-in-out, background-color 0.3s ease-in-out;
+}
+
+.section-light {
+  background-color: hsl(var(--section-light));
+  color: hsl(var(--foreground));
+  transition: color 0.3s ease-in-out, background-color 0.3s ease-in-out;
+}
+
+.card-themed {
+  background-color: hsl(var(--card));
+  border-color: hsl(var(--border));
+  color: hsl(var(--card-foreground));
+  transition: color 0.3s ease-in-out, background-color 0.3s ease-in-out, border-color 0.3s ease-in-out;
+}
+
+.button-primary {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  transition: all 0.3s ease-in-out;
+}
+
+.button-primary:hover {
+  background-color: hsl(51 100% 45%);
+}
+
+.button-outline {
+  border-color: hsl(var(--border));
+  color: hsl(var(--foreground));
+  background-color: transparent;
+  transition: all 0.3s ease-in-out;
+}
+
+.button-outline:hover {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+/* Navbar theme-aware styles */
+.navbar-themed {
+  background-color: hsl(var(--navbar-bg));
+  color: hsl(var(--navbar-text));
+  border-color: hsl(var(--border));
+  transition: color 0.3s ease-in-out, background-color 0.3s ease-in-out, border-color 0.3s ease-in-out;
+}
+
+.navbar-item-themed {
+  color: hsl(var(--navbar-text));
+  transition: color 0.3s ease-in-out, background-color 0.3s ease-in-out;
+}
+
+.navbar-item-themed:hover {
+  background-color: hsl(var(--navbar-hover));
+}
+
+.navbar-item-active {
+  color: hsl(var(--navbar-accent));
+  font-weight: 600;
+}
+
+/* Footer theme-aware styles */
+.footer-themed {
+  background-color: hsl(var(--footer-bg));
+  color: hsl(var(--footer-text));
+  border-color: hsl(var(--border));
+  transition: color 0.3s ease-in-out, background-color 0.3s ease-in-out, border-color 0.3s ease-in-out;
+}
+
+/* Agrandir font weight utilities */
+.font-agrandir-light {
+  font-family: "Agrandir", "Inter", sans-serif;
+  font-weight: 300;
+}
+
+.font-agrandir-regular {
+  font-family: "Agrandir", "Inter", sans-serif;
+  font-weight: 400;
+}
+
+.font-agrandir-medium {
+  font-family: "Agrandir", "Inter", sans-serif;
+  font-weight: 500;
+}
+
+.font-agrandir-semibold {
+  font-family: "Agrandir", "Inter", sans-serif;
+  font-weight: 600;
+}
+
+.font-agrandir-bold {
+  font-family: "Agrandir", "Inter", sans-serif;
+  font-weight: 700;
+}
+
+.font-agrandir-extrabold {
+  font-family: "Agrandir", "Inter", sans-serif;
+  font-weight: 800;
+}
+
+/* Smooth transitions for theme switching */
+.theme-transition {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Enhanced accessibility */
+.text-muted-foreground {
+  color: hsl(var(--muted-foreground));
+}
+
+.bg-muted {
+  background-color: hsl(var(--muted));
+}
+
+/* Custom scrollbar theming */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: hsl(var(--muted));
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--accent));
+}
+
+/* Focus styles for accessibility */
+.focus-visible:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* Hero section styling */
+.hero-section {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem;
+}
+
+.hero-title {
+  font-size: 4rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  color: hsl(var(--foreground));
+}
+
+.hero-description {
+  font-size: 1.25rem;
+  max-width: 800px;
+  margin: 0 auto;
+  color: hsl(var(--foreground));
+  opacity: 0.9;
+}
+
+/* Enhanced form elements */
+.form-input {
+  background-color: hsl(var(--input));
+  border-color: hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+
+.form-input:focus {
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
+}
+
+/* Enhanced button variants */
+.btn-primary {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border: none;
+}
+
+.btn-primary:hover {
+  background-color: hsl(51 100% 45%);
+}
+
+.btn-secondary {
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+  border: 1px solid hsl(var(--border));
+}
+
+.btn-secondary:hover {
+  background-color: hsl(var(--secondary) / 0.8);
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: hsl(var(--foreground));
+  border: 1px solid hsl(var(--border));
+}
+
+.btn-outline:hover {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+/* Enhanced card and container styles */
+.container-themed {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--card-foreground));
+}
+
+.surface-elevated {
+  background-color: hsl(var(--card));
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+}
+
+/* Enhanced text colors */
+.text-primary {
+  color: hsl(var(--primary));
+}
+
+.text-secondary {
+  color: hsl(var(--muted-foreground));
+}
+
+.text-accent {
+  color: hsl(var(--accent));
+}
+
+@media (max-width: 768px) {
+  .hero-title {
+    font-size: 2.5rem;
+  }
+
+  .hero-description {
+    font-size: 1rem;
+  }
+}
+
+/* Enhanced transitions */
+* {
+  transition: background-color 0.3s ease-in-out, color 0.3s ease-in-out, border-color 0.3s ease-in-out;
+}
+
+/* Ensure proper contrast for interactive elements */
+.interactive-element:hover {
+  background-color: hsl(var(--accent) / 0.1);
+}
+
+.interactive-element:focus {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* Enhanced dropdown and menu styles */
+.dropdown-content {
+  background-color: hsl(var(--popover));
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+}
+
+.dropdown-item:hover {
+  background-color: hsl(var(--accent) / 0.1);
+}
+
+/* Enhanced notification styles */
+.notification-item {
+  background-color: hsl(var(--card));
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.notification-item:hover {
+  background-color: hsl(var(--muted));
+}
+
+.notification-unread {
+  background-color: hsl(var(--accent) / 0.05);
+  border-left: 3px solid hsl(var(--accent));
+}
+
+/* Remove colorful gradients and use simple backgrounds */
+.simple-card {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--card-foreground));
+}
+
+.simple-button {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border: none;
+  transition: all 0.3s ease-in-out;
+}
+
+.simple-button:hover {
+  background-color: hsl(51 100% 45%);
+}
+
+/* Override any colorful backgrounds */
+.bg-gradient-to-br,
+.bg-gradient-to-r,
+.bg-gradient-to-l,
+.bg-gradient-to-t,
+.bg-gradient-to-b {
+  background: hsl(var(--card)) !important;
+}
+
+/* Ensure all cards use simple styling */
+.card {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--card-foreground));
+}
+
+/* Override any colorful badge backgrounds */
+.badge-simple {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  border: 1px solid hsl(var(--border));
+}
