@@ -80,10 +80,10 @@ export function Navbar() {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-[hsl(var(--navbar-bg))] text-[hsl(var(--navbar-text))] border-b border-[hsl(var(--border))] shadow-lg">
-      <div className="w-full px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center h-16 gap-4">
+      <div className="w-full px-2 sm:px-4 lg:px-6">
+        <div className="flex items-center h-16 gap-2 sm:gap-4">
           {/* Logo with Text - Fixed width to prevent shifting */}
-          <div className="flex items-center flex-shrink-0 w-auto mr-4">
+          <div className="flex items-center flex-shrink-0 w-auto mr-2 sm:mr-4">
             <Link href="/" className="flex items-center space-x-2" onClick={handleLogoClick}>
               <div
                 className={`relative w-12 h-12 flex-shrink-0 transition-transform duration-200 ease-in-out cursor-pointer ${
@@ -106,15 +106,15 @@ export function Navbar() {
           </div>
 
           {/* Desktop Navigation - Left aligned with proper spacing */}
-          <div className="hidden lg:flex items-center justify-start space-x-0.5 flex-1 min-w-0 ml-2">
+          <div className="hidden lg:flex items-center justify-start space-x-0.5 flex-1 min-w-0 ml-1 sm:ml-2 overflow-hidden">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1.5 py-2 text-xs whitespace-nowrap"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1 py-2 text-[10px] whitespace-nowrap"
                 >
-                  <Sprout className="w-3 h-3 mr-1" />
+                  <Sprout className="w-3 h-3 mr-0.5" />
                   Growth
                 </Button>
               </DropdownMenuTrigger>
@@ -163,9 +163,9 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1.5 py-2 text-xs whitespace-nowrap"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1 py-2 text-[10px] whitespace-nowrap"
                 >
-                  <Users className="w-3 h-3 mr-1" />
+                  <Users className="w-3 h-3 mr-0.5" />
                   Community
                 </Button>
               </DropdownMenuTrigger>
@@ -214,9 +214,9 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1.5 py-2 text-xs whitespace-nowrap"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1 py-2 text-[10px] whitespace-nowrap"
                 >
-                  <ShoppingCart className="w-3 h-3 mr-1" />
+                  <ShoppingCart className="w-3 h-3 mr-0.5" />
                   Marketplace
                 </Button>
               </DropdownMenuTrigger>
@@ -247,9 +247,9 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1.5 py-2 text-xs whitespace-nowrap"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1 py-2 text-[10px] whitespace-nowrap"
                 >
-                  <Briefcase className="w-3 h-3 mr-1" />
+                  <Briefcase className="w-3 h-3 mr-0.5" />
                   Business
                 </Button>
               </DropdownMenuTrigger>
@@ -298,9 +298,9 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1.5 py-2 text-xs whitespace-nowrap"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1 py-2 text-[10px] whitespace-nowrap"
                 >
-                  <TrendingUp className="w-3 h-3 mr-1" />
+                  <TrendingUp className="w-3 h-3 mr-0.5" />
                   Finance
                 </Button>
               </DropdownMenuTrigger>
@@ -331,9 +331,9 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1.5 py-2 text-xs whitespace-nowrap"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1 py-2 text-[10px] whitespace-nowrap hidden xl:flex"
                 >
-                  <Heart className="w-3 h-3 mr-1" />
+                  <Heart className="w-3 h-3 mr-0.5" />
                   Health
                 </Button>
               </DropdownMenuTrigger>
@@ -364,9 +364,9 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1.5 py-2 text-xs whitespace-nowrap"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1 py-2 text-[10px] whitespace-nowrap hidden xl:flex"
                 >
-                  <Shield className="w-3 h-3 mr-1" />
+                  <Shield className="w-3 h-3 mr-0.5" />
                   Governance
                 </Button>
               </DropdownMenuTrigger>
@@ -408,22 +408,22 @@ export function Navbar() {
               variant="ghost"
               size="sm"
               asChild
-              className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1.5 py-2 text-xs whitespace-nowrap"
+              className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1 py-2 text-[10px] whitespace-nowrap"
             >
               <Link href="/join-the-team">
-                <UserPlus className="w-3 h-3 mr-1" />
+                <UserPlus className="w-3 h-3 mr-0.5" />
                 Join the Team!
               </Link>
             </Button>
           </div>
 
           {/* Right Side Icons - Fixed positioning */}
-          <div className="flex items-center space-x-2 flex-shrink-0 ml-auto min-w-0">
+          <div className="flex items-center space-x-1 flex-shrink-0 ml-auto min-w-0">
             {/* Animated Search */}
             <AnimatedSearch
               onSearch={handleSearch}
               placeholder="Search..."
-              className="hidden md:flex w-40 lg:w-48"
+              className="hidden md:flex w-32 lg:w-40"
             />
 
             {/* Join Alkebulan Button */}
@@ -431,7 +431,7 @@ export function Navbar() {
               variant="ghost"
               size="sm"
               asChild
-              className="text-yellow-500 hover:bg-[hsl(var(--navbar-hover))] border border-yellow-500 rounded-full px-3 py-1 text-xs font-medium hidden xl:flex"
+              className="text-yellow-500 hover:bg-[hsl(var(--navbar-hover))] border border-yellow-500 rounded-full px-2 py-1 text-[10px] font-medium hidden xl:flex"
             >
               <Link href="/join-alkebulan">Join Alkebulan</Link>
             </Button>
@@ -510,12 +510,12 @@ export function Navbar() {
               </DropdownMenu>
             ) : (
               /* Show login/signup buttons when not logged in */
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1">
                 <Button
                   variant="ghost"
                   size="sm"
                   asChild
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))]"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] text-[10px] px-2"
                 >
                   <Link href="/auth/signin">Sign In</Link>
                 </Button>
@@ -523,7 +523,7 @@ export function Navbar() {
                   variant="default"
                   size="sm"
                   asChild
-                  className="bg-yellow-500 text-black hover:bg-yellow-600"
+                  className="bg-yellow-500 text-black hover:bg-yellow-600 text-[10px] px-2"
                 >
                   <Link href="/auth/signup">Sign Up</Link>
                 </Button>
