@@ -9,15 +9,19 @@ import { AVATAR_PRESETS } from "@/data/avatar-presets"
 import { AvatarDisplay } from "./avatar-display"
 import { AvatarCustomizationModal } from "./avatar-customization-modal"
 import { Upload, Palette } from "lucide-react"
+import { ImageUpload } from "./image-upload"
 
 interface AvatarSelectionProps {
   onAvatarSelect: (avatar: AvatarOption, customization?: AvatarCustomization) => void
   selectedAvatarId?: string
+  onImageUpload?: (imageUrl: string) => void
+  currentImageUrl?: string | null
 }
 
-export function AvatarSelection({ onAvatarSelect, selectedAvatarId }: AvatarSelectionProps) {
+export function AvatarSelection({ onAvatarSelect, selectedAvatarId, onImageUpload, currentImageUrl }: AvatarSelectionProps) {
   const [selectedAvatar, setSelectedAvatar] = useState<AvatarOption | null>(null)
   const [isCustomizationOpen, setIsCustomizationOpen] = useState(false)
+  const [showImageUpload, setShowImageUpload] = useState(false)
 
   const handleAvatarClick = (avatar: AvatarOption) => {
     setSelectedAvatar(avatar)
@@ -36,16 +40,45 @@ export function AvatarSelection({ onAvatarSelect, selectedAvatarId }: AvatarSele
     }
   }
 
+  const handleImageUpload = (imageUrl: string) => {
+    if (onImageUpload) {
+      onImageUpload(imageUrl)
+      setShowImageUpload(false)
+    }
+  }
+
+  const handleImageRemove = () => {
+    if (onImageUpload) {
+      onImageUpload('')
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-green-800 text-center">Choose Your Avatar</CardTitle>
-          <p className="text-center text-gray-600">
-            Select an avatar that represents you, then customize it to make it uniquely yours
-          </p>
-        </CardHeader>
-        <CardContent>
+      {/* Image Upload Section */}
+      {showImageUpload ? (
+        <div className="space-y-4">
+          <ImageUpload
+            currentImageUrl={currentImageUrl}
+            onImageUpload={handleImageUpload}
+            onImageRemove={handleImageRemove}
+          />
+          <div className="text-center">
+            <Button variant="outline" onClick={() => setShowImageUpload(false)}>
+              Use Avatar Instead
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold text-green-800 text-center">Choose Your Avatar</CardTitle>
+              <p className="text-center text-gray-600">
+                Select an avatar that represents you, then customize it to make it uniquely yours
+              </p>
+            </CardHeader>
+            <CardContent>
           {/* Avatar Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
             {AVATAR_PRESETS.map((avatar) => (
@@ -87,7 +120,7 @@ export function AvatarSelection({ onAvatarSelect, selectedAvatarId }: AvatarSele
                 <h3 className="font-medium text-green-800">Upload Your Own</h3>
                 <p className="text-sm text-gray-600">Prefer to use your own image? Upload a photo instead</p>
               </div>
-              <Button variant="outline" className="mt-2 bg-transparent">
+              <Button variant="outline" className="mt-2 bg-transparent" onClick={() => setShowImageUpload(true)}>
                 <Upload className="w-4 h-4 mr-2" />
                 Upload Image
               </Button>
@@ -95,6 +128,8 @@ export function AvatarSelection({ onAvatarSelect, selectedAvatarId }: AvatarSele
           </div>
         </CardContent>
       </Card>
+      </>
+      )}
 
       {/* Customization Modal */}
       {selectedAvatar && (
