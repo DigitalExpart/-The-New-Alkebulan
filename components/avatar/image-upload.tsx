@@ -61,32 +61,49 @@ export function ImageUpload({ currentImageUrl, onImageUpload, onImageRemove }: I
       // Generate unique filename
       const fileExt = file.name.split('.').pop()
       const fileName = `${user.id}-${Date.now()}.${fileExt}`
-      const filePath = `avatars/${fileName}`
+      
+      console.log('Uploading file:', fileName)
+      console.log('File size:', file.size)
+      console.log('File type:', file.type)
 
-      // Upload to Supabase storage
+      // Upload to Supabase storage with simpler path
       const { data, error } = await supabase.storage
         .from('profile-images')
-        .upload(filePath, file, {
+        .upload(fileName, file, {
           cacheControl: '3600',
-          upsert: false
+          upsert: true  // Allow overwriting
         })
 
       if (error) {
         console.error('Upload error:', error)
-        toast.error('Failed to upload image')
+        
+        // Provide more specific error messages
+        if (error.message.includes('Bucket not found')) {
+          toast.error('Storage bucket not found. Please check your Supabase configuration.')
+        } else if (error.message.includes('The resource was not found')) {
+          toast.error('Storage service not available. Please check your Supabase setup.')
+        } else if (error.message.includes('Invalid bucket')) {
+          toast.error('Invalid storage bucket. Please verify bucket name.')
+        } else {
+          toast.error(`Upload failed: ${error.message}`)
+        }
         return
       }
+
+      console.log('Upload success:', data)
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('profile-images')
         .getPublicUrl(data.path)
 
+      console.log('Public URL:', publicUrl)
+
       onImageUpload(publicUrl)
       toast.success('Image uploaded successfully!')
     } catch (error) {
       console.error('Error uploading image:', error)
-      toast.error('Failed to upload image')
+      toast.error('Failed to upload image. Please try again.')
     } finally {
       setIsUploading(false)
     }
