@@ -14,10 +14,17 @@ import { NotificationItem } from "./notification-item"
 import { mockNotifications } from "@/data/notifications-data"
 import type { Notification } from "@/types/notification"
 import Link from "next/link"
+import { useAuth } from "@/hooks/use-auth"
 
 export function NotificationsDropdown() {
+  const { user } = useAuth()
   const [notifications, setNotifications] = useState<Notification[]>(mockNotifications)
   const [isOpen, setIsOpen] = useState(false)
+
+  // Don't render if user is not logged in
+  if (!user) {
+    return null
+  }
 
   const unreadCount = notifications.filter((n) => !n.isRead).length
   const recentNotifications = notifications.slice(0, 6) // Show only 6 most recent

@@ -419,15 +419,17 @@ export function Navbar() {
 
           {/* Right Side Icons - Fixed positioning */}
           <div className="flex items-center space-x-1 flex-shrink-0 ml-auto min-w-0">
-            {/* Join Alkebulan Button - Moved before search */}
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              className="text-yellow-500 hover:bg-[hsl(var(--navbar-hover))] border border-yellow-500 rounded-full px-2 py-1 text-[10px] font-medium hidden xl:flex"
-            >
-              <Link href="/join-alkebulan">Join Alkebulan</Link>
-            </Button>
+            {/* Join Alkebulan Button - Only show when not logged in */}
+            {!user && (
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
+                className="text-yellow-500 hover:bg-[hsl(var(--navbar-hover))] border border-yellow-500 rounded-full px-2 py-1 text-[10px] font-medium hidden xl:flex"
+              >
+                <Link href="/join-alkebulan">Join Alkebulan</Link>
+              </Button>
+            )}
 
             {/* Animated Search - Moved after Join Alkebulan */}
             <AnimatedSearch
@@ -442,14 +444,16 @@ export function Navbar() {
             {/* Notifications Dropdown */}
             <NotificationsDropdown />
 
-            {/* AI Assistant */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] p-1.5"
-            >
-              <Zap className="w-4 h-4" />
-            </Button>
+            {/* AI Assistant - Only show when logged in */}
+            {user && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] p-1.5"
+              >
+                <Zap className="w-4 h-4" />
+              </Button>
+            )}
 
             {/* User Menu - Show when logged in */}
             {user ? (
