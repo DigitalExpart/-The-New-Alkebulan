@@ -9,7 +9,7 @@ import { AVATAR_PRESETS } from "@/data/avatar-presets"
 import { AvatarDisplay } from "./avatar-display"
 import { AvatarCustomizationModal } from "./avatar-customization-modal"
 import { Upload, Palette } from "lucide-react"
-import { ImageUpload } from "./image-upload"
+import { ImageUploadFallback } from "./image-upload-fallback"
 
 interface AvatarSelectionProps {
   onAvatarSelect: (avatar: AvatarOption, customization?: AvatarCustomization) => void
@@ -58,11 +58,11 @@ export function AvatarSelection({ onAvatarSelect, selectedAvatarId, onImageUploa
       {/* Image Upload Section */}
       {showImageUpload ? (
         <div className="space-y-4">
-          <ImageUpload
-            currentImageUrl={currentImageUrl}
-            onImageUpload={handleImageUpload}
-            onImageRemove={handleImageRemove}
-          />
+                     <ImageUploadFallback
+             currentImageUrl={currentImageUrl}
+             onImageUpload={handleImageUpload}
+             onImageRemove={handleImageRemove}
+           />
           <div className="text-center">
             <Button variant="outline" onClick={() => setShowImageUpload(false)}>
               Use Avatar Instead
