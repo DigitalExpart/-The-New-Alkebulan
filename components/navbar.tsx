@@ -58,7 +58,7 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const [isLogoAnimating, setIsLogoAnimating] = useState(false)
   const pathname = usePathname()
-  const { user, profile, signOut } = useAuth()
+  const { user, profile, signOut, loading } = useAuth()
 
   // Debug: Log user state
   console.log('Navbar - User state:', !!user, user?.email)
@@ -444,77 +444,73 @@ export function Navbar() {
             {/* Theme Toggle */}
             <ThemeToggle />
 
-            {/* Notifications Dropdown - Only show when logged in */}
-            {user && user.id ? <NotificationsDropdown /> : null}
-
-            {/* AI Assistant - Only show when logged in */}
-            {user && user.id && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] p-1.5"
-              >
-                <Zap className="w-4 h-4" />
-              </Button>
-            )}
-
             {/* User Menu - Show when logged in */}
-            {user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] p-1"
-                  >
-                    <UserAvatar 
-                      size="sm" 
-                      imageUrl={profile?.avatar_url}
-                      fallbackName={profile?.full_name || user.email?.split('@')[0] || 'User'} 
-                    />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        {(user as any)?.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
-                      </p>
-                      <p className="text-xs leading-none text-muted-foreground">
-                        {user.email}
-                      </p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/dashboard">
-                      <Monitor className="w-4 h-4 mr-2" />
-                      Dashboard
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/profile">
-                      <UserCheck className="w-4 h-4 mr-2" />
-                      Profile
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/profile/edit">
-                      <UserCheck className="w-4 h-4 mr-2" />
-                      Edit Profile
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>
-                    <Settings className="w-4 h-4 mr-2" />
-                    Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={signOut}>
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Sign out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+            {user && user.id ? (
+              <>
+                <NotificationsDropdown />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] p-1.5"
+                >
+                  <Zap className="w-4 h-4" />
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] p-1"
+                    >
+                      <UserAvatar 
+                        size="sm" 
+                        imageUrl={profile?.avatar_url}
+                        fallbackName={profile?.full_name || user.email?.split('@')[0] || 'User'} 
+                      />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">
+                          {(user as any)?.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
+                        </p>
+                        <p className="text-xs leading-none text-muted-foreground">
+                          {user.email}
+                        </p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard">
+                        <Monitor className="w-4 h-4 mr-2" />
+                        Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile">
+                        <UserCheck className="w-4 h-4 mr-2" />
+                        Profile
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile/edit">
+                        <UserCheck className="w-4 h-4 mr-2" />
+                        Edit Profile
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem>
+                      <Settings className="w-4 h-4 mr-2" />
+                      Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={signOut}>
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sign out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
             ) : (
               /* Show login/signup buttons when not logged in */
               <div className="flex items-center space-x-1">
