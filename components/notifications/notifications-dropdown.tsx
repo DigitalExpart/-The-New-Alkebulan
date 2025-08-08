@@ -21,8 +21,12 @@ export function NotificationsDropdown() {
   const [notifications, setNotifications] = useState<Notification[]>(mockNotifications)
   const [isOpen, setIsOpen] = useState(false)
 
+  // Debug: Log user state in NotificationsDropdown
+  console.log('NotificationsDropdown - User state:', !!user, user?.email)
+
   // Don't render if user is not logged in
-  if (!user) {
+  if (!user || !user.id) {
+    console.log('NotificationsDropdown - Returning null, user not logged in or no user.id')
     return null
   }
 

@@ -60,6 +60,9 @@ export function Navbar() {
   const pathname = usePathname()
   const { user, profile, signOut } = useAuth()
 
+  // Debug: Log user state
+  console.log('Navbar - User state:', !!user, user?.email)
+
   const toggleMenu = () => setIsOpen(!isOpen)
 
   const handleLogoClick = (e: React.MouseEvent) => {
@@ -420,7 +423,7 @@ export function Navbar() {
           {/* Right Side Icons - Fixed positioning */}
           <div className="flex items-center space-x-1 flex-shrink-0 ml-auto min-w-0">
             {/* Join Alkebulan Button - Only show when not logged in */}
-            {!user && (
+            {(!user || !user.id) && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -441,11 +444,11 @@ export function Navbar() {
             {/* Theme Toggle */}
             <ThemeToggle />
 
-            {/* Notifications Dropdown */}
-            <NotificationsDropdown />
+            {/* Notifications Dropdown - Only show when logged in */}
+            {user && user.id ? <NotificationsDropdown /> : null}
 
             {/* AI Assistant - Only show when logged in */}
-            {user && (
+            {user && user.id && (
               <Button
                 variant="ghost"
                 size="sm"
