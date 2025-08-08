@@ -19,7 +19,7 @@ import Link from "next/link"
 
 export default function EditProfilePage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, refreshProfile } = useAuth()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -181,6 +181,10 @@ export default function EditProfilePage() {
           toast.error('Failed to create profile: ' + insertError.message)
         } else {
           toast.success('Profile created successfully!')
+          
+          // Refresh profile data to update navbar avatar
+          await refreshProfile()
+          
           router.push("/profile")
         }
       } else if (fetchError) {
@@ -209,6 +213,10 @@ export default function EditProfilePage() {
           toast.error('Failed to save profile changes: ' + updateError.message)
         } else {
           toast.success('Profile updated successfully!')
+          
+          // Refresh profile data to update navbar avatar
+          await refreshProfile()
+          
           router.push("/profile")
         }
       }

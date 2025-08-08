@@ -28,15 +28,21 @@ import {
 } from "lucide-react"
 
 export default function ProfilePage() {
-  const { user } = useAuth()
+  const { user, profile: authProfile, refreshProfile } = useAuth()
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (user) {
-      fetchProfile()
+      // Use authProfile if available, otherwise fetch
+      if (authProfile) {
+        setProfile(authProfile)
+        setLoading(false)
+      } else {
+        fetchProfile()
+      }
     }
-  }, [user])
+  }, [user, authProfile])
 
   const fetchProfile = async () => {
     if (!user || !supabase) return

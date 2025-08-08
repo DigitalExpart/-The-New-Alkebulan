@@ -7,11 +7,13 @@ import type { AuthState, SignUpData, SignInData, ResetPasswordData } from "@/typ
 import { toast } from "sonner"
 
 interface AuthContextType extends AuthState {
+  profile: any | null
   signUp: (data: SignUpData) => Promise<void>
   signIn: (data: SignInData) => Promise<void>
   signInWithProvider: (provider: 'google' | 'facebook' | 'github') => Promise<void>
   signOut: () => Promise<void>
   resetPassword: (data: ResetPasswordData) => Promise<void>
+  refreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -23,6 +25,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading: true,
     error: null,
   })
+  const [profile, setProfile] = useState<any | null>(null)
+
+  const fetchProfile = async (userId: string) => {
+    if (!isSupabaseConfigured() || !supabase) return null
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .single()
+      
+      if (error && error.code === 'PGRST116') {
+        // Profile doesn't exist, that's ok
+        return null
+      }
+      
+      if (error) {
+        console.error('Error fetching profile:', error)
+        return null
+      }
+      
+      return data
+    } catch (error) {
+      console.error('Error fetching profile:', error)
+      return null
+    }
+  }
+
+  const refreshProfile = async () => {
+    if (state.user) {
+      const profileData = await fetchProfile(state.user.id)
+      setProfile(profileData)
+    }
+  }
 
   useEffect(() => {
     // Check if we have valid Supabase configuration
@@ -32,41 +69,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const user = session?.user
+        ? {
+            id: session.user.id,
+            email: session.user.email!,
+            full_name: session.user.user_metadata?.full_name,
+            avatar_url: session.user.user_metadata?.avatar_url,
+            created_at: session.user.created_at,
+            updated_at: session.user.updated_at || session.user.created_at,
+          }
+        : null
+
       setState((prev) => ({
         ...prev,
-        user: session?.user
-          ? {
-              id: session.user.id,
-              email: session.user.email!,
-              full_name: session.user.user_metadata?.full_name,
-              avatar_url: session.user.user_metadata?.avatar_url,
-              created_at: session.user.created_at,
-              updated_at: session.user.updated_at || session.user.created_at,
-            }
-          : null,
+        user,
         loading: false,
       }))
+
+      // Fetch profile data if user exists
+      if (user) {
+        const profileData = await fetchProfile(user.id)
+        setProfile(profileData)
+      }
     })
 
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const user = session?.user
+        ? {
+            id: session.user.id,
+            email: session.user.email!,
+            full_name: session.user.user_metadata?.full_name,
+            avatar_url: session.user.user_metadata?.avatar_url,
+            created_at: session.user.created_at,
+            updated_at: session.user.updated_at || session.user.created_at,
+          }
+        : null
+
       setState((prev) => ({
         ...prev,
-        user: session?.user
-          ? {
-              id: session.user.id,
-              email: session.user.email!,
-              full_name: session.user.user_metadata?.full_name,
-              avatar_url: session.user.user_metadata?.avatar_url,
-              created_at: session.user.created_at,
-              updated_at: session.user.updated_at || session.user.created_at,
-            }
-          : null,
+        user,
         loading: false,
       }))
+
+      // Fetch profile data if user exists, clear if not
+      if (user) {
+        const profileData = await fetchProfile(user.id)
+        setProfile(profileData)
+      } else {
+        setProfile(null)
+      }
     })
 
     return () => subscription.unsubscribe()
@@ -149,6 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.auth.signOut()
       if (error) throw error
 
+      setProfile(null) // Clear profile data
       toast.success("Signed out successfully")
     } catch (error) {
       const message = error instanceof Error ? error.message : "An error occurred"
@@ -212,11 +268,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         ...state,
+        profile,
         signUp,
         signIn,
         signInWithProvider,
         signOut,
         resetPassword,
+        refreshProfile,
       }}
     >
       {children}

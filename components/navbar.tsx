@@ -58,7 +58,7 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const [isLogoAnimating, setIsLogoAnimating] = useState(false)
   const pathname = usePathname()
-  const { user, signOut } = useAuth()
+  const { user, profile, signOut } = useAuth()
 
   const toggleMenu = () => setIsOpen(!isOpen)
 
@@ -462,7 +462,8 @@ export function Navbar() {
                   >
                     <UserAvatar 
                       size="sm" 
-                      fallbackName={user.email?.split('@')[0] || 'User'} 
+                      imageUrl={profile?.avatar_url}
+                      fallbackName={profile?.full_name || user.email?.split('@')[0] || 'User'} 
                     />
                   </Button>
                 </DropdownMenuTrigger>
