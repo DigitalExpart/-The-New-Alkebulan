@@ -445,15 +445,17 @@ export function Navbar() {
               </Button>
             )}
 
-            {/* Animated Search */}
-            <AnimatedSearch
-              onSearch={handleSearch}
-              placeholder="Search..."
-              className="hidden md:flex w-24 lg:w-32 xl:w-36 ml-2"
-            />
+            {/* Animated Search - Only show when logged in */}
+            {user && user.id && (
+              <AnimatedSearch
+                onSearch={handleSearch}
+                placeholder="Search..."
+                className="hidden md:flex w-24 lg:w-32 xl:w-36 ml-2"
+              />
+            )}
 
-            {/* Theme Toggle */}
-            <ThemeToggle />
+            {/* Theme Toggle - Only show when logged in */}
+            {user && user.id && <ThemeToggle />}
 
             {/* User Menu - Show when logged in */}
             {user && user.id ? (
@@ -560,10 +562,12 @@ export function Navbar() {
         {isOpen && (
           <div className="lg:hidden border-t border-[hsl(var(--border))]">
             <div className="px-2 pt-2 pb-3 space-y-1 bg-[hsl(var(--navbar-bg))]">
-              {/* Mobile Search */}
-              <div className="mb-3 md:hidden">
-                <AnimatedSearch onSearch={handleSearch} placeholder="Search..." className="w-full" />
-              </div>
+              {/* Mobile Search - Only show when logged in */}
+              {user && user.id && (
+                <div className="mb-3 md:hidden">
+                  <AnimatedSearch onSearch={handleSearch} placeholder="Search..." className="w-full" />
+                </div>
+              )}
 
               {/* User Section - Mobile */}
               {user ? (
@@ -640,8 +644,9 @@ export function Navbar() {
                 Join Alkebulan
               </Link>
 
-              {/* Mobile Menu Items */}
-              <div className="space-y-1">
+              {/* Mobile Menu Items - Only show when logged in */}
+              {user && user.id && (
+                <div className="space-y-1">
                 {/* Growth Section */}
                 <div className="border-b border-[hsl(var(--border))] pb-2 mb-2">
                   <div className="px-3 py-2 text-[hsl(var(--navbar-text))] font-medium text-sm flex items-center">
@@ -972,6 +977,7 @@ export function Navbar() {
                   </Link>
                 </div>
               </div>
+              )}
             </div>
           </div>
         )}
