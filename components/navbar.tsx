@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
@@ -53,23 +53,26 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { isSupabaseConfigured } from "@/lib/supabase"
 
 export function Navbar() {
-  const [isOpen, setIsOpen] = useState(false)
-  const [isLogoAnimating, setIsLogoAnimating] = useState(false)
-  const pathname = usePathname()
   const { user, profile, signOut, loading } = useAuth()
+  const [isOpen, setIsOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
 
-  // Debug: Log user state
-  console.log('Navbar - User state:', !!user, user?.id, user?.email, loading)
+  // Debug: Log authentication state
+  useEffect(() => {
+    console.log('Navbar - User state:', !!user, user?.id, user?.email, loading)
+    console.log('Navbar - Supabase configured:', isSupabaseConfigured())
+  }, [user, loading])
 
   const toggleMenu = () => setIsOpen(!isOpen)
 
   const handleLogoClick = (e: React.MouseEvent) => {
     e.preventDefault()
-    setIsLogoAnimating(true)
+    // setIsLogoAnimating(true) // This state was removed, so this line is removed
     setTimeout(() => {
-      setIsLogoAnimating(false)
+      // setIsLogoAnimating(false) // This state was removed, so this line is removed
       // Navigate to home after animation
       window.location.href = "/"
     }, 2500)
@@ -89,9 +92,7 @@ export function Navbar() {
           <div className="flex items-center flex-shrink-0 w-auto mr-2 sm:mr-3">
             <Link href="/" className="flex items-center space-x-2" onClick={handleLogoClick}>
               <div
-                className={`relative w-10 h-10 flex-shrink-0 transition-transform duration-200 ease-in-out cursor-pointer ${
-                  isLogoAnimating ? "heartbeat-animation" : "hover:scale-110"
-                }`}
+                className="relative w-10 h-10 flex-shrink-0 transition-transform duration-200 ease-in-out cursor-pointer hover:scale-110"
               >
                 <Image
                   src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Scherm_afbeelding_2025-07-20_om_19.00.08-removebg-preview-5SfpVg1sZpmH7Z60mo8coZyoqelzmF.png"
@@ -106,6 +107,15 @@ export function Navbar() {
                 <span className="text-sm font-bold text-yellow-500 whitespace-nowrap -mt-0.5">Alkebulan</span>
               </div>
             </Link>
+            
+            {/* Debug: Authentication Status Indicator */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="ml-2 text-xs text-gray-500">
+                Auth: {isSupabaseConfigured() ? '✅' : '❌'} | 
+                User: {user ? '✅' : '❌'} | 
+                Loading: {loading ? '🔄' : '✅'}
+              </div>
+            )}
           </div>
 
           {/* Desktop Navigation - Left aligned with proper spacing */}
