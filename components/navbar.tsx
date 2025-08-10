@@ -109,14 +109,14 @@ export function Navbar() {
           </div>
 
           {/* Desktop Navigation - Left aligned with proper spacing */}
-          <div className="hidden lg:flex items-center justify-start space-x-1 flex-1 min-w-0 ml-1 sm:ml-2 overflow-hidden max-w-5xl">
+          <div className="hidden lg:flex items-center justify-start space-x-2 flex-1 min-w-0 ml-2 sm:ml-3 overflow-hidden max-w-6xl">
             {/* Growth */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1 py-1.5 text-[9px] whitespace-nowrap"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-1.5 text-[9px] whitespace-nowrap"
                 >
                   <Sprout className="w-3 h-3 mr-1" />
                   Growth
@@ -168,7 +168,7 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1 py-1.5 text-[9px] whitespace-nowrap"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-1.5 text-[9px] whitespace-nowrap"
                 >
                   <Users className="w-3 h-3 mr-1" />
                   Community
@@ -220,7 +220,7 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1 py-1.5 text-[9px] whitespace-nowrap"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-1.5 text-[9px] whitespace-nowrap"
                 >
                   <ShoppingCart className="w-3 h-3 mr-1" />
                   Marketplace
@@ -254,7 +254,7 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1 py-1.5 text-[9px] whitespace-nowrap"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-1.5 text-[9px] whitespace-nowrap"
                 >
                   <Briefcase className="w-3 h-3 mr-1" />
                   Business
@@ -306,7 +306,7 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1 py-1.5 text-[9px] whitespace-nowrap"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-1.5 text-[9px] whitespace-nowrap"
                 >
                   <TrendingUp className="w-3 h-3 mr-1" />
                   Finance
@@ -340,7 +340,7 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1 py-1.5 text-[9px] whitespace-nowrap"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-1.5 text-[9px] whitespace-nowrap"
                 >
                   <Heart className="w-3 h-3 mr-1" />
                   Health
@@ -374,7 +374,7 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1 py-1.5 text-[9px] whitespace-nowrap"
+                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-1.5 text-[9px] whitespace-nowrap"
                 >
                   <Shield className="w-3 h-3 mr-1" />
                   Governance
@@ -419,24 +419,27 @@ export function Navbar() {
               variant="ghost"
               size="sm"
               asChild
-              className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-1 py-1.5 text-[9px] whitespace-nowrap"
+              className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-1.5 text-[9px] whitespace-nowrap"
             >
               <Link href="/join-the-team">
                 <UserPlus className="w-3 h-3 mr-1" />
                 Join the Team!
               </Link>
             </Button>
+            
+            {/* Spacer to prevent overlap with right side */}
+            <div className="w-4"></div>
           </div>
 
           {/* Right Side Icons - Fixed positioning */}
-          <div className="flex items-center space-x-1.5 flex-shrink-0 ml-auto min-w-0">
+          <div className="flex items-center space-x-2 flex-shrink-0 ml-auto min-w-0">
             {/* Join Alkebulan Button - Only show when not logged in */}
             {(!user || !user.id) && (
               <Button
                 variant="ghost"
                 size="sm"
                 asChild
-                className="text-yellow-500 hover:bg-[hsl(var(--navbar-hover))] border border-yellow-500 rounded-full px-1.5 py-1 text-[9px] font-medium hidden lg:flex"
+                className="text-yellow-500 hover:bg-[hsl(var(--navbar-hover))] border border-yellow-500 rounded-full px-3 py-1 text-[9px] font-medium hidden lg:flex"
               >
                 <Link href="/join-alkebulan">Join Alkebulan</Link>
               </Button>
@@ -446,7 +449,7 @@ export function Navbar() {
             <AnimatedSearch
               onSearch={handleSearch}
               placeholder="Search..."
-              className="hidden md:flex w-24 lg:w-32 xl:w-36"
+              className="hidden md:flex w-24 lg:w-32 xl:w-36 ml-2"
             />
 
             {/* Theme Toggle */}
