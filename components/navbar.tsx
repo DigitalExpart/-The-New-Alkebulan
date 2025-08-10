@@ -61,7 +61,7 @@ export function Navbar() {
   const { user, profile, signOut, loading } = useAuth()
 
   // Debug: Log user state
-  console.log('Navbar - User state:', !!user, user?.email)
+  console.log('Navbar - User state:', !!user, user?.id, user?.email, loading)
 
   const toggleMenu = () => setIsOpen(!isOpen)
 
@@ -433,6 +433,12 @@ export function Navbar() {
 
           {/* Right Side Icons - Fixed positioning */}
           <div className="flex items-center space-x-2 flex-shrink-0 ml-auto min-w-0">
+            {/* Loading indicator */}
+            {loading && (
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 border-2 border-[hsl(var(--navbar-text))] border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            )}
             {/* Join Alkebulan Button - Only show when not logged in */}
             {(!user || !user.id) && (
               <Button
@@ -446,7 +452,7 @@ export function Navbar() {
             )}
 
             {/* Animated Search - Only show when logged in */}
-            {user && user.id && (
+            {!loading && user && user.id && (
               <AnimatedSearch
                 onSearch={handleSearch}
                 placeholder="Search..."
@@ -455,10 +461,10 @@ export function Navbar() {
             )}
 
             {/* Theme Toggle - Only show when logged in */}
-            {user && user.id && <ThemeToggle />}
+            {!loading && user && user.id && <ThemeToggle />}
 
             {/* User Menu - Show when logged in */}
-            {user && user.id ? (
+            {!loading && user && user.id ? (
               <>
                 <NotificationsDropdown />
                 <Button
@@ -563,14 +569,14 @@ export function Navbar() {
           <div className="lg:hidden border-t border-[hsl(var(--border))]">
             <div className="px-2 pt-2 pb-3 space-y-1 bg-[hsl(var(--navbar-bg))]">
               {/* Mobile Search - Only show when logged in */}
-              {user && user.id && (
+              {!loading && user && user.id && (
                 <div className="mb-3 md:hidden">
                   <AnimatedSearch onSearch={handleSearch} placeholder="Search..." className="w-full" />
                 </div>
               )}
 
               {/* User Section - Mobile */}
-              {user ? (
+              {!loading && user ? (
                 <div className="border-b border-[hsl(var(--border))] pb-2 mb-2">
                   <div className="px-3 py-2 text-[hsl(var(--navbar-text))] font-medium text-sm flex items-center">
                     <UserCheck className="w-4 h-4 mr-2" />
@@ -645,7 +651,7 @@ export function Navbar() {
               </Link>
 
               {/* Mobile Menu Items - Only show when logged in */}
-              {user && user.id && (
+              {!loading && user && user.id && (
                 <div className="space-y-1">
                 {/* Growth Section */}
                 <div className="border-b border-[hsl(var(--border))] pb-2 mb-2">
