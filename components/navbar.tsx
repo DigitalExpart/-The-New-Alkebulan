@@ -91,9 +91,12 @@ export function Navbar() {
       return
     }
     
+    console.log('=== ROLE SWITCH DEBUG ===')
     console.log('Attempting to switch account roles to:', newRole)
     console.log('User ID:', user.id)
     console.log('Current profile:', profile)
+    console.log('Current buyer_enabled:', profile?.buyer_enabled)
+    console.log('Current seller_enabled:', profile?.seller_enabled)
     
     try {
       // First, check if the profiles table has the required columns
@@ -122,6 +125,8 @@ export function Navbar() {
         updateData = { buyer_enabled: true, seller_enabled: true }
       }
       
+      console.log('Update data to be sent:', updateData)
+      
       // Update the profile in Supabase
       const { data, error } = await supabase
         .from('profiles')
@@ -142,6 +147,7 @@ export function Navbar() {
       }
 
       console.log('Account roles updated successfully:', data)
+      console.log('Updated profile data:', data)
       
       // Show success message
       alert(`Account roles switched to ${newRole} successfully!`)
