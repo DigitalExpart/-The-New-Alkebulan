@@ -551,24 +551,9 @@ export function Navbar() {
                 </DropdownMenu>
               </>
             ) : (
-              /* Show login/signup buttons when not logged in */
+              /* No separate buttons needed - use Join Alkebulan dropdown instead */
               <div className="flex items-center space-x-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  asChild
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] text-[9px] px-1 py-1"
-                >
-                  <Link href="/auth/signin">Sign In</Link>
-                </Button>
-                <Button
-                  variant="default"
-                  size="sm"
-                  asChild
-                  className="bg-yellow-500 text-black hover:bg-yellow-600 text-[9px] px-1 py-1"
-                >
-                  <Link href="/auth/signup">Sign Up</Link>
-                </Button>
+                {/* Empty space to maintain layout */}
               </div>
             )}
 
