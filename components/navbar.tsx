@@ -768,16 +768,7 @@ export function Navbar() {
 
                       </div>
                     </div>
-                    <button
-                      onClick={() => {
-                        signOut()
-                        setIsOpen(false)
-                      }}
-                      className="block w-full text-left px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                    >
-                      <LogOut className="w-4 h-4 inline mr-2" />
-                      Sign Out
-                    </button>
+
                   </div>
                 </div>
               ) : (
