@@ -156,6 +156,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         router.push("/auth/signin")
       } else if (signUpData.session) {
         // User is automatically signed in (email confirmation not required)
+        // Create profile record
+        if (signUpData.user) {
+          try {
+            const profileData = {
+              id: signUpData.user.id,
+              full_name: data.full_name,
+              email: data.email,
+              account_type: data.account_type,
+              buyer_enabled: data.account_type === 'buyer',
+              seller_enabled: data.account_type === 'seller',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }
+            
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .insert(profileData)
+            
+            if (profileError) {
+              console.error('Error creating profile:', profileError)
+              // Don't fail the signup if profile creation fails
+            } else {
+              console.log('Profile created successfully')
+            }
+          } catch (profileError) {
+            console.error('Error creating profile:', profileError)
+            // Don't fail the signup if profile creation fails
+          }
+        }
+        
         toast.success("Account created and signed in successfully!")
         router.push("/dashboard")
       }
@@ -177,12 +207,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, loading: true, error: null }))
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error, data: signInData } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
       })
 
       if (error) throw error
+
+      // Fetch profile data after successful sign in
+      if (signInData.user) {
+        const profileData = await fetchProfile(signInData.user.id)
+        setProfile(profileData)
+      }
 
       toast.success("Welcome back!")
     } catch (error) {
