@@ -257,16 +257,16 @@ export default function EditProfilePage() {
     try {
       // Prepare profile data for update
       const profileData = {
-        full_name: formData.full_name,
+            full_name: formData.full_name,
         username: formData.username,
-        email: formData.email,
-        bio: formData.bio,
-        location: formData.location,
-        website: formData.website,
-        phone: formData.phone,
-        occupation: formData.occupation,
-        education: formData.education,
-        avatar_url: formData.avatar_url,
+            email: formData.email,
+            bio: formData.bio,
+            location: formData.location,
+            website: formData.website,
+            phone: formData.phone,
+            occupation: formData.occupation,
+            education: formData.education,
+            avatar_url: formData.avatar_url,
         language_preference: formData.language_preference,
         region: formData.region,
         gender: formData.gender,
@@ -277,24 +277,24 @@ export default function EditProfilePage() {
         core_competencies: formData.core_competencies,
         family_members: familyMembers,
         work_experience: workExperience,
-        updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString()
       }
 
       const { error: updateError } = await supabase
         .from('profiles')
         .update(profileData)
-        .eq('user_id', user.id)
+          .eq('user_id', user.id)
 
-      if (updateError) {
-        console.error('Error updating profile:', updateError)
-        toast.error('Failed to save profile changes: ' + updateError.message)
-      } else {
-        toast.success('Profile updated successfully!')
-        
-        // Refresh profile data to update navbar avatar
-        await refreshProfile()
-        
-        router.push("/profile")
+        if (updateError) {
+          console.error('Error updating profile:', updateError)
+          toast.error('Failed to save profile changes: ' + updateError.message)
+        } else {
+          toast.success('Profile updated successfully!')
+          
+          // Refresh profile data to update navbar avatar
+          await refreshProfile()
+          
+          router.push("/profile")
       }
     } catch (error) {
       console.error('Error:', error)
@@ -523,11 +523,11 @@ export default function EditProfilePage() {
                           ))}
                         </SelectContent>
                       </Select>
-                    </div>
                   </div>
+                </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
                       <Label htmlFor="place_of_birth">Place of Birth</Label>
                       <Input
                         id="place_of_birth"
@@ -538,7 +538,7 @@ export default function EditProfilePage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="date_of_birth">Date of Birth</Label>
-                      <Input
+                    <Input
                         id="date_of_birth"
                         type="date"
                         value={formData.date_of_birth}
@@ -655,11 +655,11 @@ export default function EditProfilePage() {
                         value={newFamilyMember.age}
                         onChange={(e) => setNewFamilyMember(prev => ({ ...prev, age: e.target.value }))}
                         placeholder="Age"
-                      />
-                    </div>
-                    <div className="space-y-2">
+                    />
+                  </div>
+                  <div className="space-y-2">
                       <Label htmlFor="family-occupation">Occupation</Label>
-                      <Input
+                    <Input
                         id="family-occupation"
                         value={newFamilyMember.occupation}
                         onChange={(e) => setNewFamilyMember(prev => ({ ...prev, occupation: e.target.value }))}
@@ -712,18 +712,18 @@ export default function EditProfilePage() {
                   <CardTitle>Education</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
+                <div className="space-y-2">
                     <Label htmlFor="education">Educational Background</Label>
                     <Textarea
-                      id="education"
-                      value={formData.education}
-                      onChange={(e) => handleInputChange("education", e.target.value)}
+                    id="education"
+                    value={formData.education}
+                    onChange={(e) => handleInputChange("education", e.target.value)}
                       placeholder="Describe your educational background, degrees, certifications, etc."
                       rows={4}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
               {/* Work Experience */}
               <Card>

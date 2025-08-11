@@ -237,9 +237,11 @@ export default function ProfilePage() {
                           Edit Profile
                         </Link>
                       </Button>
-                      <Button size="sm" variant="outline">
-                        <Settings className="mr-2 h-4 w-4" />
-                        Settings
+                      <Button size="sm" variant="outline" asChild>
+                        <Link href="/profile/settings">
+                          <Settings className="mr-2 h-4 w-4" />
+                          Settings
+                        </Link>
                       </Button>
                     </div>
                   </div>
