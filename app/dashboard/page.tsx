@@ -16,12 +16,13 @@ import {
   Building2,
   DollarSign,
   Heart,
-  Shield
+  Shield,
+  Store
 } from "lucide-react"
 
 export default function DashboardPage() {
   const router = useRouter()
-  const { user, loading, signOut } = useAuth()
+  const { user, profile, loading, signOut } = useAuth()
 
   useEffect(() => {
     if (!loading && !user) {
@@ -105,6 +106,12 @@ export default function DashboardPage() {
                   <Building2 className="h-6 w-6" />
                   <span className="text-xs">Business</span>
                 </Button>
+                {profile?.account_type === 'seller' && (
+                  <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => router.push("/seller/dashboard")}>
+                    <Store className="h-6 w-6" />
+                    <span className="text-xs">Seller Dashboard</span>
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -125,6 +132,11 @@ export default function DashboardPage() {
                 <div>
                   <p className="font-medium">{user.full_name || "User"}</p>
                   <p className="text-sm text-muted-foreground">{user.email}</p>
+                  {profile?.account_type && (
+                    <Badge variant="outline" className="text-xs mt-1 capitalize">
+                      {profile.account_type} Account
+                    </Badge>
+                  )}
                 </div>
               </div>
               <Button variant="outline" className="w-full" onClick={() => router.push("/profile")}>
