@@ -424,19 +424,6 @@ export function Navbar() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Join the Team */}
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-1.5 text-[9px] whitespace-nowrap"
-            >
-              <Link href="/join-the-team">
-                <UserPlus className="w-3 h-3 mr-1" />
-                Join the Team!
-              </Link>
-            </Button>
-            
             {/* Spacer to prevent overlap with right side */}
             <div className="w-4"></div>
           </div>
@@ -449,16 +436,39 @@ export function Navbar() {
                 <div className="w-4 h-4 border-2 border-[hsl(var(--navbar-text))] border-t-transparent rounded-full animate-spin"></div>
               </div>
             )}
-            {/* Join Alkebulan Button - Only show when not logged in */}
+            {/* Join Alkebulan Dropdown - Only show when not logged in */}
             {(!user || !user.id) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                asChild
-                className="text-yellow-500 hover:bg-[hsl(var(--navbar-hover))] border border-yellow-500 rounded-full px-3 py-1 text-[9px] font-medium hidden lg:flex"
-              >
-                <Link href="/join-alkebulan">Join Alkebulan</Link>
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-yellow-500 hover:bg-[hsl(var(--navbar-hover))] border border-yellow-500 rounded-full px-3 py-1 text-[9px] font-medium hidden lg:flex"
+                  >
+                    Join Alkebulan
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem asChild>
+                    <Link href="/join-the-team" className="flex items-center gap-2">
+                      <UserPlus className="w-4 h-4" />
+                      Join the Team!
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/auth/signin" className="flex items-center gap-2">
+                      <UserCheck className="w-4 h-4" />
+                      Sign In
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/auth/signup" className="flex items-center gap-2">
+                      <UserPlus className="w-4 h-4" />
+                      Sign Up
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
 
             {/* Animated Search - Only show when logged in */}
@@ -630,35 +640,47 @@ export function Navbar() {
                   </div>
                 </div>
               ) : (
-                /* Show login/signup buttons when not logged in - Mobile */
+                /* Show Join Alkebulan dropdown when not logged in - Mobile */
                 <div className="border-b border-[hsl(var(--border))] pb-2 mb-2">
-                  <div className="space-y-2">
-                    <Link
-                      href="/auth/signin"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm text-center"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      Sign In
-                    </Link>
-                    <Link
-                      href="/auth/signup"
-                      className="block px-3 py-2 bg-yellow-500 text-black hover:bg-yellow-600 rounded-md text-sm text-center font-medium"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      Sign Up
-                    </Link>
+                  <div className="text-center text-sm text-muted-foreground">
+                    Use the Join Alkebulan menu below for sign in/up
                   </div>
                 </div>
               )}
 
-              {/* Join Alkebulan Button Mobile */}
-              <Link
-                href="/join-alkebulan"
-                className="block px-3 py-2 text-yellow-500 hover:bg-[hsl(var(--navbar-hover))] rounded-md border border-yellow-500 text-center font-medium mb-3"
-                onClick={() => setIsOpen(false)}
-              >
-                Join Alkebulan
-              </Link>
+              {/* Join Alkebulan Dropdown Mobile */}
+              <div className="border-b border-[hsl(var(--border))] pb-2 mb-2">
+                <div className="px-3 py-2 text-yellow-500 font-medium text-sm flex items-center border border-yellow-500 rounded-md">
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Join Alkebulan
+                </div>
+                <div className="ml-6 space-y-1 mt-2">
+                  <Link
+                    href="/join-the-team"
+                    className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <UserPlus className="w-4 h-4 inline mr-2" />
+                    Join the Team!
+                  </Link>
+                  <Link
+                    href="/auth/signin"
+                    className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <UserCheck className="w-4 h-4 inline mr-2" />
+                    Sign In
+                  </Link>
+                  <Link
+                    href="/auth/signup"
+                    className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-text))] hover:text-[hsl(var(--navbar-bg))] rounded-md text-sm"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <UserPlus className="w-4 h-4 inline mr-2" />
+                    Sign Up
+                  </Link>
+                </div>
+              </div>
 
               {/* Mobile Menu Items - Only show when logged in */}
               {!loading && user && user.id && (
