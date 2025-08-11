@@ -31,39 +31,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!isSupabaseConfigured() || !supabase) return null
     
     try {
-      // Try to find profile by id first
+      console.log('Fetching profile for user ID:', userId)
+      
+      // Try to find profile by user_id first (more reliable)
       let { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId)
+        .eq('user_id', userId)
         .single()
       
-      // If not found by id, try by user_id
+      // If not found by user_id, try by id
       if (error && error.code === 'PGRST116') {
-        const { data: dataByUserId, error: errorByUserId } = await supabase
+        console.log('Profile not found by user_id, trying by id...')
+        const { data: dataById, error: errorById } = await supabase
           .from('profiles')
           .select('*')
-          .eq('user_id', userId)
+          .eq('id', userId)
           .single()
         
-        if (errorByUserId && errorByUserId.code === 'PGRST116') {
-          // Profile doesn't exist, that's ok
+        if (errorById && errorById.code === 'PGRST116') {
+          console.log('Profile not found by id either, creating new profile...')
+          // Profile doesn't exist, create a default one
+          const defaultProfile = {
+            user_id: userId,
+            buyer_enabled: true,
+            seller_enabled: false,
+            account_type: 'buyer',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
+          
+          const { data: newProfile, error: createError } = await supabase
+            .from('profiles')
+            .insert(defaultProfile)
+            .select()
+            .single()
+          
+          if (createError) {
+            console.error('Error creating default profile:', createError)
+            return null
+          }
+          
+          console.log('Default profile created:', newProfile)
+          return newProfile
+        }
+        
+        if (errorById) {
+          console.error('Error fetching profile by id:', errorById)
           return null
         }
         
-        if (errorByUserId) {
-          console.error('Error fetching profile by user_id:', errorByUserId)
-          return null
-        }
-        
-        return dataByUserId
+        return dataById
       }
       
       if (error) {
-        console.error('Error fetching profile by id:', error)
+        console.error('Error fetching profile by user_id:', error)
         return null
       }
       
+      console.log('Profile found:', data)
       return data
     } catch (error) {
       console.error('Error fetching profile:', error)

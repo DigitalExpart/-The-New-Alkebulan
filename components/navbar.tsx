@@ -130,12 +130,30 @@ export function Navbar() {
       
       console.log('Update data to be sent:', updateData)
       
-      // Update the profile in Supabase
-      const { data, error } = await supabase
+      // Update the profile in Supabase - try by user_id first, then by id
+      let { data, error } = await supabase
         .from('profiles')
         .update(updateData)
-        .eq('id', user.id)
+        .eq('user_id', user.id)
         .select()
+      
+      // If not found by user_id, try by id
+      if (error && error.code === 'PGRST116') {
+        console.log('Profile not found by user_id, trying by id...')
+        const { data: dataById, error: errorById } = await supabase
+          .from('profiles')
+          .update(updateData)
+          .eq('id', user.id)
+          .select()
+        
+        if (errorById) {
+          console.error('Error updating profile by id:', errorById)
+          error = errorById
+        } else {
+          data = dataById
+          error = null
+        }
+      }
 
       if (error) {
         console.error('Error updating account roles:', error)
@@ -156,6 +174,8 @@ export function Navbar() {
       if (data && data[0]) {
         const updatedProfile = { ...profile, ...data[0] }
         console.log('Updated local profile state:', updatedProfile)
+        console.log('New buyer_enabled:', updatedProfile.buyer_enabled)
+        console.log('New seller_enabled:', updatedProfile.seller_enabled)
         
         // Force a re-render by updating the profile context
         // This will be handled by the useAuth hook's refresh mechanism
