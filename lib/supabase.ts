@@ -1,3 +1,4 @@
+// Updated: Environment variables configured in Vercel - redeploy required
 import { createClient } from "@supabase/supabase-js"
 
 // Check if we have valid Supabase configuration
