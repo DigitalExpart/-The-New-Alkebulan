@@ -31,19 +31,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!isSupabaseConfigured() || !supabase) return null
     
     try {
-      const { data, error } = await supabase
+      // Try to find profile by id first
+      let { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single()
       
+      // If not found by id, try by user_id
       if (error && error.code === 'PGRST116') {
-        // Profile doesn't exist, that's ok
-        return null
+        const { data: dataByUserId, error: errorByUserId } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .single()
+        
+        if (errorByUserId && errorByUserId.code === 'PGRST116') {
+          // Profile doesn't exist, that's ok
+          return null
+        }
+        
+        if (errorByUserId) {
+          console.error('Error fetching profile by user_id:', errorByUserId)
+          return null
+        }
+        
+        return dataByUserId
       }
       
       if (error) {
-        console.error('Error fetching profile:', error)
+        console.error('Error fetching profile by id:', error)
         return null
       }
       
@@ -161,6 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           try {
             const profileData = {
               id: signUpData.user.id,
+              user_id: signUpData.user.id, // Add user_id field
               full_name: data.full_name,
               email: data.email,
               account_type: data.account_type,
