@@ -18,7 +18,8 @@ import { useAuth } from "@/hooks/use-auth"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 import Link from "next/link"
-import type { Profile, FamilyMember, WorkExperience, InterestSuggestion, CompetencySuggestion, LANGUAGE_OPTIONS, GENDER_OPTIONS, RELATIONSHIP_OPTIONS, INTEREST_SUGGESTIONS, COMPETENCY_SUGGESTIONS } from "@/types/profile"
+import type { Profile, FamilyMember, WorkExperience, InterestSuggestion, CompetencySuggestion } from "@/types/profile"
+import { LANGUAGE_OPTIONS, GENDER_OPTIONS, RELATIONSHIP_OPTIONS, INTEREST_SUGGESTIONS, COMPETENCY_SUGGESTIONS } from "@/types/profile"
 
 export default function EditProfilePage() {
   const router = useRouter()
