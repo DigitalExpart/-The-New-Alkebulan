@@ -163,7 +163,6 @@ SELECT
   id,
   user_id,
   full_name,
-  username,
   bio,
   location,
   website,

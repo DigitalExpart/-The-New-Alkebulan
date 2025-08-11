@@ -18,6 +18,7 @@ export interface SignUpData {
   password: string
   confirmPassword: string
   full_name: string
+  account_type: 'buyer' | 'seller'
 }
 
 export interface SignInData {

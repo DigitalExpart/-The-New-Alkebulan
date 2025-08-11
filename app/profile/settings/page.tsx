@@ -27,9 +27,9 @@ import {
   Settings,
   CheckCircle,
   AlertCircle,
-  Google,
-  Facebook,
-  Apple
+  Chrome,
+  MessageCircle,
+  Smartphone as PhoneIcon2
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { supabase } from "@/lib/supabase"
@@ -467,45 +467,45 @@ export default function ProfileSettingsPage() {
                   Single Sign-On (SSO) Integrations
                 </h3>
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <Google className="w-5 h-5 text-red-600" />
-                      <div>
-                        <p className="font-medium">Google</p>
-                        <p className="text-sm text-muted-foreground">Sign in with Google account</p>
-                      </div>
-                    </div>
-                    <Switch
-                      checked={ssoIntegrations.google}
-                      onCheckedChange={(enabled) => handleSSOIntegration('google', enabled)}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <Facebook className="w-5 h-5 text-blue-600" />
-                      <div>
-                        <p className="font-medium">Facebook</p>
-                        <p className="text-sm text-muted-foreground">Sign in with Facebook account</p>
-                      </div>
-                    </div>
-                    <Switch
-                      checked={ssoIntegrations.facebook}
-                      onCheckedChange={(enabled) => handleSSOIntegration('facebook', enabled)}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <Apple className="w-5 h-5 text-gray-800" />
-                      <div>
-                        <p className="font-medium">Apple</p>
-                        <p className="text-sm text-muted-foreground">Sign in with Apple ID</p>
-                      </div>
-                    </div>
-                    <Switch
-                      checked={ssoIntegrations.apple}
-                      onCheckedChange={(enabled) => handleSSOIntegration('apple', enabled)}
-                    />
-                  </div>
+                                     <div className="flex items-center justify-between p-3 border rounded-lg">
+                     <div className="flex items-center gap-3">
+                       <Chrome className="w-5 h-5 text-red-600" />
+                       <div>
+                         <p className="font-medium">Google</p>
+                         <p className="text-sm text-muted-foreground">Sign in with Google account</p>
+                       </div>
+                     </div>
+                     <Switch
+                       checked={ssoIntegrations.google}
+                       onCheckedChange={(enabled) => handleSSOIntegration('google', enabled)}
+                     />
+                   </div>
+                   <div className="flex items-center justify-between p-3 border rounded-lg">
+                     <div className="flex items-center gap-3">
+                       <MessageCircle className="w-5 h-5 text-blue-600" />
+                       <div>
+                         <p className="font-medium">Facebook</p>
+                         <p className="text-sm text-muted-foreground">Sign in with Facebook account</p>
+                       </div>
+                     </div>
+                     <Switch
+                       checked={ssoIntegrations.facebook}
+                       onCheckedChange={(enabled) => handleSSOIntegration('facebook', enabled)}
+                     />
+                   </div>
+                   <div className="flex items-center justify-between p-3 border rounded-lg">
+                     <div className="flex items-center gap-3">
+                       <PhoneIcon2 className="w-5 h-5 text-gray-800" />
+                       <div>
+                         <p className="font-medium">Apple</p>
+                         <p className="text-sm text-muted-foreground">Sign in with Apple ID</p>
+                       </div>
+                     </div>
+                     <Switch
+                       checked={ssoIntegrations.apple}
+                       onCheckedChange={(enabled) => handleSSOIntegration('apple', enabled)}
+                     />
+                   </div>
                 </div>
               </div>
             </CardContent>

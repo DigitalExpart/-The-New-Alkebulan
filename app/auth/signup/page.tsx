@@ -24,6 +24,7 @@ export default function SignUpPage() {
     password: "",
     confirmPassword: "",
     full_name: "",
+    account_type: "buyer",
   })
   const [errors, setErrors] = useState<Partial<SignUpData>>({})
 
@@ -179,6 +180,48 @@ export default function SignUpPage() {
                 </Button>
               </div>
               {errors.confirmPassword && <p className="text-sm text-red-600">{errors.confirmPassword}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Account Type</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    id="buyer"
+                    name="account_type"
+                    value="buyer"
+                    checked={formData.account_type === "buyer"}
+                    onChange={(e) => setFormData(prev => ({ ...prev, account_type: e.target.value as 'buyer' | 'seller' }))}
+                    className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 focus:ring-green-500"
+                    disabled={loading}
+                  />
+                  <Label htmlFor="buyer" className="text-sm font-medium cursor-pointer">
+                    Buyer Account
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    id="seller"
+                    name="account_type"
+                    value="seller"
+                    checked={formData.account_type === "seller"}
+                    onChange={(e) => setFormData(prev => ({ ...prev, account_type: e.target.value as 'buyer' | 'seller' }))}
+                    className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 focus:ring-green-500"
+                    disabled={loading}
+                  />
+                  <Label htmlFor="seller" className="text-sm font-medium cursor-pointer">
+                    Seller Account
+                  </Label>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {formData.account_type === "seller" 
+                  ? "Seller accounts can list products, manage inventory, and process orders."
+                  : "Buyer accounts can browse products, make purchases, and manage their orders."
+                }
+              </p>
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>

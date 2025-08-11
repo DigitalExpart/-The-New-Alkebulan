@@ -12,6 +12,7 @@ export interface Profile {
   education?: string
   avatar_url?: string
   is_public?: boolean
+  account_type?: 'buyer' | 'seller'
   created_at?: string
   updated_at?: string
   
