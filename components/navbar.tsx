@@ -86,24 +86,60 @@ export function Navbar() {
   }
 
   const handleAccountTypeSwitch = async (newAccountType: 'buyer' | 'seller') => {
-    if (!user || !profile || !supabase) return
+    if (!user || !profile || !supabase) {
+      console.log('Missing required data:', { user: !!user, profile: !!profile, supabase: !!supabase })
+      return
+    }
+    
+    console.log('Attempting to switch account type to:', newAccountType)
+    console.log('User ID:', user.id)
+    console.log('Current profile:', profile)
     
     try {
+      // First, check if the profiles table has the account_type column
+      const { data: tableInfo, error: tableError } = await supabase
+        .from('profiles')
+        .select('account_type')
+        .limit(1)
+      
+      if (tableError) {
+        console.error('Error checking table structure:', tableError)
+        console.error('This might mean the account_type column does not exist yet')
+        alert('Account type switching is not available yet. Please run the database migration first.')
+        return
+      }
+      
+      console.log('Table structure check successful:', tableInfo)
+      
       // Update the profile in Supabase
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .update({ account_type: newAccountType })
         .eq('id', user.id)
+        .select()
 
       if (error) {
         console.error('Error updating account type:', error)
+        console.error('Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        })
+        alert(`Failed to update account type: ${error.message}`)
         return
       }
 
+      console.log('Account type updated successfully:', data)
+      
+      // Show success message
+      alert(`Account type switched to ${newAccountType} successfully!`)
+      
       // Refresh the page to update the profile state
       window.location.reload()
     } catch (error) {
       console.error('Error switching account type:', error)
+      alert('An unexpected error occurred while switching account types.')
     }
   }
 
