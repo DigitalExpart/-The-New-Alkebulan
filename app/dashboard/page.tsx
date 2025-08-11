@@ -107,10 +107,16 @@ export default function DashboardPage() {
                   <Building2 className="h-6 w-6" />
                   <span className="text-xs">Business</span>
                 </Button>
-                {profile?.account_type === 'seller' && (
+                {profile?.seller_enabled && (
                   <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => router.push("/seller/dashboard")}>
                     <Store className="h-6 w-6" />
                     <span className="text-xs">Seller Dashboard</span>
+                  </Button>
+                )}
+                {profile?.buyer_enabled && profile?.seller_enabled && (
+                  <Button variant="outline" className="h-20 flex flex-col gap-2 bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200" onClick={() => router.push("/dashboard/unified")}>
+                    <Users className="h-6 w-6" />
+                    <span className="text-xs">Unified Dashboard</span>
                   </Button>
                 )}
               </div>
@@ -133,19 +139,28 @@ export default function DashboardPage() {
                 <div>
                   <p className="font-medium">{user.full_name || "User"}</p>
                   <p className="text-sm text-muted-foreground">{user.email}</p>
-                  {profile?.account_type && (
-                    <Badge 
-                      variant={profile.account_type === 'seller' ? "default" : "outline"} 
-                      className={`text-xs mt-1 capitalize ${
-                        profile.account_type === 'seller' 
-                          ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0' 
-                          : ''
-                      }`}
-                    >
-                      {profile.account_type === 'seller' && <Crown className="w-3 h-3 mr-1" />}
-                      {profile.account_type} Account
-                    </Badge>
-                  )}
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {profile?.buyer_enabled && (
+                      <Badge variant="outline" className="text-xs capitalize">
+                        <ShoppingCart className="w-3 h-3 mr-1" />
+                        Buyer
+                      </Badge>
+                    )}
+                    {profile?.seller_enabled && (
+                      <Badge 
+                        variant="default" 
+                        className="text-xs capitalize bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0"
+                      >
+                        <Crown className="w-3 h-3 mr-1" />
+                        Seller
+                      </Badge>
+                    )}
+                    {!profile?.buyer_enabled && !profile?.seller_enabled && (
+                      <Badge variant="secondary" className="text-xs">
+                        No Roles Set
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
               <Button variant="outline" className="w-full" onClick={() => router.push("/profile")}>

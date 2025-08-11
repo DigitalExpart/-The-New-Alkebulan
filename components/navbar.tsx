@@ -85,61 +85,72 @@ export function Navbar() {
     // You could navigate to a search results page or trigger a search API call
   }
 
-  const handleAccountTypeSwitch = async (newAccountType: 'buyer' | 'seller') => {
+  const handleAccountTypeSwitch = async (newRole: 'buyer' | 'seller' | 'both') => {
     if (!user || !profile || !supabase) {
       console.log('Missing required data:', { user: !!user, profile: !!profile, supabase: !!supabase })
       return
     }
     
-    console.log('Attempting to switch account type to:', newAccountType)
+    console.log('Attempting to switch account roles to:', newRole)
     console.log('User ID:', user.id)
     console.log('Current profile:', profile)
     
     try {
-      // First, check if the profiles table has the account_type column
+      // First, check if the profiles table has the required columns
       const { data: tableInfo, error: tableError } = await supabase
         .from('profiles')
-        .select('account_type')
+        .select('buyer_enabled, seller_enabled')
         .limit(1)
       
       if (tableError) {
         console.error('Error checking table structure:', tableError)
-        console.error('This might mean the account_type column does not exist yet')
-        alert('Account type switching is not available yet. Please run the database migration first.')
+        console.error('This might mean the role columns do not exist yet')
+        alert('Account role switching is not available yet. Please run the database migration first.')
         return
       }
       
       console.log('Table structure check successful:', tableInfo)
       
+      // Determine the new role settings
+      let updateData: any = {}
+      
+      if (newRole === 'buyer') {
+        updateData = { buyer_enabled: true, seller_enabled: false }
+      } else if (newRole === 'seller') {
+        updateData = { buyer_enabled: false, seller_enabled: true }
+      } else if (newRole === 'both') {
+        updateData = { buyer_enabled: true, seller_enabled: true }
+      }
+      
       // Update the profile in Supabase
       const { data, error } = await supabase
         .from('profiles')
-        .update({ account_type: newAccountType })
+        .update(updateData)
         .eq('id', user.id)
         .select()
 
       if (error) {
-        console.error('Error updating account type:', error)
+        console.error('Error updating account roles:', error)
         console.error('Error details:', {
           code: error.code,
           message: error.message,
           details: error.details,
           hint: error.hint
         })
-        alert(`Failed to update account type: ${error.message}`)
+        alert(`Failed to update account roles: ${error.message}`)
         return
       }
 
-      console.log('Account type updated successfully:', data)
+      console.log('Account roles updated successfully:', data)
       
       // Show success message
-      alert(`Account type switched to ${newAccountType} successfully!`)
+      alert(`Account roles switched to ${newRole} successfully!`)
       
       // Refresh the page to update the profile state
       window.location.reload()
     } catch (error) {
-      console.error('Error switching account type:', error)
-      alert('An unexpected error occurred while switching account types.')
+      console.error('Error switching account roles:', error)
+      alert('An unexpected error occurred while switching account roles.')
     }
   }
 
@@ -600,7 +611,7 @@ export function Navbar() {
                     <DropdownMenuSeparator />
                     {/* Account Type Switcher */}
                     <DropdownMenuLabel className="text-xs text-muted-foreground px-2 py-1.5">
-                      Account Type
+                      Account Roles
                     </DropdownMenuLabel>
                     <DropdownMenuItem 
                       className="flex items-center justify-between cursor-pointer"
@@ -608,9 +619,9 @@ export function Navbar() {
                     >
                       <div className="flex items-center gap-2">
                         <ShoppingCart className="w-4 h-4" />
-                        Buyer Account
+                        Buyer Activities
                       </div>
-                      {profile?.account_type === 'buyer' && (
+                      {profile?.buyer_enabled && (
                         <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                       )}
                     </DropdownMenuItem>
@@ -620,9 +631,21 @@ export function Navbar() {
                     >
                       <div className="flex items-center gap-2">
                         <Store className="w-4 h-4" />
-                        Seller Account
+                        Seller Activities
                       </div>
-                      {profile?.account_type === 'seller' && (
+                      {profile?.seller_enabled && (
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      )}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      className="flex items-center justify-between cursor-pointer"
+                      onClick={() => handleAccountTypeSwitch('both')}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4" />
+                        Both Roles
+                      </div>
+                      {profile?.buyer_enabled && profile?.seller_enabled && (
                         <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                       )}
                     </DropdownMenuItem>
@@ -702,7 +725,7 @@ export function Navbar() {
                     </Link>
                     {/* Account Type Switcher - Mobile */}
                     <div className="px-3 py-2">
-                      <div className="text-xs text-muted-foreground mb-2">Account Type</div>
+                      <div className="text-xs text-muted-foreground mb-2">Account Roles</div>
                       <div className="space-y-1">
                         <button
                           className="flex items-center justify-between w-full px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
@@ -713,14 +736,14 @@ export function Navbar() {
                         >
                           <div className="flex items-center gap-2">
                             <ShoppingCart className="w-4 h-4" />
-                            Buyer Account
+                            Buyer Activities
                           </div>
-                          {profile?.account_type === 'buyer' && (
+                          {profile?.buyer_enabled && (
                             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                           )}
                         </button>
                         <button
-                          className="flex items-center justify-between w-full px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-text))] hover:text-[hsl(var(--navbar-bg))] rounded-md text-sm"
+                          className="flex items-center justify-between w-full px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-text))] hover:text-[hsl(var(--navbar-bover))] rounded-md text-sm"
                           onClick={() => {
                             handleAccountTypeSwitch('seller')
                             setIsOpen(false)
@@ -728,9 +751,24 @@ export function Navbar() {
                         >
                           <div className="flex items-center gap-2">
                             <Store className="w-4 h-4" />
-                            Seller Account
+                            Seller Activities
                           </div>
-                          {profile?.account_type === 'seller' && (
+                          {profile?.seller_enabled && (
+                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          )}
+                        </button>
+                        <button
+                          className="flex items-center justify-between w-full px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
+                          onClick={() => {
+                            handleAccountTypeSwitch('both')
+                            setIsOpen(false)
+                          }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Users className="w-4 h-4" />
+                            Both Roles
+                          </div>
+                          {profile?.buyer_enabled && profile?.seller_enabled && (
                             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                           )}
                         </button>
