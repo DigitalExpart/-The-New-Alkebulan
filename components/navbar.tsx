@@ -57,7 +57,7 @@ import {
 import { isSupabaseConfigured, supabase } from "@/lib/supabase"
 
 export function Navbar() {
-  const { user, profile, signOut, loading } = useAuth()
+  const { user, profile, signOut, loading, refreshProfile } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
 
@@ -147,11 +147,21 @@ export function Navbar() {
       console.log('Account roles updated successfully:', data)
       console.log('Updated profile data:', data)
       
+      // Update the local profile state immediately
+      if (data && data[0]) {
+        const updatedProfile = { ...profile, ...data[0] }
+        console.log('Updated local profile state:', updatedProfile)
+        
+        // Force a re-render by updating the profile context
+        // This will be handled by the useAuth hook's refresh mechanism
+      }
+      
       // Show success message
       alert(`Account roles switched to ${newRole} successfully!`)
       
-      // Refresh the page to update the profile state
-      window.location.reload()
+      // Refresh the profile data instead of reloading the page
+      await refreshProfile()
+      console.log('Profile refreshed after role switch')
     } catch (error) {
       console.error('Error switching account roles:', error)
       alert('An unexpected error occurred while switching account roles.')
