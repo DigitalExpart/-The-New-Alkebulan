@@ -85,7 +85,7 @@ export function Navbar() {
     // You could navigate to a search results page or trigger a search API call
   }
 
-  const handleAccountTypeSwitch = async (newRole: 'buyer' | 'seller' | 'both') => {
+  const handleAccountTypeSwitch = async (newRole: 'buyer' | 'seller') => {
     if (!user || !profile || !supabase) {
       console.log('Missing required data:', { user: !!user, profile: !!profile, supabase: !!supabase })
       return
@@ -121,8 +121,6 @@ export function Navbar() {
         updateData = { buyer_enabled: true, seller_enabled: false }
       } else if (newRole === 'seller') {
         updateData = { buyer_enabled: false, seller_enabled: true }
-      } else if (newRole === 'both') {
-        updateData = { buyer_enabled: true, seller_enabled: true }
       }
       
       console.log('Update data to be sent:', updateData)
@@ -643,18 +641,7 @@ export function Navbar() {
                         <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                       )}
                     </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      className="flex items-center justify-between cursor-pointer"
-                      onClick={() => handleAccountTypeSwitch('both')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4" />
-                        Both Roles
-                      </div>
-                      {profile?.buyer_enabled && profile?.seller_enabled && (
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      )}
-                    </DropdownMenuItem>
+                    
                     <DropdownMenuSeparator />
                     <DropdownMenuItem>
                       <Settings className="w-4 h-4 mr-2" />
@@ -763,21 +750,7 @@ export function Navbar() {
                             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                           )}
                         </button>
-                        <button
-                          className="flex items-center justify-between w-full px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                          onClick={() => {
-                            handleAccountTypeSwitch('both')
-                            setIsOpen(false)
-                          }}
-                        >
-                          <div className="flex items-center gap-2">
-                            <Users className="w-4 h-4" />
-                            Both Roles
-                          </div>
-                          {profile?.buyer_enabled && profile?.seller_enabled && (
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                          )}
-                        </button>
+
                       </div>
                     </div>
                     <button

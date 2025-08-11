@@ -113,12 +113,7 @@ export default function DashboardPage() {
                     <span className="text-xs">Seller Dashboard</span>
                   </Button>
                 )}
-                {profile?.buyer_enabled && profile?.seller_enabled && (
-                  <Button variant="outline" className="h-20 flex flex-col gap-2 bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200" onClick={() => router.push("/dashboard/unified")}>
-                    <Users className="h-6 w-6" />
-                    <span className="text-xs">Unified Dashboard</span>
-                  </Button>
-                )}
+                
               </div>
             </CardContent>
           </Card>
