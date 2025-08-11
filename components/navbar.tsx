@@ -64,8 +64,13 @@ export function Navbar() {
   // Debug: Log authentication state
   useEffect(() => {
     console.log('Navbar - User state:', !!user, user?.id, user?.email, loading)
+    console.log('Navbar - Profile state:', profile)
+    console.log('Navbar - Profile roles:', {
+      buyer_enabled: profile?.buyer_enabled,
+      seller_enabled: profile?.seller_enabled
+    })
     console.log('Navbar - Supabase configured:', isSupabaseConfigured())
-  }, [user, loading])
+  }, [user, loading, profile])
 
   const toggleMenu = () => setIsOpen(!isOpen)
 
