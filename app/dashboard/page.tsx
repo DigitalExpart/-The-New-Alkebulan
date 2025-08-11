@@ -17,7 +17,8 @@ import {
   DollarSign,
   Heart,
   Shield,
-  Store
+  Store,
+  Crown
 } from "lucide-react"
 
 export default function DashboardPage() {
@@ -133,7 +134,15 @@ export default function DashboardPage() {
                   <p className="font-medium">{user.full_name || "User"}</p>
                   <p className="text-sm text-muted-foreground">{user.email}</p>
                   {profile?.account_type && (
-                    <Badge variant="outline" className="text-xs mt-1 capitalize">
+                    <Badge 
+                      variant={profile.account_type === 'seller' ? "default" : "outline"} 
+                      className={`text-xs mt-1 capitalize ${
+                        profile.account_type === 'seller' 
+                          ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0' 
+                          : ''
+                      }`}
+                    >
+                      {profile.account_type === 'seller' && <Crown className="w-3 h-3 mr-1" />}
                       {profile.account_type} Account
                     </Badge>
                   )}

@@ -23,9 +23,11 @@ import {
   Plus,
   Edit,
   Save,
-  X
+  X,
+  Crown
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
+import { useSellerSettings } from "@/hooks/use-seller-settings"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 import Link from "next/link"
@@ -33,7 +35,9 @@ import Link from "next/link"
 export default function SellerDashboard() {
   const router = useRouter()
   const { user, profile } = useAuth()
+  const { settings, loading: settingsLoading, updateStoreInfo } = useSellerSettings()
   const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
     if (user && profile) {
@@ -45,7 +49,49 @@ export default function SellerDashboard() {
     }
   }, [user, profile, router])
 
-  if (loading) {
+  const handleImageUpload = async (file: File, type: 'banner' | 'logo') => {
+    if (!user || !supabase) return
+
+    try {
+      setUploading(true)
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${user.id}-${type}-${Date.now()}.${fileExt}`
+      const filePath = `seller-assets/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('public')
+        .upload(filePath, file)
+
+      if (uploadError) {
+        throw uploadError
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('public')
+        .getPublicUrl(filePath)
+
+      // Update store info with new image URL
+      const currentSettings = settings || {}
+      const updateData = {
+        store_name: currentSettings.store_name || '',
+        store_description: currentSettings.store_description || '',
+        store_banner_url: type === 'banner' ? publicUrl : (currentSettings.store_banner_url || ''),
+        store_logo_url: type === 'logo' ? publicUrl : (currentSettings.store_logo_url || '')
+      }
+
+      const success = await updateStoreInfo(updateData)
+      if (success) {
+        toast.success(`${type === 'banner' ? 'Banner' : 'Logo'} uploaded successfully!`)
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      toast.error(`Failed to upload ${type}`)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  if (loading || settingsLoading) {
     return (
       <div className="min-h-screen bg-muted/30 flex items-center justify-center">
         <div className="text-center">
@@ -73,16 +119,170 @@ export default function SellerDashboard() {
   return (
     <div className="min-h-screen bg-muted/30">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
-        {/* Header */}
+        {/* Header with Seller Badge */}
         <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold">Seller Dashboard</h1>
-            <p className="text-muted-foreground">Manage your store, products, and sales</p>
+          <div className="flex items-center gap-4">
+            <div>
+              <h1 className="text-3xl font-bold">Seller Dashboard</h1>
+              <p className="text-muted-foreground">Manage your store, products, and sales</p>
+            </div>
+            <Badge variant="default" className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0 px-4 py-2 text-sm font-semibold">
+              <Crown className="w-4 h-4 mr-2" />
+              SELLER
+            </Badge>
           </div>
           <Button onClick={() => router.push('/dashboard')}>
             Back to Main Dashboard
           </Button>
         </div>
+
+        {/* Store Banner Section */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ImageIcon className="w-5 h-5 text-blue-600" />
+              Store Banner
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {settings?.store_banner_url ? (
+                <div className="relative">
+                  <img 
+                    src={settings.store_banner_url} 
+                    alt="Store Banner" 
+                    className="w-full h-48 object-cover rounded-lg"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="absolute top-2 right-2 bg-white/90 hover:bg-white"
+                    onClick={() => document.getElementById('banner-upload')?.click()}
+                    disabled={uploading}
+                  >
+                    {uploading ? 'Uploading...' : 'Change Banner'}
+                  </Button>
+                </div>
+              ) : (
+                <div className="w-full h-48 bg-muted rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center">
+                  <div className="text-center">
+                    <ImageIcon className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground mb-2">No store banner uploaded</p>
+                    <Button
+                      size="sm"
+                      onClick={() => document.getElementById('banner-upload')?.click()}
+                      disabled={uploading}
+                    >
+                      {uploading ? 'Uploading...' : 'Upload Banner'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+              <input
+                id="banner-upload"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) handleImageUpload(file, 'banner')
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                Recommended size: 1200x300px. Supports JPG, PNG, GIF up to 5MB.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Store Logo Section */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ImageIcon className="w-5 h-5 text-green-600" />
+              Store Logo
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-start gap-6">
+                {settings?.store_logo_url ? (
+                  <div className="relative">
+                    <img 
+                      src={settings.store_logo_url} 
+                      alt="Store Logo" 
+                      className="w-32 h-32 object-cover rounded-lg border-2 border-muted"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="absolute -top-2 -right-2 bg-white hover:bg-white"
+                      onClick={() => document.getElementById('logo-upload')?.click()}
+                      disabled={uploading}
+                    >
+                      {uploading ? '...' : 'Change'}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="w-32 h-32 bg-muted rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center">
+                    <ImageIcon className="w-12 h-12 text-muted-foreground" />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor="store-name" className="text-sm font-medium">Store Name</Label>
+                      <Input
+                        id="store-name"
+                        placeholder="Enter your store name"
+                        value={settings?.store_name || ''}
+                        onChange={(e) => {
+                          // This would need to be connected to a form state
+                          // For now, just show the current value
+                        }}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="store-description" className="text-sm font-medium">Store Description</Label>
+                      <Textarea
+                        id="store-description"
+                        placeholder="Describe your store and what you offer..."
+                        value={settings?.store_description || ''}
+                        onChange={(e) => {
+                          // This would need to be connected to a form state
+                          // For now, just show the current value
+                        }}
+                        className="mt-1"
+                        rows={3}
+                      />
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => document.getElementById('logo-upload')?.click()}
+                      disabled={uploading}
+                    >
+                      {uploading ? 'Uploading...' : 'Upload Logo'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <input
+                id="logo-upload"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) handleImageUpload(file, 'logo')
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                Recommended size: 200x200px. Supports JPG, PNG, GIF up to 2MB.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -143,11 +343,29 @@ export default function SellerDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label className="text-sm font-medium">Store Name</Label>
-                <p className="text-sm text-muted-foreground mt-1">Not configured</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {settings?.store_name || 'Not configured'}
+                </p>
               </div>
               <div>
                 <Label className="text-sm font-medium">Stripe Status</Label>
-                <Badge variant="secondary" className="mt-1">Not Connected</Badge>
+                <Badge variant={settings?.payment_settings?.stripe_connected ? "default" : "secondary"} className="mt-1">
+                  {settings?.payment_settings?.stripe_connected ? 'Connected' : 'Not Connected'}
+                </Badge>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label className="text-sm font-medium">Store Status</Label>
+                <Badge variant="outline" className="mt-1 capitalize">
+                  {settings?.store_status || 'draft'}
+                </Badge>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Verification</Label>
+                <Badge variant={settings?.store_verified ? "default" : "secondary"} className="mt-1">
+                  {settings?.store_verified ? 'Verified' : 'Not Verified'}
+                </Badge>
               </div>
             </div>
             <Button>
