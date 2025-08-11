@@ -38,6 +38,7 @@ import {
   Map,
   Settings,
   LogOut,
+  Store,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -53,7 +54,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { isSupabaseConfigured } from "@/lib/supabase"
+import { isSupabaseConfigured, supabase } from "@/lib/supabase"
 
 export function Navbar() {
   const { user, profile, signOut, loading } = useAuth()
@@ -82,6 +83,28 @@ export function Navbar() {
     console.log("Searching for:", query)
     // Implement your search logic here
     // You could navigate to a search results page or trigger a search API call
+  }
+
+  const handleAccountTypeSwitch = async (newAccountType: 'buyer' | 'seller') => {
+    if (!user || !profile || !supabase) return
+    
+    try {
+      // Update the profile in Supabase
+      const { error } = await supabase
+        .from('profiles')
+        .update({ account_type: newAccountType })
+        .eq('id', user.id)
+
+      if (error) {
+        console.error('Error updating account type:', error)
+        return
+      }
+
+      // Refresh the page to update the profile state
+      window.location.reload()
+    } catch (error) {
+      console.error('Error switching account type:', error)
+    }
   }
 
   return (
@@ -539,6 +562,35 @@ export function Navbar() {
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
+                    {/* Account Type Switcher */}
+                    <DropdownMenuLabel className="text-xs text-muted-foreground px-2 py-1.5">
+                      Account Type
+                    </DropdownMenuLabel>
+                    <DropdownMenuItem 
+                      className="flex items-center justify-between cursor-pointer"
+                      onClick={() => handleAccountTypeSwitch('buyer')}
+                    >
+                      <div className="flex items-center gap-2">
+                        <ShoppingCart className="w-4 h-4" />
+                        Buyer Account
+                      </div>
+                      {profile?.account_type === 'buyer' && (
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      )}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      className="flex items-center justify-between cursor-pointer"
+                      onClick={() => handleAccountTypeSwitch('seller')}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Store className="w-4 h-4" />
+                        Seller Account
+                      </div>
+                      {profile?.account_type === 'seller' && (
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      )}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem>
                       <Settings className="w-4 h-4 mr-2" />
                       Settings
@@ -612,6 +664,42 @@ export function Navbar() {
                       <Settings className="w-4 h-4 inline mr-2" />
                       Edit Profile
                     </Link>
+                    {/* Account Type Switcher - Mobile */}
+                    <div className="px-3 py-2">
+                      <div className="text-xs text-muted-foreground mb-2">Account Type</div>
+                      <div className="space-y-1">
+                        <button
+                          className="flex items-center justify-between w-full px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
+                          onClick={() => {
+                            handleAccountTypeSwitch('buyer')
+                            setIsOpen(false)
+                          }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <ShoppingCart className="w-4 h-4" />
+                            Buyer Account
+                          </div>
+                          {profile?.account_type === 'buyer' && (
+                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          )}
+                        </button>
+                        <button
+                          className="flex items-center justify-between w-full px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-text))] hover:text-[hsl(var(--navbar-bg))] rounded-md text-sm"
+                          onClick={() => {
+                            handleAccountTypeSwitch('seller')
+                            setIsOpen(false)
+                          }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Store className="w-4 h-4" />
+                            Seller Account
+                          </div>
+                          {profile?.account_type === 'seller' && (
+                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          )}
+                        </button>
+                      </div>
+                    </div>
                     <button
                       onClick={() => {
                         signOut()
