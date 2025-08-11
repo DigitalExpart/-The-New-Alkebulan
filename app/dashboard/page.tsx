@@ -23,7 +23,7 @@ import {
 
 export default function DashboardPage() {
   const router = useRouter()
-  const { user, profile, loading, signOut } = useAuth()
+  const { user, profile, loading } = useAuth()
 
   useEffect(() => {
     if (!loading && !user) {
@@ -31,10 +31,7 @@ export default function DashboardPage() {
     }
   }, [user, loading, router])
 
-  const handleSignOut = async () => {
-    await signOut()
-    router.push("/")
-  }
+
 
   if (loading) {
     return (
@@ -67,9 +64,6 @@ export default function DashboardPage() {
               <Badge variant="secondary" className="text-sm">
                 Member
               </Badge>
-              <Button variant="outline" onClick={handleSignOut}>
-                Sign Out
-              </Button>
             </div>
           </div>
         </div>
