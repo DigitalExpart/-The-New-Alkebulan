@@ -50,7 +50,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .single()
         
         if (errorById && errorById.code === 'PGRST116') {
-          console.log('Profile not found by id either, creating new profile...')
+          console.log('Profile not found by id either, checking if profile exists with different structure...')
+          
+          // Try to find any profile that might exist with this user
+          const { data: existingProfiles, error: searchError } = await supabase
+            .from('profiles')
+            .select('*')
+            .or(`user_id.eq.${userId},id.eq.${userId}`)
+          
+          if (searchError) {
+            console.error('Error searching for existing profiles:', searchError)
+          } else if (existingProfiles && existingProfiles.length > 0) {
+            console.log('Found existing profile with different structure:', existingProfiles[0])
+            return existingProfiles[0]
+          }
+          
+          console.log('No existing profile found, creating new default profile...')
           // Profile doesn't exist, create a default one
           const defaultProfile = {
             user_id: userId,
@@ -100,6 +115,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshProfile = async () => {
     if (state.user) {
       const profileData = await fetchProfile(state.user.id)
+      
+      // Check if profile has correct role settings based on account_type
+      if (profileData && profileData.account_type) {
+        const expectedBuyerEnabled = profileData.account_type === 'buyer'
+        const expectedSellerEnabled = profileData.account_type === 'seller'
+        
+        // If role settings don't match account_type, fix them
+        if (profileData.buyer_enabled !== expectedBuyerEnabled || 
+            profileData.seller_enabled !== expectedSellerEnabled) {
+          console.log('Fixing mismatched role settings for account type:', profileData.account_type)
+          
+          if (supabase) {
+            try {
+              const { error: updateError } = await supabase
+                .from('profiles')
+                .update({
+                  buyer_enabled: expectedBuyerEnabled,
+                  seller_enabled: expectedSellerEnabled,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', profileData.id)
+              
+              if (updateError) {
+                console.error('Error fixing role settings:', updateError)
+              } else {
+                console.log('Role settings fixed successfully')
+                // Fetch the updated profile
+                const updatedProfile = await fetchProfile(state.user.id)
+                setProfile(updatedProfile)
+                return
+              }
+            } catch (error) {
+              console.error('Error fixing role settings:', error)
+            }
+          }
+        }
+      }
+      
       setProfile(profileData)
     }
   }
@@ -193,43 +246,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) throw error
 
+      // Always create profile record regardless of email confirmation
+      if (signUpData.user) {
+        try {
+          console.log('Creating profile for user:', signUpData.user.id, 'with account type:', data.account_type)
+          
+          const profileData = {
+            id: signUpData.user.id,
+            user_id: signUpData.user.id,
+            full_name: data.full_name,
+            email: data.email,
+            account_type: data.account_type,
+            buyer_enabled: data.account_type === 'buyer',
+            seller_enabled: data.account_type === 'seller',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
+          
+          console.log('Profile data to insert:', profileData)
+          
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert(profileData)
+          
+          if (profileError) {
+            console.error('Error creating profile:', profileError)
+            // Don't fail the signup if profile creation fails
+          } else {
+            console.log('Profile created successfully with roles:', {
+              buyer_enabled: profileData.buyer_enabled,
+              seller_enabled: profileData.seller_enabled,
+              account_type: profileData.account_type
+            })
+          }
+        } catch (profileError) {
+          console.error('Error creating profile:', profileError)
+          // Don't fail the signup if profile creation fails
+        }
+      }
+      
       // Check if email confirmation is required
       if (signUpData.user && !signUpData.session) {
         toast.success("Account created successfully! Please check your email to confirm your account before signing in.")
         router.push("/auth/signin")
       } else if (signUpData.session) {
         // User is automatically signed in (email confirmation not required)
-        // Create profile record
-        if (signUpData.user) {
-          try {
-            const profileData = {
-              id: signUpData.user.id,
-              user_id: signUpData.user.id, // Add user_id field
-              full_name: data.full_name,
-              email: data.email,
-              account_type: data.account_type,
-              buyer_enabled: data.account_type === 'buyer',
-              seller_enabled: data.account_type === 'seller',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            }
-            
-            const { error: profileError } = await supabase
-              .from('profiles')
-              .insert(profileData)
-            
-            if (profileError) {
-              console.error('Error creating profile:', profileError)
-              // Don't fail the signup if profile creation fails
-            } else {
-              console.log('Profile created successfully')
-            }
-          } catch (profileError) {
-            console.error('Error creating profile:', profileError)
-            // Don't fail the signup if profile creation fails
-          }
-        }
-        
         toast.success("Account created and signed in successfully!")
         router.push("/dashboard")
       }
