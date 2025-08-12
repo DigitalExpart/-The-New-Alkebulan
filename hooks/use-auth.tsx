@@ -267,11 +267,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           console.log('Profile data to insert:', profileData)
           
-          const { error: profileError } = await supabase
+          console.log('Attempting to insert profile data:', profileData)
+          
+          console.log('About to insert profile data into database...')
+          
+          const { data: insertedProfile, error: profileError } = await supabase
             .from('profiles')
             .insert(profileData)
+            .select()
           
           if (profileError) {
+            console.error('❌ PROFILE CREATION FAILED ❌')
             console.error('Error creating profile:', profileError)
             console.error('Profile data that failed:', profileData)
             console.error('Error details:', {
@@ -280,8 +286,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               details: profileError.details,
               hint: profileError.hint
             })
+            
+            // Try to get more details about the failure
+            if (profileError.code === '23505') {
+              console.error('❌ UNIQUE CONSTRAINT VIOLATION - Profile might already exist')
+            } else if (profileError.code === '23502') {
+              console.error('❌ NOT NULL CONSTRAINT VIOLATION - Missing required field')
+            } else if (profileError.code === '42P01') {
+              console.error('❌ TABLE DOES NOT EXIST - Check table name')
+            }
+            
             // Don't fail the signup if profile creation fails
           } else {
+            console.log('✅ PROFILE CREATED SUCCESSFULLY ✅')
+            console.log('Profile created successfully:', insertedProfile)
             console.log('Profile created successfully with roles:', {
               buyer_enabled: profileData.buyer_enabled,
               seller_enabled: profileData.seller_enabled,
@@ -289,7 +307,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             })
           }
         } catch (profileError) {
-          console.error('Error creating profile:', profileError)
+          console.error('❌ EXCEPTION during profile creation:', profileError)
+          console.error('Exception type:', typeof profileError)
           // Don't fail the signup if profile creation fails
         }
       }
