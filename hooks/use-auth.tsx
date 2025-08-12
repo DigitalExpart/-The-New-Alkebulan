@@ -27,11 +27,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   })
   const [profile, setProfile] = useState<any | null>(null)
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string, userMetadata?: any) => {
     if (!isSupabaseConfigured() || !supabase) return null
     
     try {
       console.log('Fetching profile for user ID:', userId)
+      console.log('User metadata:', userMetadata)
       
       // Try to find profile by user_id first (more reliable)
       let { data, error } = await supabase
@@ -65,15 +66,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return existingProfiles[0]
           }
           
-          console.log('No existing profile found, creating new default profile...')
-          // Profile doesn't exist, create a default one
+          console.log('No existing profile found, creating new profile based on user metadata...')
+          
+          // Get account type from user metadata or default to 'buyer'
+          const accountType = userMetadata?.account_type || 'buyer'
+          console.log('Creating profile with account type from metadata:', accountType)
+          
+          // Profile doesn't exist, create one based on user's intended account type
           const defaultProfile = {
             user_id: userId,
-            buyer_enabled: true,
-            seller_enabled: false,
-            account_type: 'buyer',
+            buyer_enabled: accountType === 'buyer',
+            seller_enabled: accountType === 'seller',
+            account_type: accountType,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
+          }
+          
+          console.log('Creating default profile with data:', defaultProfile)
+          
+          // Additional logging for seller profiles
+          if (accountType === 'seller') {
+            console.log('🎯 CREATING SELLER PROFILE FROM FETCHPROFILE 🎯')
+            console.log('Seller profile will be created with:', {
+              user_id: userId,
+              seller_enabled: defaultProfile.seller_enabled,
+              buyer_enabled: defaultProfile.buyer_enabled,
+              account_type: defaultProfile.account_type
+            })
           }
           
           const { data: newProfile, error: createError } = await supabase
@@ -87,7 +106,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return null
           }
           
-          console.log('Default profile created:', newProfile)
+          console.log('Default profile created successfully:', newProfile)
+          console.log('Profile created with roles:', {
+            buyer_enabled: defaultProfile.buyer_enabled,
+            seller_enabled: defaultProfile.seller_enabled,
+            account_type: defaultProfile.account_type
+          })
           return newProfile
         }
         
@@ -113,20 +137,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const refreshProfile = async () => {
-    if (state.user) {
-      const profileData = await fetchProfile(state.user.id)
-      
-      // Check if profile has correct role settings based on account_type
-      if (profileData && profileData.account_type) {
-        const expectedBuyerEnabled = profileData.account_type === 'buyer'
-        const expectedSellerEnabled = profileData.account_type === 'seller'
+    if (state.user && supabase) {
+      try {
+        // Get current session to access user metadata
+        const { data: { session } } = await supabase.auth.getSession()
+        const userMetadata = {
+          account_type: session?.user?.user_metadata?.account_type || 'buyer'
+        }
         
-        // If role settings don't match account_type, fix them
-        if (profileData.buyer_enabled !== expectedBuyerEnabled || 
-            profileData.seller_enabled !== expectedSellerEnabled) {
-          console.log('Fixing mismatched role settings for account type:', profileData.account_type)
+        const profileData = await fetchProfile(state.user.id, userMetadata)
+        
+        // Check if profile has correct role settings based on account_type
+        if (profileData && profileData.account_type) {
+          const expectedBuyerEnabled = profileData.account_type === 'buyer'
+          const expectedSellerEnabled = profileData.account_type === 'seller'
           
-          if (supabase) {
+          // If role settings don't match account_type, fix them
+          if (profileData.buyer_enabled !== expectedBuyerEnabled || 
+              profileData.seller_enabled !== expectedSellerEnabled) {
+            console.log('Fixing mismatched role settings for account type:', profileData.account_type)
+            
             try {
               const { error: updateError } = await supabase
                 .from('profiles')
@@ -142,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               } else {
                 console.log('Role settings fixed successfully')
                 // Fetch the updated profile
-                const updatedProfile = await fetchProfile(state.user.id)
+                const updatedProfile = await fetchProfile(state.user.id, userMetadata)
                 setProfile(updatedProfile)
                 return
               }
@@ -151,9 +181,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           }
         }
+        
+        setProfile(profileData)
+      } catch (error) {
+        console.error('Error refreshing profile:', error)
       }
-      
-      setProfile(profileData)
     }
   }
 
@@ -172,6 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email: session.user.email!,
             full_name: session.user.user_metadata?.full_name,
             avatar_url: session.user.user_metadata?.avatar_url,
+            account_type: session.user.user_metadata?.account_type,
             created_at: session.user.created_at,
             updated_at: session.user.updated_at || session.user.created_at,
           }
@@ -184,8 +217,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }))
 
       // Fetch profile data if user exists
-      if (user) {
-        const profileData = await fetchProfile(user.id)
+      if (user && session) {
+        const userMetadata = {
+          account_type: session.user.user_metadata?.account_type || 'buyer'
+        }
+        const profileData = await fetchProfile(user.id, userMetadata)
         setProfile(profileData)
       }
     })
@@ -200,6 +236,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email: session.user.email!,
             full_name: session.user.user_metadata?.full_name,
             avatar_url: session.user.user_metadata?.avatar_url,
+            account_type: session.user.user_metadata?.account_type,
             created_at: session.user.created_at,
             updated_at: session.user.updated_at || session.user.created_at,
           }
@@ -212,8 +249,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }))
 
       // Fetch profile data if user exists, clear if not
-      if (user) {
-        const profileData = await fetchProfile(user.id)
+      if (user && session) {
+        const userMetadata = {
+          account_type: session.user.user_metadata?.account_type || 'buyer'
+        }
+        const profileData = await fetchProfile(user.id, userMetadata)
         setProfile(profileData)
       } else {
         setProfile(null)
@@ -305,6 +345,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               seller_enabled: profileData.seller_enabled,
               account_type: profileData.account_type
             })
+            
+            // Additional logging for seller profiles
+            if (data.account_type === 'seller') {
+              console.log('🎯 SELLER PROFILE CREATED 🎯')
+              console.log('Seller profile details:', {
+                user_id: signUpData.user.id,
+                seller_enabled: profileData.seller_enabled,
+                buyer_enabled: profileData.buyer_enabled,
+                account_type: profileData.account_type
+              })
+            }
           }
         } catch (profileError) {
           console.error('❌ EXCEPTION during profile creation:', profileError)
@@ -349,7 +400,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Fetch profile data after successful sign in
       if (signInData.user) {
-        const profileData = await fetchProfile(signInData.user.id)
+        const userMetadata = {
+          account_type: signInData.user.user_metadata?.account_type || 'buyer'
+        }
+        const profileData = await fetchProfile(signInData.user.id, userMetadata)
         setProfile(profileData)
       }
 
