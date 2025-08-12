@@ -263,6 +263,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             updated_at: new Date().toISOString(),
           }
           
+          console.log('Attempting to create profile with data:', profileData)
+          
           console.log('Profile data to insert:', profileData)
           
           const { error: profileError } = await supabase
@@ -271,6 +273,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           if (profileError) {
             console.error('Error creating profile:', profileError)
+            console.error('Profile data that failed:', profileData)
+            console.error('Error details:', {
+              code: profileError.code,
+              message: profileError.message,
+              details: profileError.details,
+              hint: profileError.hint
+            })
             // Don't fail the signup if profile creation fails
           } else {
             console.log('Profile created successfully with roles:', {
