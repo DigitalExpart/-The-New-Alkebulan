@@ -209,9 +209,14 @@ export function Navbar() {
       console.log('🔍 Buyer enabled after refresh:', profile?.buyer_enabled)
       console.log('🔍 Seller enabled after refresh:', profile?.seller_enabled)
       
-      // Force a page re-render to show the updated roles
-      console.log('🔄 Forcing page re-render...')
-      window.location.reload()
+      // Navigate to appropriate dashboard based on role
+      if (newRole === 'seller') {
+        // Redirect to business dashboard for seller activities
+        window.location.href = '/business/dashboard'
+      } else if (newRole === 'buyer') {
+        // Redirect to main dashboard for buyer activities
+        window.location.href = '/dashboard'
+      }
     } catch (error) {
       console.error('Error switching account roles:', error)
       alert('An unexpected error occurred while switching account roles.')
@@ -823,7 +828,7 @@ export function Navbar() {
                           )}
                         </button>
                         <button
-                          className="flex items-center justify-between w-full px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
+                          className="flex items-center justify-between w-full px-3 py-2 text-[hsl(var(--navbar-hover))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
                           onClick={() => {
                             handleAccountTypeSwitch('seller')
                             setIsOpen(false)

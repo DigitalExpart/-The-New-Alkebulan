@@ -55,10 +55,17 @@ export default function DashboardPage() {
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Welcome back!</h1>
+              <h1 className="text-3xl font-bold text-foreground">
+                Welcome back, @{profile?.username || user.email?.split('@')[0] || 'User'}! 👋
+              </h1>
               <p className="text-muted-foreground mt-1">
-                {user.full_name || user.email}
+                {profile?.full_name || user.full_name || user.email}
               </p>
+              {profile?.username && (
+                <p className="text-sm text-primary font-medium mt-1">
+                  Username: @{profile.username}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-4">
               <Badge variant="secondary" className="text-sm">
@@ -71,6 +78,32 @@ export default function DashboardPage() {
 
       {/* Dashboard Content */}
       <div className="container mx-auto px-4 py-8">
+        {/* Welcome Message - Left Hand Corner */}
+        <div className="mb-6">
+          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 dark:from-blue-950 dark:to-indigo-950 dark:border-blue-800">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-full">
+                  <User className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+                    Welcome, @{profile?.username || user.email?.split('@')[0] || 'User'}! 🎉
+                  </h2>
+                  <p className="text-blue-700 dark:text-blue-300 mt-1">
+                    Ready to explore The New Alkebulan? Here's what you can do today.
+                  </p>
+                  {profile?.username && (
+                    <p className="text-sm text-blue-600 dark:text-blue-400 font-medium mt-2">
+                      Your unique username: <span className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded">@{profile.username}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Quick Actions */}
           <Card className="lg:col-span-2">
@@ -84,7 +117,7 @@ export default function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => router.push("/dashboard/daily-planner")}>
                   <Calendar className="h-6 w-6" />
                   <span className="text-xs">Daily Planner</span>
@@ -97,17 +130,12 @@ export default function DashboardPage() {
                   <ShoppingCart className="h-6 w-6" />
                   <span className="text-xs">Marketplace</span>
                 </Button>
-                <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => router.push("/business/dashboard")}>
-                  <Building2 className="h-6 w-6" />
-                  <span className="text-xs">Business</span>
-                </Button>
                 {profile?.seller_enabled && (
-                  <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => router.push("/seller/dashboard")}>
-                    <Store className="h-6 w-6" />
-                    <span className="text-xs">Seller Dashboard</span>
+                  <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => router.push("/business/dashboard")}>
+                    <Building2 className="h-6 w-6" />
+                    <span className="text-xs">Business</span>
                   </Button>
                 )}
-                
               </div>
             </CardContent>
           </Card>
