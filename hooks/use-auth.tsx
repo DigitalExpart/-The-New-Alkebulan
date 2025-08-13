@@ -32,9 +32,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     console.log('🔍 PROFILE STATE CHANGED:', {
       profile,
-      buyer_enabled: profile?.buyer_enabled,
-      seller_enabled: profile?.seller_enabled,
-      account_type: profile?.account_type,
+      business_enabled: profile?.business_enabled,
+      investor_enabled: profile?.investor_enabled,
+      mentor_enabled: profile?.mentor_enabled,
+      creator_enabled: profile?.creator_enabled,
+      selected_roles: profile?.selected_roles,
       timestamp: new Date().toISOString()
     })
   }, [profile])
@@ -80,16 +82,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           console.log('No existing profile found, creating new profile based on user metadata...')
           
-          // Get account type from user metadata or default to 'buyer'
-          const accountType = userMetadata?.account_type || 'buyer'
-          console.log('Creating profile with account type from metadata:', accountType)
+          // Get selected roles from user metadata or default to 'business'
+          const selectedRoles = userMetadata?.selected_roles || ['business']
+          console.log('Creating profile with selected roles from metadata:', selectedRoles)
           
-          // Profile doesn't exist, create one based on user's intended account type
+          // Profile doesn't exist, create one based on user's intended roles
           const defaultProfile = {
             user_id: userId,
-            buyer_enabled: accountType === 'buyer',  // Only enable buyer if account_type is 'buyer'
-            seller_enabled: accountType === 'seller', // Only enable seller if account_type is 'seller'
-            account_type: accountType,
+            business_enabled: selectedRoles.includes('business'),
+            investor_enabled: selectedRoles.includes('investor'),
+            mentor_enabled: selectedRoles.includes('mentor'),
+            creator_enabled: selectedRoles.includes('creator'),
+            selected_roles: selectedRoles,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           }
@@ -97,13 +101,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.log('Creating default profile with data:', defaultProfile)
           
           // Additional logging for seller profiles
-          if (accountType === 'seller') {
-            console.log('🎯 CREATING SELLER PROFILE FROM FETCHPROFILE 🎯')
-            console.log('Seller profile will be created with:', {
+          if (selectedRoles.includes('business')) {
+            console.log('🎯 CREATING BUSINESS PROFILE FROM FETCHPROFILE 🎯')
+            console.log('Business profile will be created with:', {
               user_id: userId,
-              seller_enabled: defaultProfile.seller_enabled,
-              buyer_enabled: defaultProfile.buyer_enabled,
-              account_type: defaultProfile.account_type
+              business_enabled: defaultProfile.business_enabled,
+              investor_enabled: defaultProfile.investor_enabled,
+              mentor_enabled: defaultProfile.mentor_enabled,
+              creator_enabled: defaultProfile.creator_enabled,
+              selected_roles: defaultProfile.selected_roles
             })
           }
           
@@ -120,9 +126,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           console.log('Default profile created successfully:', newProfile)
           console.log('Profile created with roles:', {
-            buyer_enabled: defaultProfile.buyer_enabled,
-            seller_enabled: defaultProfile.seller_enabled,
-            account_type: defaultProfile.account_type
+            business_enabled: defaultProfile.business_enabled,
+            investor_enabled: defaultProfile.investor_enabled,
+            mentor_enabled: defaultProfile.mentor_enabled,
+            creator_enabled: defaultProfile.creator_enabled,
+            selected_roles: defaultProfile.selected_roles
           })
           return newProfile
         }
@@ -233,43 +241,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('🚀 Starting signup process with data:', data)
       
-      // Create user account
-      const { data: signUpData, error } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          data: {
-            full_name: data.full_name,
-            first_name: data.first_name,
-            last_name: data.last_name,
-            username: data.username,
-            country: data.country,
-            account_type: data.account_type,
-          },
-        },
-      })
+             // Create user account
+       const { data: signUpData, error } = await supabase.auth.signUp({
+         email: data.email,
+         password: data.password,
+         options: {
+           data: {
+             full_name: data.full_name,
+             first_name: data.first_name,
+             last_name: data.last_name,
+             username: data.username,
+             country: data.country,
+             selected_roles: data.selected_roles,
+           },
+         },
+       })
 
       if (error) throw error
 
       if (signUpData.user) {
         console.log('✅ User account created successfully:', signUpData.user.id)
         
-        // Create profile with the selected account type
-        const profileData = {
-          id: signUpData.user.id,
-          user_id: signUpData.user.id,
-          full_name: data.full_name,
-          first_name: data.first_name,
-          last_name: data.last_name,
-          username: data.username,
-          country: data.country,
-          email: data.email,
-          account_type: data.account_type,
-          buyer_enabled: data.account_type === 'buyer',  // Only enable buyer if account_type is 'buyer'
-          seller_enabled: data.account_type === 'seller', // Only enable seller if account_type is 'seller'
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }
+                 // Create profile with the selected roles
+         const profileData = {
+           id: signUpData.user.id,
+           user_id: signUpData.user.id,
+           full_name: data.full_name,
+           first_name: data.first_name,
+           last_name: data.last_name,
+           username: data.username,
+           country: data.country,
+           email: data.email,
+           business_enabled: data.selected_roles.includes('business'),
+           investor_enabled: data.selected_roles.includes('investor'),
+           mentor_enabled: data.selected_roles.includes('mentor'),
+           creator_enabled: data.selected_roles.includes('creator'),
+           selected_roles: data.selected_roles,
+           created_at: new Date().toISOString(),
+           updated_at: new Date().toISOString(),
+         }
         
         console.log('🎯 Creating profile with data:', profileData)
         

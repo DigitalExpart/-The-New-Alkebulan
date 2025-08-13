@@ -19,7 +19,8 @@ import {
   Shield,
   Store,
   Crown,
-  MapPin
+  MapPin,
+  PenTool
 } from "lucide-react"
 
 export default function DashboardPage() {
@@ -131,12 +132,12 @@ export default function DashboardPage() {
                   <ShoppingCart className="h-6 w-6" />
                   <span className="text-xs">Marketplace</span>
                 </Button>
-                {profile?.seller_enabled && (
-                  <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => router.push("/business/dashboard")}>
-                    <Building2 className="h-6 w-6" />
-                    <span className="text-xs">Business</span>
-                  </Button>
-                )}
+                                 {profile?.business_enabled && (
+                   <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => router.push("/business/dashboard")}>
+                     <Building2 className="h-6 w-6" />
+                     <span className="text-xs">Business</span>
+                   </Button>
+                 )}
               </div>
             </CardContent>
           </Card>
@@ -158,26 +159,38 @@ export default function DashboardPage() {
                   <p className="font-medium">{user.full_name || "User"}</p>
                   <p className="text-sm text-muted-foreground">{user.email}</p>
                   <div className="flex flex-wrap gap-1 mt-1">
-                    {profile?.buyer_enabled && (
-                      <Badge variant="outline" className="text-xs capitalize">
-                        <ShoppingCart className="w-3 h-3 mr-1" />
-                        Buyer
-                      </Badge>
-                    )}
-                    {profile?.seller_enabled && (
-                      <Badge 
-                        variant="default" 
-                        className="text-xs capitalize bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0"
-                      >
-                        <Crown className="w-3 h-3 mr-1" />
-                        Seller
-                      </Badge>
-                    )}
-                    {!profile?.buyer_enabled && !profile?.seller_enabled && (
-                      <Badge variant="secondary" className="text-xs">
-                        No Roles Set
-                      </Badge>
-                    )}
+                                         {profile?.business_enabled && (
+                       <Badge 
+                         variant="default" 
+                         className="text-xs capitalize bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0"
+                       >
+                         <Building2 className="w-3 h-3 mr-1" />
+                         Business
+                       </Badge>
+                     )}
+                     {profile?.investor_enabled && (
+                       <Badge variant="outline" className="text-xs capitalize">
+                         <TrendingUp className="w-3 h-3 mr-1" />
+                         Investor
+                       </Badge>
+                     )}
+                     {profile?.mentor_enabled && (
+                       <Badge variant="outline" className="text-xs capitalize">
+                         <Users className="w-3 h-3 mr-1" />
+                         Mentor
+                       </Badge>
+                     )}
+                     {profile?.creator_enabled && (
+                       <Badge variant="outline" className="text-xs capitalize">
+                         <PenTool className="w-3 h-3 mr-1" />
+                         Creator
+                       </Badge>
+                     )}
+                     {!profile?.business_enabled && !profile?.investor_enabled && !profile?.mentor_enabled && !profile?.creator_enabled && (
+                       <Badge variant="secondary" className="text-xs">
+                         No Roles Set
+                       </Badge>
+                     )}
                   </div>
                 </div>
               </div>

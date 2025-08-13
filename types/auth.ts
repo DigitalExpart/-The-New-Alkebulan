@@ -22,7 +22,7 @@ export interface SignUpData {
   last_name: string
   username: string
   country: string
-  account_type: 'buyer' | 'seller'
+  selected_roles: ('business' | 'investor' | 'mentor' | 'creator')[]
 }
 
 export interface SignInData {
