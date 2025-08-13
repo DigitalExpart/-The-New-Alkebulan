@@ -994,7 +994,7 @@ export default function SignUpPage() {
               <Label>Selected Roles</Label>
               <div className="p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
                 <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2">
                     <Building2 className="w-5 h-5 text-green-600" />
                     <span className="font-medium text-green-800 dark:text-green-200">
                       {selectedRoles.length} Role{selectedRoles.length !== 1 ? 's' : ''} Selected
@@ -1006,7 +1006,7 @@ export default function SignUpPage() {
                         {role.charAt(0).toUpperCase() + role.slice(1)}
                       </span>
                     ))}
-                  </div>
+                </div>
                   <p className="text-xs text-green-700 dark:text-green-300 mt-1">
                     You can activate additional roles later in your dashboard. You can choose as many as you want!
                   </p>

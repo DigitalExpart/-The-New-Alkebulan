@@ -254,25 +254,10 @@ export function Navbar() {
                 User: {user ? '✅' : '❌'} | 
                 Loading: {loading ? '🔄' : '✅'} |
                 Profile: {profile ? '✅' : '❌'} |
-                Buyer: {profile?.buyer_enabled ? '✅' : '❌'} |
-                Seller: {profile?.seller_enabled ? '✅' : '❌'}
-                <button 
-                  onClick={() => handleAccountTypeSwitch('seller')}
-                  className="ml-2 px-2 py-1 bg-red-500 text-white rounded text-xs"
-                >
-                  Test Seller
-                </button>
-                <button 
-                  onClick={() => {
-                    console.log('🔍 CURRENT PROFILE DEBUG:', profile)
-                    console.log('🔍 Buyer enabled:', profile?.buyer_enabled)
-                    console.log('🔍 Seller enabled:', profile?.seller_enabled)
-                    console.log('🔍 Account type:', profile?.account_type)
-                  }}
-                  className="ml-2 px-2 py-1 bg-blue-500 text-white rounded text-xs"
-                >
-                  Debug Profile
-                </button>
+                Business: {profile?.business_enabled ? '✅' : '❌'} |
+                Investor: {profile?.investor_enabled ? '✅' : '❌'} |
+                Mentor: {profile?.mentor_enabled ? '✅' : '❌'} |
+                Creator: {profile?.creator_enabled ? '✅' : '❌'}
               </div>
             )}
           </div>
