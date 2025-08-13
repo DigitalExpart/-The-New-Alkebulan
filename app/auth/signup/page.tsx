@@ -62,9 +62,7 @@ export default function SignUpPage() {
       newErrors.username = "Username must be at least 3 characters"
     }
 
-    if (!formData.country) {
-      newErrors.country = "Country is required"
-    }
+    // Country is optional - no validation needed
 
     if (!formData.email.trim()) {
       newErrors.email = "Email is required"
@@ -339,7 +337,7 @@ export default function SignUpPage() {
 
             {/* Country Dropdown */}
             <div className="space-y-2">
-              <Label htmlFor="country">Country</Label>
+              <Label htmlFor="country">Country (Optional)</Label>
               <select
                 id="country"
                 value={formData.country}
@@ -347,7 +345,7 @@ export default function SignUpPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 disabled={loading}
               >
-                <option value="">Select your country</option>
+                <option value="">Select your country (optional)</option>
                 <option value="Afghanistan">Afghanistan</option>
                 <option value="Albania">Albania</option>
                 <option value="Algeria">Algeria</option>

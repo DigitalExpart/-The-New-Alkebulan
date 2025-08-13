@@ -62,6 +62,11 @@ CREATE INDEX IF NOT EXISTS idx_profiles_country ON public.profiles(country);
 CREATE INDEX IF NOT EXISTS idx_profiles_buyer_enabled ON public.profiles(buyer_enabled);
 CREATE INDEX IF NOT EXISTS idx_profiles_seller_enabled ON public.profiles(seller_enabled);
 
+-- First, update profiles that have NULL email values by getting them from auth.users
+UPDATE public.profiles 
+SET email = (SELECT email FROM auth.users WHERE id = profiles.id)
+WHERE email IS NULL AND id IN (SELECT id FROM auth.users);
+
 -- Update existing profiles to have default values for new fields
 UPDATE public.profiles 
 SET 
@@ -73,12 +78,17 @@ SET
         ELSE SUBSTRING(full_name FROM POSITION(' ' IN full_name) + 1)
     END),
     username = COALESCE(username, LOWER(REPLACE(COALESCE(full_name, 'user'), ' ', '_')) || '_' || SUBSTRING(id::text, 1, 8)),
-    email = COALESCE(email, (SELECT email FROM auth.users WHERE id = profiles.id)),
-    country = COALESCE(country, COALESCE(heritage_country, 'Unknown')),
+    -- Country is optional - only set if it's NULL and heritage_country exists
+    country = COALESCE(country, heritage_country),
     account_type = COALESCE(account_type, 'buyer'),
     buyer_enabled = COALESCE(buyer_enabled, TRUE),
     seller_enabled = COALESCE(seller_enabled, FALSE)
-WHERE user_id IS NULL OR first_name IS NULL OR last_name IS NULL OR username IS NULL OR email IS NULL OR country IS NULL OR account_type IS NULL;
+WHERE user_id IS NULL OR first_name IS NULL OR last_name IS NULL OR username IS NULL OR account_type IS NULL;
+
+-- Handle any remaining NULL email values by setting a default
+UPDATE public.profiles 
+SET email = 'unknown@example.com'
+WHERE email IS NULL;
 
 -- Add NOT NULL constraints only after data is populated
 ALTER TABLE public.profiles 
@@ -87,7 +97,7 @@ ALTER COLUMN first_name SET NOT NULL,
 ALTER COLUMN last_name SET NOT NULL,
 ALTER COLUMN username SET NOT NULL,
 ALTER COLUMN email SET NOT NULL,
-ALTER COLUMN country SET NOT NULL,
+-- Country is optional - keep it nullable
 ALTER COLUMN account_type SET NOT NULL;
 
 -- Create or replace the function to automatically update the updated_at timestamp
@@ -154,7 +164,7 @@ BEGIN
         COALESCE(NEW.raw_user_meta_data->>'last_name', ''),
         COALESCE(NEW.raw_user_meta_data->>'username', 'user_' || SUBSTRING(NEW.id::text, 1, 8)),
         NEW.email,
-        COALESCE(NEW.raw_user_meta_data->>'country', 'Unknown'),
+        COALESCE(NEW.raw_user_meta_data->>'country', NULL),
         COALESCE(NEW.raw_user_meta_data->>'account_type', 'buyer'),
         CASE WHEN COALESCE(NEW.raw_user_meta_data->>'account_type', 'buyer') = 'buyer' THEN TRUE ELSE FALSE END,
         CASE WHEN COALESCE(NEW.raw_user_meta_data->>'account_type', 'buyer') = 'seller' THEN TRUE ELSE FALSE END,
