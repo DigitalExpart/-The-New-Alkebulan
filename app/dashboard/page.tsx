@@ -18,7 +18,8 @@ import {
   Heart,
   Shield,
   Store,
-  Crown
+  Crown,
+  MapPin
 } from "lucide-react"
 
 export default function DashboardPage() {
@@ -180,9 +181,12 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
-              <Button variant="outline" className="w-full" onClick={() => router.push("/profile")}>
-                Edit Profile
-              </Button>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <MapPin className="w-4 h-4" />
+                <span>
+                  {profile?.location || profile?.region || 'Location not set'}, {profile?.country || 'Country not set'}
+                </span>
+              </div>
             </CardContent>
           </Card>
 
