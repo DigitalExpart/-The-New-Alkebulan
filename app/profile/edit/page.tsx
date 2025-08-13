@@ -271,7 +271,8 @@ export default function EditProfilePage() {
         region: formData.region,
         gender: formData.gender,
         place_of_birth: formData.place_of_birth,
-        date_of_birth: formData.date_of_birth,
+        // Convert empty date string to null for database
+        date_of_birth: formData.date_of_birth || null,
         relationship_status: formData.relationship_status,
         interests: formData.interests,
         core_competencies: formData.core_competencies,
