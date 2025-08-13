@@ -417,57 +417,7 @@ export function Navbar() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Business */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-1.5 text-[9px] whitespace-nowrap"
-                >
-                  <Briefcase className="w-3 h-3 mr-1" />
-                  Business
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem asChild>
-                  <Link href="/funding" className="flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4" />
-                    Investing
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/projects" className="flex items-center gap-2">
-                    <FolderOpen className="w-4 h-4" />
-                    Projects
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/business" className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4" />
-                    Business Hub
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/business/dashboard" className="flex items-center gap-2">
-                    <Monitor className="w-4 h-4" />
-                    Dashboard
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/business/long-term-planning" className="flex items-center gap-2">
-                    <ClipboardList className="w-4 h-4" />
-                    Long-Term Planning
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/process-management" className="flex items-center gap-2">
-                    <Target className="w-4 h-4" />
-                    Process Management
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+
 
             {/* Finance */}
             <DropdownMenu>
@@ -1042,63 +992,7 @@ export function Navbar() {
                   </div>
                 </div>
 
-                {/* Business Section */}
-                <div className="border-b border-[hsl(var(--border))] pb-2 mb-2">
-                  <div className="px-3 py-2 text-[hsl(var(--navbar-text))] font-medium text-sm flex items-center">
-                    <Briefcase className="w-4 h-4 mr-2" />
-                    Business
-                  </div>
-                  <div className="ml-6 space-y-1">
-                    <Link
-                      href="/funding"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <TrendingUp className="w-4 h-4 inline mr-2" />
-                      Investing
-                    </Link>
-                    <Link
-                      href="/projects"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <FolderOpen className="w-4 h-4 inline mr-2" />
-                      Projects
-                    </Link>
-                    <Link
-                      href="/business"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Building2 className="w-4 h-4 inline mr-2" />
-                      Business Hub
-                    </Link>
-                    <Link
-                      href="/business/dashboard"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Monitor className="w-4 h-4 inline mr-2" />
-                      Dashboard
-                    </Link>
-                    <Link
-                      href="/business/long-term-planning"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <ClipboardList className="w-4 h-4 inline mr-2" />
-                      Long-Term Planning
-                    </Link>
-                    <Link
-                      href="/process-management"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Target className="w-4 h-4 inline mr-2" />
-                      Process Management
-                    </Link>
-                  </div>
-                </div>
+
 
                 {/* Finance Section */}
                 <div className="border-b border-[hsl(var(--border))] pb-2 mb-2">
