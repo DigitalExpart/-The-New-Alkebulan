@@ -36,7 +36,18 @@ export const supabase = (() => {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: true
+        detectSessionInUrl: true,
+        flowType: 'pkce'
+      },
+      global: {
+        headers: {
+          'X-Client-Info': 'diaspora-market-hub'
+        }
+      },
+      realtime: {
+        params: {
+          eventsPerSecond: 10
+        }
       }
     })
   } else {

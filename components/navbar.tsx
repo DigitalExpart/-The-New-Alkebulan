@@ -57,7 +57,7 @@ import {
 import { isSupabaseConfigured, supabase } from "@/lib/supabase"
 
 export function Navbar() {
-  const { user, profile, signOut, loading, refreshProfile } = useAuth()
+  const { user, profile, signOut, loading, refreshProfile, forceRefreshProfile } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
 
@@ -123,9 +123,21 @@ export function Navbar() {
       let updateData: any = {}
       
       if (newRole === 'buyer') {
-        updateData = { buyer_enabled: true, seller_enabled: false }
+        // Enable buyer role, disable seller role
+        updateData = { 
+          buyer_enabled: true,
+          seller_enabled: false, // Explicitly disable seller role
+          account_type: 'buyer',
+          updated_at: new Date().toISOString()
+        }
       } else if (newRole === 'seller') {
-        updateData = { buyer_enabled: false, seller_enabled: true }
+        // Enable seller role, disable buyer role
+        updateData = { 
+          buyer_enabled: false, // Explicitly disable buyer role
+          seller_enabled: true,
+          account_type: 'seller',
+          updated_at: new Date().toISOString()
+        }
       }
       
       console.log('Update data to be sent:', updateData)
@@ -177,16 +189,29 @@ export function Navbar() {
         console.log('New buyer_enabled:', updatedProfile.buyer_enabled)
         console.log('New seller_enabled:', updatedProfile.seller_enabled)
         
-        // Force a re-render by updating the profile context
-        // This will be handled by the useAuth hook's refresh mechanism
+        // Force immediate UI update by updating the profile context
+        // This will trigger a re-render with the new role settings
+        console.log('🔄 Forcing immediate profile state update...')
+        // We need to call the setProfile function from useAuth
+        // For now, let's use the refresh approach
       }
       
       // Show success message
       alert(`Account roles switched to ${newRole} successfully!`)
       
       // Refresh the profile data instead of reloading the page
-      await refreshProfile()
-      console.log('Profile refreshed after role switch')
+      console.log('🔄 Calling forceRefreshProfile after role switch...')
+      await forceRefreshProfile()
+      console.log('✅ Profile force refreshed after role switch')
+      
+      // Check the profile state after refresh
+      console.log('🔍 Profile state after refresh:', profile)
+      console.log('🔍 Buyer enabled after refresh:', profile?.buyer_enabled)
+      console.log('🔍 Seller enabled after refresh:', profile?.seller_enabled)
+      
+      // Force a page re-render to show the updated roles
+      console.log('🔄 Forcing page re-render...')
+      window.location.reload()
     } catch (error) {
       console.error('Error switching account roles:', error)
       alert('An unexpected error occurred while switching account roles.')
@@ -222,7 +247,27 @@ export function Navbar() {
               <div className="ml-2 text-xs text-gray-500">
                 Auth: {isSupabaseConfigured() ? '✅' : '❌'} | 
                 User: {user ? '✅' : '❌'} | 
-                Loading: {loading ? '🔄' : '✅'}
+                Loading: {loading ? '🔄' : '✅'} |
+                Profile: {profile ? '✅' : '❌'} |
+                Buyer: {profile?.buyer_enabled ? '✅' : '❌'} |
+                Seller: {profile?.seller_enabled ? '✅' : '❌'}
+                <button 
+                  onClick={() => handleAccountTypeSwitch('seller')}
+                  className="ml-2 px-2 py-1 bg-red-500 text-white rounded text-xs"
+                >
+                  Test Seller
+                </button>
+                <button 
+                  onClick={() => {
+                    console.log('🔍 CURRENT PROFILE DEBUG:', profile)
+                    console.log('🔍 Buyer enabled:', profile?.buyer_enabled)
+                    console.log('🔍 Seller enabled:', profile?.seller_enabled)
+                    console.log('🔍 Account type:', profile?.account_type)
+                  }}
+                  className="ml-2 px-2 py-1 bg-blue-500 text-white rounded text-xs"
+                >
+                  Debug Profile
+                </button>
               </div>
             )}
           </div>
@@ -677,6 +722,13 @@ export function Navbar() {
                       )}
                     </DropdownMenuItem>
                     
+                    {/* Show dual-role status */}
+                    {profile?.buyer_enabled && profile?.seller_enabled && (
+                      <DropdownMenuLabel className="text-xs text-green-500 px-2 py-1.5">
+                        ✅ Dual Role Enabled - Access Both Dashboards
+                      </DropdownMenuLabel>
+                    )}
+
                     <DropdownMenuSeparator />
                     <DropdownMenuItem>
                       <Settings className="w-4 h-4 mr-2" />
@@ -771,7 +823,7 @@ export function Navbar() {
                           )}
                         </button>
                         <button
-                          className="flex items-center justify-between w-full px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-text))] hover:text-[hsl(var(--navbar-bover))] rounded-md text-sm"
+                          className="flex items-center justify-between w-full px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
                           onClick={() => {
                             handleAccountTypeSwitch('seller')
                             setIsOpen(false)
@@ -785,7 +837,13 @@ export function Navbar() {
                             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                           )}
                         </button>
-
+                        
+                        {/* Show dual-role status in mobile menu */}
+                        {profile?.buyer_enabled && profile?.seller_enabled && (
+                          <div className="text-xs text-green-500 px-3 py-1">
+                            ✅ Dual Role Enabled - Access Both Dashboards
+                          </div>
+                        )}
                       </div>
                     </div>
 

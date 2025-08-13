@@ -1,6 +1,6 @@
 export interface User {
   id: string
-  email: string
+  email?: string
   full_name?: string
   avatar_url?: string
   created_at: string
@@ -18,6 +18,10 @@ export interface SignUpData {
   password: string
   confirmPassword: string
   full_name: string
+  first_name: string
+  last_name: string
+  username: string
+  country: string
   account_type: 'buyer' | 'seller'
 }
 

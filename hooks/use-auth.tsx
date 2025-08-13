@@ -14,6 +14,7 @@ interface AuthContextType extends AuthState {
   signOut: () => Promise<void>
   resetPassword: (data: ResetPasswordData) => Promise<void>
   refreshProfile: () => Promise<void>
+  forceRefreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -26,6 +27,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     error: null,
   })
   const [profile, setProfile] = useState<any | null>(null)
+
+  // Debug: Log profile changes in real-time
+  useEffect(() => {
+    console.log('🔍 PROFILE STATE CHANGED:', {
+      profile,
+      buyer_enabled: profile?.buyer_enabled,
+      seller_enabled: profile?.seller_enabled,
+      account_type: profile?.account_type,
+      timestamp: new Date().toISOString()
+    })
+  }, [profile])
 
   const fetchProfile = async (userId: string, userMetadata?: any) => {
     if (!isSupabaseConfigured() || !supabase) return null
@@ -75,8 +87,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Profile doesn't exist, create one based on user's intended account type
           const defaultProfile = {
             user_id: userId,
-            buyer_enabled: accountType === 'buyer',
-            seller_enabled: accountType === 'seller',
+            buyer_enabled: accountType === 'buyer',  // Only enable buyer if account_type is 'buyer'
+            seller_enabled: accountType === 'seller', // Only enable seller if account_type is 'seller'
             account_type: accountType,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -145,17 +157,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           account_type: session?.user?.user_metadata?.account_type || 'buyer'
         }
         
+        console.log('🔄 Refreshing profile...')
         const profileData = await fetchProfile(state.user.id, userMetadata)
+        
+        // Update the local profile state immediately
+        if (profileData) {
+          console.log('✅ Profile refreshed successfully:', profileData)
+          setProfile(profileData)
+          
+          // Force a re-render by updating the state
+          setState(prev => ({ ...prev }))
+        } else {
+          console.log('⚠️ No profile data returned from refresh')
+        }
         
         // Check if profile has correct role settings based on account_type
         if (profileData && profileData.account_type) {
+          // Enforce single-role system: only the account_type role should be enabled
           const expectedBuyerEnabled = profileData.account_type === 'buyer'
           const expectedSellerEnabled = profileData.account_type === 'seller'
           
-          // If role settings don't match account_type, fix them
+          // If role settings don't match expected single-role setup, fix them
           if (profileData.buyer_enabled !== expectedBuyerEnabled || 
               profileData.seller_enabled !== expectedSellerEnabled) {
-            console.log('Fixing mismatched role settings for account type:', profileData.account_type)
+            console.log('🔧 Fixing role settings to enforce single-role system for:', profileData.account_type)
             
             try {
               const { error: updateError } = await supabase
@@ -168,100 +193,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 .eq('id', profileData.id)
               
               if (updateError) {
-                console.error('Error fixing role settings:', updateError)
+                console.error('❌ Error fixing role settings:', updateError)
               } else {
-                console.log('Role settings fixed successfully')
-                // Fetch the updated profile
+                console.log('✅ Single-role system enforced successfully')
+                // Fetch the updated profile again
                 const updatedProfile = await fetchProfile(state.user.id, userMetadata)
-                setProfile(updatedProfile)
+                if (updatedProfile) {
+                  setProfile(updatedProfile)
+                  // Force a re-render
+                  setState(prev => ({ ...prev }))
+                  console.log('✅ Updated profile state with single role:', updatedProfile)
+                }
                 return
               }
             } catch (error) {
-              console.error('Error fixing role settings:', error)
+              console.error('❌ Error fixing role settings:', error)
             }
           }
         }
-        
-        setProfile(profileData)
       } catch (error) {
         console.error('Error refreshing profile:', error)
       }
     }
   }
 
-  useEffect(() => {
-    // Check if we have valid Supabase configuration
-    if (!isSupabaseConfigured() || !supabase) {
-      setState((prev) => ({ ...prev, loading: false }))
-      return
-    }
-
-    // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      const user = session?.user
-        ? {
-            id: session.user.id,
-            email: session.user.email!,
-            full_name: session.user.user_metadata?.full_name,
-            avatar_url: session.user.user_metadata?.avatar_url,
-            account_type: session.user.user_metadata?.account_type,
-            created_at: session.user.created_at,
-            updated_at: session.user.updated_at || session.user.created_at,
-          }
-        : null
-
-      setState((prev) => ({
-        ...prev,
-        user,
-        loading: false,
-      }))
-
-      // Fetch profile data if user exists
-      if (user && session) {
-        const userMetadata = {
-          account_type: session.user.user_metadata?.account_type || 'buyer'
-        }
-        const profileData = await fetchProfile(user.id, userMetadata)
-        setProfile(profileData)
-      }
-    })
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const user = session?.user
-        ? {
-            id: session.user.id,
-            email: session.user.email!,
-            full_name: session.user.user_metadata?.full_name,
-            avatar_url: session.user.user_metadata?.avatar_url,
-            account_type: session.user.user_metadata?.account_type,
-            created_at: session.user.created_at,
-            updated_at: session.user.updated_at || session.user.created_at,
-          }
-        : null
-
-      setState((prev) => ({
-        ...prev,
-        user,
-        loading: false,
-      }))
-
-      // Fetch profile data if user exists, clear if not
-      if (user && session) {
-        const userMetadata = {
-          account_type: session.user.user_metadata?.account_type || 'buyer'
-        }
-        const profileData = await fetchProfile(user.id, userMetadata)
-        setProfile(profileData)
-      } else {
-        setProfile(null)
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
+  const forceRefreshProfile = async () => {
+    console.log('🔄 Force refreshing profile...')
+    await refreshProfile()
+  }
 
   const signUp = async (data: SignUpData) => {
     if (!isSupabaseConfigured() || !supabase) {
@@ -272,106 +231,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, loading: true, error: null }))
 
     try {
-      const { error, data: signUpData } = await supabase.auth.signUp({
+      console.log('🚀 Starting signup process with data:', data)
+      
+      // Create user account
+      const { data: signUpData, error } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
         options: {
           data: {
             full_name: data.full_name,
+            first_name: data.first_name,
+            last_name: data.last_name,
+            username: data.username,
+            country: data.country,
             account_type: data.account_type,
           },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       })
 
       if (error) throw error
 
-      // Always create profile record regardless of email confirmation
       if (signUpData.user) {
-        try {
-          console.log('Creating profile for user:', signUpData.user.id, 'with account type:', data.account_type)
-          
-          const profileData = {
-            id: signUpData.user.id,
-            user_id: signUpData.user.id,
-            full_name: data.full_name,
-            email: data.email,
-            account_type: data.account_type,
-            buyer_enabled: data.account_type === 'buyer',
-            seller_enabled: data.account_type === 'seller',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }
-          
-          console.log('Attempting to create profile with data:', profileData)
-          
-          console.log('Profile data to insert:', profileData)
-          
-          console.log('Attempting to insert profile data:', profileData)
-          
-          console.log('About to insert profile data into database...')
-          
-          const { data: insertedProfile, error: profileError } = await supabase
-            .from('profiles')
-            .insert(profileData)
-            .select()
-          
-          if (profileError) {
-            console.error('❌ PROFILE CREATION FAILED ❌')
-            console.error('Error creating profile:', profileError)
-            console.error('Profile data that failed:', profileData)
-            console.error('Error details:', {
-              code: profileError.code,
-              message: profileError.message,
-              details: profileError.details,
-              hint: profileError.hint
-            })
-            
-            // Try to get more details about the failure
-            if (profileError.code === '23505') {
-              console.error('❌ UNIQUE CONSTRAINT VIOLATION - Profile might already exist')
-            } else if (profileError.code === '23502') {
-              console.error('❌ NOT NULL CONSTRAINT VIOLATION - Missing required field')
-            } else if (profileError.code === '42P01') {
-              console.error('❌ TABLE DOES NOT EXIST - Check table name')
-            }
-            
-            // Don't fail the signup if profile creation fails
-          } else {
-            console.log('✅ PROFILE CREATED SUCCESSFULLY ✅')
-            console.log('Profile created successfully:', insertedProfile)
-            console.log('Profile created successfully with roles:', {
-              buyer_enabled: profileData.buyer_enabled,
-              seller_enabled: profileData.seller_enabled,
-              account_type: profileData.account_type
-            })
-            
-            // Additional logging for seller profiles
-            if (data.account_type === 'seller') {
-              console.log('🎯 SELLER PROFILE CREATED 🎯')
-              console.log('Seller profile details:', {
-                user_id: signUpData.user.id,
-                seller_enabled: profileData.seller_enabled,
-                buyer_enabled: profileData.buyer_enabled,
-                account_type: profileData.account_type
-              })
-            }
-          }
-        } catch (profileError) {
-          console.error('❌ EXCEPTION during profile creation:', profileError)
-          console.error('Exception type:', typeof profileError)
-          // Don't fail the signup if profile creation fails
+        console.log('✅ User account created successfully:', signUpData.user.id)
+        
+        // Create profile with the selected account type
+        const profileData = {
+          id: signUpData.user.id,
+          user_id: signUpData.user.id,
+          full_name: data.full_name,
+          first_name: data.first_name,
+          last_name: data.last_name,
+          username: data.username,
+          country: data.country,
+          email: data.email,
+          account_type: data.account_type,
+          buyer_enabled: data.account_type === 'buyer',  // Only enable buyer if account_type is 'buyer'
+          seller_enabled: data.account_type === 'seller', // Only enable seller if account_type is 'seller'
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         }
-      }
-      
-      // Check if email confirmation is required
-      if (signUpData.user && !signUpData.session) {
-        toast.success("Account created successfully! Please check your email to confirm your account before signing in.")
-        router.push("/auth/signin")
-      } else if (signUpData.session) {
-        // User is automatically signed in (email confirmation not required)
-        toast.success("Account created and signed in successfully!")
-        router.push("/dashboard")
+        
+        console.log('🎯 Creating profile with data:', profileData)
+        
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert(profileData)
+        
+        if (profileError) {
+          console.error('❌ Error creating profile:', profileError)
+          toast.error("Account created but profile setup failed. Please contact support.")
+        } else {
+          console.log('✅ Profile created successfully')
+          toast.success("Account created successfully! Please check your email to verify your account.")
+        }
+        
+        // Set user in state
+        setState((prev) => ({ ...prev, user: signUpData.user, loading: false }))
+        
+        // Set profile in state
+        setProfile(profileData)
+        
+        // Redirect to verification page or dashboard
+        router.push('/auth/verify-email')
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "An error occurred"
@@ -391,23 +312,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, loading: true, error: null }))
 
     try {
-      const { error, data: signInData } = await supabase.auth.signInWithPassword({
+      const { data: signInData, error } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
       })
 
       if (error) throw error
 
-      // Fetch profile data after successful sign in
       if (signInData.user) {
-        const userMetadata = {
+        setState((prev) => ({ ...prev, user: signInData.user, loading: false }))
+        
+        // Fetch user profile
+        const profileData = await fetchProfile(signInData.user.id, {
           account_type: signInData.user.user_metadata?.account_type || 'buyer'
+        })
+        
+        if (profileData) {
+          setProfile(profileData)
         }
-        const profileData = await fetchProfile(signInData.user.id, userMetadata)
-        setProfile(profileData)
+        
+        toast.success("Signed in successfully")
+        router.push('/dashboard')
       }
-
-      toast.success("Welcome back!")
     } catch (error) {
       const message = error instanceof Error ? error.message : "An error occurred"
       setState((prev) => ({ ...prev, error: message }))
@@ -488,6 +414,103 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // Initialize auth state
+  useEffect(() => {
+    const getInitialSession = async () => {
+      if (!isSupabaseConfigured() || !supabase) return
+      
+      try {
+        // Check network connectivity first
+        if (!navigator.onLine) {
+          console.log('🌐 Network is offline, skipping session fetch')
+          setState(prev => ({ ...prev, loading: false }))
+          return
+        }
+
+        console.log('🔄 Getting initial session...')
+        const { data: { session }, error } = await supabase!.auth.getSession()
+        
+        if (error) {
+          console.error('❌ Error getting initial session:', error)
+          if (error.message.includes('Failed to fetch')) {
+            console.log('🌐 Network error detected, will retry on reconnection')
+          }
+        } else if (session) {
+          console.log('✅ Initial session found:', session.user.id)
+          setState(prev => ({ ...prev, user: session.user, loading: false }))
+          
+          // Fetch user profile
+          const profileData = await fetchProfile(session.user.id, {
+            account_type: session.user.user_metadata?.account_type || 'buyer'
+          })
+          
+          if (profileData) {
+            setProfile(profileData)
+          }
+        } else {
+          console.log('ℹ️ No initial session found')
+          setState(prev => ({ ...prev, loading: false }))
+        }
+      } catch (error) {
+        console.error('❌ Error in getInitialSession:', error)
+        if (error instanceof Error && error.message.includes('Failed to fetch')) {
+          console.log('🌐 Network error in initial session fetch')
+        }
+        setState(prev => ({ ...prev, loading: false }))
+      }
+    }
+
+    // Add network event listeners
+    const handleOnline = () => {
+      console.log('🌐 Network is back online, retrying session fetch')
+      getInitialSession()
+    }
+
+    const handleOffline = () => {
+      console.log('🌐 Network is offline')
+    }
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    // Get initial session
+    getInitialSession()
+
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase!.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('🔄 Auth state changed:', event, session?.user?.id)
+        
+        if (event === 'SIGNED_IN' && session) {
+          console.log('✅ User signed in:', session.user.id)
+          setState(prev => ({ ...prev, user: session.user, loading: false }))
+          
+          // Fetch user profile
+          const profileData = await fetchProfile(session.user.id, {
+            account_type: session.user.user_metadata?.account_type || 'buyer'
+          })
+          
+          if (profileData) {
+            setProfile(profileData)
+          }
+        } else if (event === 'SIGNED_OUT') {
+          console.log('👋 User signed out')
+          setState(prev => ({ ...prev, user: null, loading: false }))
+          setProfile(null)
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          console.log('🔄 Token refreshed for user:', session.user.id)
+          setState(prev => ({ ...prev, user: session.user }))
+        }
+      }
+    )
+
+    return () => {
+      subscription.unsubscribe()
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
   return (
     <AuthContext.Provider
       value={{
@@ -499,6 +522,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signOut,
         resetPassword,
         refreshProfile,
+        forceRefreshProfile,
       }}
     >
       {children}
