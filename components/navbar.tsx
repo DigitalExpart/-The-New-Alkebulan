@@ -67,7 +67,7 @@ export function Navbar() {
     console.log('Navbar - Profile state:', profile)
     console.log('Navbar - Profile roles:', {
       buyer_enabled: profile?.buyer_enabled,
-      seller_enabled: profile?.seller_enabled
+      business_enabled: profile?.business_enabled
     })
     console.log('Navbar - Supabase configured:', isSupabaseConfigured())
   }, [user, loading, profile])
@@ -90,7 +90,7 @@ export function Navbar() {
     // You could navigate to a search results page or trigger a search API call
   }
 
-  const handleAccountTypeSwitch = async (newRole: 'buyer' | 'seller') => {
+  const handleAccountTypeSwitch = async (newRole: 'buyer' | 'business') => {
     if (!user || !profile || !supabase) {
       console.log('Missing required data:', { user: !!user, profile: !!profile, supabase: !!supabase })
       return
@@ -101,13 +101,13 @@ export function Navbar() {
     console.log('User ID:', user.id)
     console.log('Current profile:', profile)
     console.log('Current buyer_enabled:', profile?.buyer_enabled)
-    console.log('Current seller_enabled:', profile?.seller_enabled)
+    console.log('Current business_enabled:', profile?.business_enabled)
     
     try {
       // First, check if the profiles table has the required columns
       const { data: tableInfo, error: tableError } = await supabase
         .from('profiles')
-        .select('buyer_enabled, seller_enabled')
+        .select('buyer_enabled, business_enabled')
         .limit(1)
       
       if (tableError) {
@@ -126,16 +126,16 @@ export function Navbar() {
         // Enable buyer role, disable seller role
         updateData = { 
           buyer_enabled: true,
-          seller_enabled: false, // Explicitly disable seller role
+          business_enabled: false, // Explicitly disable business role
           account_type: 'buyer',
           updated_at: new Date().toISOString()
         }
-      } else if (newRole === 'seller') {
-        // Enable seller role, disable buyer role
+      } else if (newRole === 'business') {
+        // Enable business role, disable buyer role
         updateData = { 
           buyer_enabled: false, // Explicitly disable buyer role
-          seller_enabled: true,
-          account_type: 'seller',
+          business_enabled: true,
+          account_type: 'business',
           updated_at: new Date().toISOString()
         }
       }
@@ -187,7 +187,7 @@ export function Navbar() {
         const updatedProfile = { ...profile, ...data[0] }
         console.log('Updated local profile state:', updatedProfile)
         console.log('New buyer_enabled:', updatedProfile.buyer_enabled)
-        console.log('New seller_enabled:', updatedProfile.seller_enabled)
+        console.log('New business_enabled:', updatedProfile.business_enabled)
         
         // Force immediate UI update by updating the profile context
         // This will trigger a re-render with the new role settings
@@ -207,11 +207,11 @@ export function Navbar() {
       // Check the profile state after refresh
       console.log('🔍 Profile state after refresh:', profile)
       console.log('🔍 Buyer enabled after refresh:', profile?.buyer_enabled)
-      console.log('🔍 Seller enabled after refresh:', profile?.seller_enabled)
+              console.log('🔍 Business enabled after refresh:', profile?.business_enabled)
       
       // Navigate to appropriate dashboard based on role
-      if (newRole === 'seller') {
-        // Redirect to business dashboard for seller activities
+      if (newRole === 'business') {
+        // Redirect to business dashboard for business activities
         window.location.href = '/business/dashboard'
       } else if (newRole === 'buyer') {
         // Redirect to main dashboard for buyer activities
@@ -651,19 +651,19 @@ export function Navbar() {
                     </DropdownMenuItem>
                     <DropdownMenuItem 
                       className="flex items-center justify-between cursor-pointer"
-                      onClick={() => handleAccountTypeSwitch('seller')}
+                      onClick={() => handleAccountTypeSwitch('business')}
                     >
                       <div className="flex items-center gap-2">
                         <Store className="w-4 h-4" />
-                        Seller Activities
+                        Business Activities
                       </div>
-                      {profile?.seller_enabled && (
+                      {profile?.business_enabled && (
                         <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                       )}
                     </DropdownMenuItem>
                     
                     {/* Show dual-role status */}
-                    {profile?.buyer_enabled && profile?.seller_enabled && (
+                    {profile?.buyer_enabled && profile?.business_enabled && (
                       <DropdownMenuLabel className="text-xs text-green-500 px-2 py-1.5">
                         ✅ Dual Role Enabled - Access Both Dashboards
                       </DropdownMenuLabel>
@@ -765,21 +765,21 @@ export function Navbar() {
                         <button
                           className="flex items-center justify-between w-full px-3 py-2 text-[hsl(var(--navbar-hover))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
                           onClick={() => {
-                            handleAccountTypeSwitch('seller')
+                            handleAccountTypeSwitch('business')
                             setIsOpen(false)
                           }}
                         >
                           <div className="flex items-center gap-2">
                             <Store className="w-4 h-4" />
-                            Seller Activities
+                            Business Activities
                           </div>
-                          {profile?.seller_enabled && (
+                          {profile?.business_enabled && (
                             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                           )}
                         </button>
                         
                         {/* Show dual-role status in mobile menu */}
-                        {profile?.buyer_enabled && profile?.seller_enabled && (
+                        {profile?.buyer_enabled && profile?.business_enabled && (
                           <div className="text-xs text-green-500 px-3 py-1">
                             ✅ Dual Role Enabled - Access Both Dashboards
                           </div>

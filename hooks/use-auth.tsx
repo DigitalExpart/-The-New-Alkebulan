@@ -100,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           console.log('Creating default profile with data:', defaultProfile)
           
-          // Additional logging for seller profiles
+          // Additional logging for business profiles
           if (selectedRoles.includes('business')) {
             console.log('🎯 CREATING BUSINESS PROFILE FROM FETCHPROFILE 🎯')
             console.log('Business profile will be created with:', {
@@ -179,15 +179,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.log('⚠️ No profile data returned from refresh')
         }
         
-        // Check if profile has correct role settings based on account_type
+                // Check if profile has correct role settings based on account_type
         if (profileData && profileData.account_type) {
           // Enforce single-role system: only the account_type role should be enabled
           const expectedBuyerEnabled = profileData.account_type === 'buyer'
-          const expectedSellerEnabled = profileData.account_type === 'seller'
+          const expectedBusinessEnabled = profileData.account_type === 'business'
           
           // If role settings don't match expected single-role setup, fix them
           if (profileData.buyer_enabled !== expectedBuyerEnabled || 
-              profileData.seller_enabled !== expectedSellerEnabled) {
+              profileData.business_enabled !== expectedBusinessEnabled) {
             console.log('🔧 Fixing role settings to enforce single-role system for:', profileData.account_type)
             
             try {
@@ -195,11 +195,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 .from('profiles')
                 .update({
                   buyer_enabled: expectedBuyerEnabled,
-                  seller_enabled: expectedSellerEnabled,
+                  business_enabled: expectedBusinessEnabled,
                   updated_at: new Date().toISOString()
                 })
                 .eq('id', profileData.id)
-              
+               
               if (updateError) {
                 console.error('❌ Error fixing role settings:', updateError)
               } else {
