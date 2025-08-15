@@ -262,44 +262,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (signUpData.user) {
         console.log('✅ User account created successfully:', signUpData.user.id)
         
-                 // Create profile with the selected roles
-         const profileData = {
-           id: signUpData.user.id,
-           user_id: signUpData.user.id,
-           full_name: data.full_name,
-           first_name: data.first_name,
-           last_name: data.last_name,
-           username: data.username,
-           country: data.country,
-           email: data.email,
-           business_enabled: data.selected_roles.includes('business'),
-           investor_enabled: data.selected_roles.includes('investor'),
-           mentor_enabled: data.selected_roles.includes('mentor'),
-           creator_enabled: data.selected_roles.includes('creator'),
-           selected_roles: data.selected_roles,
-           created_at: new Date().toISOString(),
-           updated_at: new Date().toISOString(),
-         }
+                 console.log('✅ User account created successfully:', signUpData.user.id)
         
-        console.log('🎯 Creating profile with data:', profileData)
+        // The database trigger should automatically create the profile
+        // Let's wait a moment for the trigger to execute, then fetch the profile
+        await new Promise(resolve => setTimeout(resolve, 1000))
         
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert(profileData)
+        // Fetch the automatically created profile
+        const profileData = await fetchProfile(signUpData.user.id, {
+          selected_roles: data.selected_roles
+        })
         
-        if (profileError) {
-          console.error('❌ Error creating profile:', profileError)
-          toast.error("Account created but profile setup failed. Please contact support.")
-        } else {
-          console.log('✅ Profile created successfully')
+        if (profileData) {
+          console.log('✅ Profile fetched successfully:', profileData)
+          setProfile(profileData)
           toast.success("Account created successfully! Welcome to your dashboard.")
+        } else {
+          console.warn('⚠️ Profile not found, may need manual creation')
+          // Create a minimal profile if the trigger failed
+          const minimalProfile = {
+            id: signUpData.user.id,
+            user_id: signUpData.user.id,
+            full_name: data.full_name,
+            first_name: data.first_name,
+            last_name: data.last_name,
+            username: data.username,
+            country: data.country,
+            email: data.email,
+            account_type: data.selected_roles.includes('business') ? 'business' : 'buyer',
+            buyer_enabled: !data.selected_roles.includes('business'),
+            business_enabled: data.selected_roles.includes('business'),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
+          
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert(minimalProfile)
+          
+          if (profileError) {
+            console.error('❌ Error creating profile:', profileError)
+            toast.error("Account created but profile setup failed. Please contact support.")
+          } else {
+            console.log('✅ Profile created manually')
+            setProfile(minimalProfile)
+            toast.success("Account created successfully! Welcome to your dashboard.")
+          }
         }
         
         // Set user in state
         setState((prev) => ({ ...prev, user: signUpData.user, loading: false }))
-        
-        // Set profile in state
-        setProfile(profileData)
         
         // Redirect directly to dashboard - users can verify email later
         router.push('/dashboard')
@@ -334,7 +346,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         // Fetch user profile
         const profileData = await fetchProfile(signInData.user.id, {
-          account_type: signInData.user.user_metadata?.account_type || 'buyer'
+          selected_roles: signInData.user.user_metadata?.selected_roles || ['buyer']
         })
         
         if (profileData) {
