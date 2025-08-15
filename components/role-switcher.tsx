@@ -47,6 +47,8 @@ export function RoleSwitcher({ onRoleChange, className = "" }: RoleSwitcherProps
             .from('profiles')
             .update({
               business_enabled: newRole === 'business',
+              buyer_enabled: newRole === 'buyer',
+              account_type: newRole === 'business' ? 'business' : 'buyer',
               updated_at: new Date().toISOString()
             })
             .eq('id', profile.id)
@@ -57,12 +59,18 @@ export function RoleSwitcher({ onRoleChange, className = "" }: RoleSwitcherProps
           }
           
           console.log('✅ Profile updated successfully in Supabase')
+          console.log('🔄 Updated values:', {
+            business_enabled: newRole === 'business',
+            buyer_enabled: newRole === 'buyer',
+            account_type: newRole === 'business' ? 'business' : 'buyer'
+          })
 
         // Update local state immediately for better UX
         setCurrentRole(newRole)
         
         // Call the callback if provided
         if (onRoleChange) {
+          console.log('🔄 Calling onRoleChange callback with:', newRole)
           onRoleChange(newRole)
         }
         
@@ -71,7 +79,9 @@ export function RoleSwitcher({ onRoleChange, className = "" }: RoleSwitcherProps
         toast.success(`Switched to ${roleName} mode`)
         
         // Refresh profile to sync with backend and update dashboard
+        console.log('🔄 Refreshing profile...')
         await refreshProfile()
+        console.log('✅ Profile refresh completed')
         
       } else {
         throw new Error('User or profile not available')

@@ -41,7 +41,7 @@ export function UserAvatar({ avatar, imageUrl, size = "md", className, fallbackN
     expression: "happy",
     clothing: "casual",
     background: "green",
-    gender: "non-binary",
+    gender: "male",
     region: "Global",
   }
 

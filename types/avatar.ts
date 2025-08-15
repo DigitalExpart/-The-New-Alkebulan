@@ -6,7 +6,7 @@ export interface AvatarOption {
   expression: string
   clothing: string
   background: string
-  gender: "male" | "female" | "non-binary"
+  gender: "male" | "female"
   region: string
 }
 

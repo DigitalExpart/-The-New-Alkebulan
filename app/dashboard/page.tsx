@@ -122,6 +122,17 @@ export default function DashboardPage() {
           </Card>
         </div>
 
+        {/* Debug Info - Remove this after testing */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mb-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs">
+            <p><strong>Debug Info:</strong></p>
+            <p>Business Enabled: {profile?.business_enabled ? 'Yes' : 'No'}</p>
+            <p>Buyer Enabled: {profile?.buyer_enabled ? 'Yes' : 'No'}</p>
+            <p>Account Type: {profile?.account_type}</p>
+            <p>Profile ID: {profile?.id}</p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Role Switcher */}
           <Card>
@@ -136,7 +147,9 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <RoleSwitcher 
-                onRoleChange={(role) => {
+                onRoleChange={async (role) => {
+                  // Wait a moment for the database update to complete
+                  await new Promise(resolve => setTimeout(resolve, 500))
                   // Force a re-render when role changes
                   window.location.reload()
                 }}

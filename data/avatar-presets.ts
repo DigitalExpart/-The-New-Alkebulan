@@ -64,7 +64,7 @@ export const AVATAR_PRESETS: AvatarOption[] = [
     expression: "friendly",
     clothing: "modern-casual",
     background: "blue",
-    gender: "non-binary",
+    gender: "male",
     region: "USA",
   },
   {
@@ -119,7 +119,7 @@ export const AVATAR_PRESETS: AvatarOption[] = [
     expression: "wise",
     clothing: "artistic-wear",
     background: "purple",
-    gender: "non-binary",
+    gender: "male",
     region: "Canada",
   },
   {
