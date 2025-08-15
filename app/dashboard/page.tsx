@@ -22,6 +22,7 @@ import {
   MapPin,
   PenTool
 } from "lucide-react"
+import { RoleSwitcher } from "@/components/role-switcher"
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -100,6 +101,21 @@ export default function DashboardPage() {
                       Your unique username: <span className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded">@{profile.username}</span>
                     </p>
                   )}
+                  
+                  {/* Email Verification Notice */}
+                  {user.email && !user.email_confirmed_at && (
+                    <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-yellow-600" />
+                        <span className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
+                          Please verify your email address to unlock all features
+                        </span>
+                      </div>
+                      <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                        Check your inbox for a verification link from {user.email}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -107,6 +123,22 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Role Switcher */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Switch Mode
+              </CardTitle>
+              <CardDescription>
+                Toggle between buyer and business activities
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RoleSwitcher />
+            </CardContent>
+          </Card>
+
           {/* Quick Actions */}
           <Card className="lg:col-span-2">
             <CardHeader>
@@ -119,26 +151,49 @@ export default function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => router.push("/dashboard/daily-planner")}>
-                  <Calendar className="h-6 w-6" />
-                  <span className="text-xs">Daily Planner</span>
-                </Button>
-                <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => router.push("/community")}>
-                  <Users className="h-6 w-6" />
-                  <span className="text-xs">Community</span>
-                </Button>
-                <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => router.push("/marketplace")}>
-                  <ShoppingCart className="h-6 w-6" />
-                  <span className="text-xs">Marketplace</span>
-                </Button>
-                                 {profile?.business_enabled && (
-                   <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => router.push("/business/dashboard")}>
-                     <Building2 className="h-6 w-6" />
-                     <span className="text-xs">Business</span>
-                   </Button>
+                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                 <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => router.push("/dashboard/daily-planner")}>
+                   <Calendar className="h-6 w-6" />
+                   <span className="text-xs">Daily Planner</span>
+                 </Button>
+                 <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => router.push("/community")}>
+                   <Users className="h-6 w-6" />
+                   <span className="text-xs">Community</span>
+                 </Button>
+                 
+                 {/* Dynamic actions based on current role */}
+                 {profile?.business_enabled ? (
+                   <>
+                     <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => router.push("/business/dashboard")}>
+                       <Building2 className="h-6 w-6" />
+                       <span className="text-xs">Business Dashboard</span>
+                     </Button>
+                     <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => router.push("/marketplace/upload")}>
+                       <Store className="h-6 w-6" />
+                       <span className="text-xs">Upload Products</span>
+                     </Button>
+                     <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => router.push("/dashboard/finance")}>
+                       <DollarSign className="h-6 w-6" />
+                       <span className="text-xs">Sales Analytics</span>
+                     </Button>
+                   </>
+                 ) : (
+                   <>
+                     <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => router.push("/marketplace")}>
+                       <ShoppingCart className="h-6 w-6" />
+                       <span className="text-xs">Browse Products</span>
+                     </Button>
+                     <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => router.push("/dashboard/finance")}>
+                       <DollarSign className="h-6 w-6" />
+                       <span className="text-xs">My Purchases</span>
+                     </Button>
+                     <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => router.push("/dashboard/investments")}>
+                       <TrendingUp className="h-6 w-6" />
+                       <span className="text-xs">Investments</span>
+                     </Button>
+                   </>
                  )}
-              </div>
+               </div>
             </CardContent>
           </Card>
 
@@ -158,40 +213,25 @@ export default function DashboardPage() {
                 <div>
                   <p className="font-medium">{user.full_name || "User"}</p>
                   <p className="text-sm text-muted-foreground">{user.email}</p>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                                         {profile?.business_enabled && (
+                                     <div className="flex flex-wrap gap-1 mt-1">
+                     {profile?.business_enabled ? (
                        <Badge 
                          variant="default" 
-                         className="text-xs capitalize bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0"
+                         className="text-xs capitalize bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0"
                        >
                          <Building2 className="w-3 h-3 mr-1" />
-                         Business
+                         Business Mode
+                       </Badge>
+                     ) : (
+                       <Badge 
+                         variant="default" 
+                         className="text-xs capitalize bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-0"
+                       >
+                         <ShoppingCart className="w-3 h-3 mr-1" />
+                         Buyer Mode
                        </Badge>
                      )}
-                     {profile?.investor_enabled && (
-                       <Badge variant="outline" className="text-xs capitalize">
-                         <TrendingUp className="w-3 h-3 mr-1" />
-                         Investor
-                       </Badge>
-                     )}
-                     {profile?.mentor_enabled && (
-                       <Badge variant="outline" className="text-xs capitalize">
-                         <Users className="w-3 h-3 mr-1" />
-                         Mentor
-                       </Badge>
-                     )}
-                     {profile?.creator_enabled && (
-                       <Badge variant="outline" className="text-xs capitalize">
-                         <PenTool className="w-3 h-3 mr-1" />
-                         Creator
-                       </Badge>
-                     )}
-                     {!profile?.business_enabled && !profile?.investor_enabled && !profile?.mentor_enabled && !profile?.creator_enabled && (
-                       <Badge variant="secondary" className="text-xs">
-                         No Roles Set
-                       </Badge>
-                     )}
-                  </div>
+                   </div>
                 </div>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">

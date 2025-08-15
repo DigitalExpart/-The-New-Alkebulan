@@ -292,7 +292,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           toast.error("Account created but profile setup failed. Please contact support.")
         } else {
           console.log('✅ Profile created successfully')
-          toast.success("Account created successfully! Please check your email to verify your account.")
+          toast.success("Account created successfully! Welcome to your dashboard.")
         }
         
         // Set user in state
@@ -301,8 +301,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Set profile in state
         setProfile(profileData)
         
-        // Redirect to verification page or dashboard
-        router.push('/auth/verify-email')
+        // Redirect directly to dashboard - users can verify email later
+        router.push('/dashboard')
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "An error occurred"
@@ -405,10 +405,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, loading: true, error: null }))
 
     try {
+      // Temporary fix: Use current origin for redirect until Supabase URLs are updated
+      const redirectUrl = typeof window !== 'undefined' 
+        ? `${window.location.origin}/auth/callback`
+        : 'https://the-new-alkebulan.vercel.app/auth/callback'
+        
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: redirectUrl,
         },
       })
 
