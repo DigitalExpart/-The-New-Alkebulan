@@ -135,7 +135,12 @@ export default function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <RoleSwitcher />
+              <RoleSwitcher 
+                onRoleChange={(role) => {
+                  // Force a re-render when role changes
+                  window.location.reload()
+                }}
+              />
             </CardContent>
           </Card>
 

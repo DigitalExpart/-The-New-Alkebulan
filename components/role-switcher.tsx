@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { ShoppingCart, Building2, User } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { toast } from "sonner"
+import { supabase } from "@/lib/supabase"
 
 type UserRole = 'buyer' | 'business'
 
@@ -15,7 +16,7 @@ interface RoleSwitcherProps {
 }
 
 export function RoleSwitcher({ onRoleChange, className = "" }: RoleSwitcherProps) {
-  const { profile, refreshProfile } = useAuth()
+  const { profile, refreshProfile, user } = useAuth()
   const [currentRole, setCurrentRole] = useState<UserRole>('buyer')
   const [loading, setLoading] = useState(false)
 
@@ -34,25 +35,53 @@ export function RoleSwitcher({ onRoleChange, className = "" }: RoleSwitcherProps
     setLoading(true)
     
     try {
-      // Update local state immediately for better UX
-      setCurrentRole(newRole)
-      
-      // Call the callback if provided
-      if (onRoleChange) {
-        onRoleChange(newRole)
+              // Update the profile in Supabase
+        if (user && profile) {
+          console.log('🔄 Updating profile in Supabase:', {
+            profileId: profile.id,
+            newRole,
+            business_enabled: newRole === 'business'
+          })
+          
+          const { error } = await supabase
+            .from('profiles')
+            .update({
+              business_enabled: newRole === 'business',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', profile.id)
+
+          if (error) {
+            console.error('❌ Supabase update error:', error)
+            throw error
+          }
+          
+          console.log('✅ Profile updated successfully in Supabase')
+
+        // Update local state immediately for better UX
+        setCurrentRole(newRole)
+        
+        // Call the callback if provided
+        if (onRoleChange) {
+          onRoleChange(newRole)
+        }
+        
+        // Show success message
+        const roleName = newRole === 'buyer' ? 'Buyer' : 'Business'
+        toast.success(`Switched to ${roleName} mode`)
+        
+        // Refresh profile to sync with backend and update dashboard
+        await refreshProfile()
+        
+      } else {
+        throw new Error('User or profile not available')
       }
-      
-      // Show success message
-      const roleName = newRole === 'buyer' ? 'Buyer' : 'Business'
-      toast.success(`Switched to ${roleName} mode`)
-      
-      // Refresh profile to sync with backend
-      await refreshProfile()
       
     } catch (error) {
       // Revert on error
       setCurrentRole(currentRole)
       toast.error("Failed to switch role. Please try again.")
+      console.error('Role switch error:', error)
     } finally {
       setLoading(false)
     }
