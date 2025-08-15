@@ -60,10 +60,10 @@ export default function UnifiedDashboardPage() {
     return null
   }
 
-  // Check if user has both roles
-  const hasBothRoles = profile?.buyer_enabled && profile?.seller_enabled
-  const hasBuyerRole = profile?.buyer_enabled
-  const hasSellerRole = profile?.seller_enabled
+     // Check if user has both roles
+   const hasBothRoles = profile?.buyer_enabled && profile?.business_enabled
+   const hasBuyerRole = profile?.buyer_enabled
+   const hasBusinessRole = profile?.business_enabled
 
   if (!hasBothRoles) {
     // Redirect to main dashboard if not both roles
@@ -80,7 +80,7 @@ export default function UnifiedDashboardPage() {
             <div>
               <h1 className="text-3xl font-bold text-foreground">Unified Dashboard</h1>
               <p className="text-muted-foreground mt-1">
-                Manage both your buyer and seller activities
+                Manage both your buyer and business activities
               </p>
               <div className="flex gap-2 mt-2">
                 <Badge variant="outline" className="text-sm">
@@ -89,7 +89,7 @@ export default function UnifiedDashboardPage() {
                 </Badge>
                 <Badge variant="default" className="text-sm bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0">
                   <Crown className="w-4 h-4 mr-1" />
-                  Seller
+                  Business
                 </Badge>
               </div>
             </div>
@@ -111,7 +111,7 @@ export default function UnifiedDashboardPage() {
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="buyer">Buyer Activities</TabsTrigger>
-            <TabsTrigger value="seller">Seller Activities</TabsTrigger>
+                            <TabsTrigger value="seller">Business Activities</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
@@ -172,7 +172,7 @@ export default function UnifiedDashboardPage() {
               <CardHeader>
                 <CardTitle>Quick Actions</CardTitle>
                 <CardDescription>
-                  Access your buyer and seller tools quickly
+                  Access your buyer and business tools quickly
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -185,9 +185,9 @@ export default function UnifiedDashboardPage() {
                     <Plus className="h-6 w-6" />
                     <span className="text-xs">List Product</span>
                   </Button>
-                  <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => router.push("/seller/dashboard")}>
+                  <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => router.push("/business/dashboard")}>
                     <Store className="h-6 w-6" />
-                    <span className="text-xs">Seller Dashboard</span>
+                    <span className="text-xs">Business Dashboard</span>
                   </Button>
                   <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => router.push("/dashboard/orders")}>
                     <Package className="h-6 w-6" />
@@ -234,13 +234,13 @@ export default function UnifiedDashboardPage() {
             </Card>
           </TabsContent>
 
-          {/* Seller Activities Tab */}
+          {/* Business Activities Tab */}
           <TabsContent value="seller" className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Store className="h-5 w-5" />
-                  Seller Activities
+                  Business Activities
                 </CardTitle>
                 <CardDescription>
                   Manage your store, products, and sales
@@ -248,18 +248,18 @@ export default function UnifiedDashboardPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Button variant="outline" className="h-16 flex flex-col gap-2" onClick={() => router.push("/seller/dashboard")}>
-                    <BarChart3 className="h-5 w-5" />
-                    <span className="text-sm">Seller Dashboard</span>
-                  </Button>
+                                     <Button variant="outline" className="h-16 flex flex-col gap-2" onClick={() => router.push("/business/dashboard")}>
+                     <BarChart3 className="h-5 w-5" />
+                     <span className="text-sm">Business Dashboard</span>
+                   </Button>
                   <Button variant="outline" className="h-16 flex flex-col gap-2" onClick={() => router.push("/marketplace/upload")}>
                     <Plus className="h-5 w-5" />
                     <span className="text-sm">Add Product</span>
                   </Button>
-                  <Button variant="outline" className="h-16 flex flex-col gap-2" onClick={() => router.push("/seller/orders")}>
-                    <Package className="h-5 w-5" />
-                    <span className="text-sm">Manage Orders</span>
-                  </Button>
+                                     <Button variant="outline" className="h-16 flex flex-col gap-2" onClick={() => router.push("/business/orders")}>
+                     <Package className="h-5 w-5" />
+                     <span className="text-sm">Manage Orders</span>
+                   </Button>
                 </div>
                 
                 <div className="border-t pt-4">
@@ -278,9 +278,9 @@ export default function UnifiedDashboardPage() {
                   <BarChart3 className="h-5 w-5" />
                   Combined Analytics
                 </CardTitle>
-                <CardDescription>
-                  View insights across both your buyer and seller activities
-                </CardDescription>
+                                 <CardDescription>
+                   View insights across both your buyer and business activities
+                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -302,8 +302,8 @@ export default function UnifiedDashboardPage() {
                     </div>
                   </div>
                   
-                  <div>
-                    <h4 className="font-medium mb-4">Seller Analytics</h4>
+                                     <div>
+                     <h4 className="font-medium mb-4">Business Analytics</h4>
                     <div className="space-y-3">
                       <div className="flex justify-between">
                         <span className="text-sm text-muted-foreground">Total Earnings</span>
@@ -321,12 +321,12 @@ export default function UnifiedDashboardPage() {
                   </div>
                 </div>
                 
-                <div className="border-t mt-6 pt-4">
-                  <h4 className="font-medium mb-2">Combined Insights</h4>
-                  <p className="text-sm text-muted-foreground">
-                    As you use both buyer and seller features, you'll see combined insights here.
-                  </p>
-                </div>
+                                 <div className="border-t mt-6 pt-4">
+                   <h4 className="font-medium mb-2">Combined Insights</h4>
+                   <p className="text-sm text-muted-foreground">
+                     As you use both buyer and business features, you'll see combined insights here.
+                   </p>
+                 </div>
               </CardContent>
             </Card>
           </TabsContent>
