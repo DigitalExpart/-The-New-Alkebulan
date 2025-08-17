@@ -130,7 +130,7 @@ export function RoleSwitcher({ onRoleChange, className = "" }: RoleSwitcherProps
           size="sm"
           onClick={() => handleRoleSwitch('buyer')}
           disabled={loading}
-          className={`h-12 flex flex-col gap-2 ${
+          className={`h-20 flex flex-col gap-2 ${
             currentRole === 'buyer' 
               ? 'bg-blue-500 hover:bg-blue-600' 
               : 'hover:bg-blue-50'
@@ -145,7 +145,7 @@ export function RoleSwitcher({ onRoleChange, className = "" }: RoleSwitcherProps
           size="sm"
           onClick={() => handleRoleSwitch('business')}
           disabled={loading}
-          className={`h-12 flex flex-col gap-2 ${
+          className={`h-20 flex flex-col gap-2 ${
             currentRole === 'business' 
               ? 'bg-green-500 hover:bg-green-600' 
               : 'hover:bg-green-50'

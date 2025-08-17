@@ -670,9 +670,11 @@ export function Navbar() {
                     )}
 
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                      <Settings className="w-4 h-4 mr-2" />
-                      Settings
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile/role-management">
+                        <Settings className="w-4 h-4 mr-2" />
+                        Account Management
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={signOut}>
                       <LogOut className="w-4 h-4 mr-2" />
@@ -742,6 +744,14 @@ export function Navbar() {
                     >
                       <Settings className="w-4 h-4 inline mr-2" />
                       Edit Profile
+                    </Link>
+                    <Link
+                      href="/profile/role-management"
+                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <Shield className="w-4 h-4 inline mr-2" />
+                      Account Management
                     </Link>
                     {/* Account Type Switcher - Mobile */}
                     <div className="px-3 py-2">

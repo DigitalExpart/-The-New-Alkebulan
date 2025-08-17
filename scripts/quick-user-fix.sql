@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     phone TEXT,
     occupation TEXT,
     education TEXT,
+    core_competencies TEXT[],
+    interests TEXT[],
     is_public BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -53,6 +55,14 @@ BEGIN
     
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'education') THEN
         ALTER TABLE public.profiles ADD COLUMN education TEXT;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'core_competencies') THEN
+        ALTER TABLE public.profiles ADD COLUMN core_competencies TEXT[];
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'interests') THEN
+        ALTER TABLE public.profiles ADD COLUMN interests TEXT[];
     END IF;
     
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'is_public') THEN

@@ -12,7 +12,12 @@ export interface Profile {
   education?: string
   avatar_url?: string
   is_public?: boolean
-  account_type?: 'buyer' | 'business'
+  account_type?: 'buyer' | 'business' | 'creator' | 'investor' | 'mentor'
+  buyer_enabled?: boolean
+  business_enabled?: boolean
+  creator_enabled?: boolean
+  investor_enabled?: boolean
+  mentor_enabled?: boolean
   created_at?: string
   updated_at?: string
   

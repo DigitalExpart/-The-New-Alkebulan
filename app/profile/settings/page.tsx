@@ -53,6 +53,7 @@ export default function ProfileSettingsPage() {
     new: false,
     confirm: false
   })
+  const [showPasswordForm, setShowPasswordForm] = useState(false)
 
   // Two-factor authentication state
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
@@ -160,6 +161,7 @@ export default function ProfileSettingsPage() {
           newPassword: "",
           confirmPassword: ""
         })
+        setShowPasswordForm(false)
       }
     } catch (error) {
       console.error('Error:', error)
@@ -351,83 +353,114 @@ export default function ProfileSettingsPage() {
             <CardContent className="space-y-6">
               {/* Change Password */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Lock className="w-4 h-4" />
-                  Change Password
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="current-password">Current Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="current-password"
-                        type={showPasswords.current ? "text" : "password"}
-                        value={passwordData.currentPassword}
-                        onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                        placeholder="Enter current password"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3"
-                        onClick={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}
-                      >
-                        {showPasswords.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="new-password">New Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="new-password"
-                        type={showPasswords.new ? "text" : "password"}
-                        value={passwordData.newPassword}
-                        onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
-                        placeholder="Enter new password"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3"
-                        onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
-                      >
-                        {showPasswords.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirm-password">Confirm Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="confirm-password"
-                        type={showPasswords.confirm ? "text" : "password"}
-                        value={passwordData.confirmPassword}
-                        onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                        placeholder="Confirm new password"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3"
-                        onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
-                      >
-                        {showPasswords.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </Button>
-                    </div>
-                  </div>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Lock className="w-4 h-4" />
+                    Change Password
+                  </h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowPasswordForm(!showPasswordForm)}
+                    className="flex items-center gap-2"
+                  >
+                    {showPasswordForm ? 'Hide' : 'Change Password'}
+                    {showPasswordForm ? <EyeOff className="w-4 h-4" /> : <Key className="w-4 h-4" />}
+                  </Button>
                 </div>
-                <Button 
-                  onClick={handlePasswordChange} 
-                  disabled={saving || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <Key className="w-4 h-4 mr-2" />
-                  {saving ? 'Changing Password...' : 'Change Password'}
-                </Button>
+                
+                {showPasswordForm && (
+                  <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="current-password">Current Password</Label>
+                        <div className="relative">
+                          <Input
+                            id="current-password"
+                            type={showPasswords.current ? "text" : "password"}
+                            value={passwordData.currentPassword}
+                            onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                            placeholder="Enter current password"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3"
+                            onClick={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}
+                          >
+                            {showPasswords.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="new-password">New Password</Label>
+                        <div className="relative">
+                          <Input
+                            id="new-password"
+                            type={showPasswords.new ? "text" : "password"}
+                            value={passwordData.newPassword}
+                            onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                            placeholder="Enter new password"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3"
+                            onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
+                          >
+                            {showPasswords.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="confirm-password">Confirm Password</Label>
+                        <div className="relative">
+                          <Input
+                            id="confirm-password"
+                            type={showPasswords.confirm ? "text" : "password"}
+                            value={passwordData.confirmPassword}
+                            onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                            placeholder="Confirm new password"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3"
+                            onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
+                          >
+                            {showPasswords.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={handlePasswordChange} 
+                        disabled={saving || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        <Key className="w-4 h-4 mr-2" />
+                        {saving ? 'Changing Password...' : 'Change Password'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setShowPasswordForm(false)
+                          setPasswordData({
+                            currentPassword: "",
+                            newPassword: "",
+                            confirmPassword: ""
+                          })
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <Separator />
