@@ -322,9 +322,6 @@ export function Navbar() {
                         {getDisplayName().charAt(0).toUpperCase()}
                       </span>
                     </div>
-                    <span className="text-foreground font-medium hidden sm:block">
-                      {getDisplayName()}
-                    </span>
                     <ChevronDown className="h-4 w-4 text-muted-foreground" />
                   </button>
                 </DropdownMenuTrigger>
