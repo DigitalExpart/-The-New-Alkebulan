@@ -21,6 +21,29 @@ import Link from "next/link"
 import type { Profile, FamilyMember, WorkExperience, InterestSuggestion, CompetencySuggestion } from "@/types/profile"
 import { LANGUAGE_OPTIONS, GENDER_OPTIONS, RELATIONSHIP_OPTIONS, INTEREST_SUGGESTIONS, COMPETENCY_SUGGESTIONS } from "@/types/profile"
 
+// Form data interface
+interface ProfileFormData {
+  first_name: string
+  last_name: string
+  username: string
+  email: string
+  bio: string
+  location: string
+  website: string
+  phone: string
+  occupation: string
+  education: string
+  avatar_url: string
+  language_preference: string
+  region: string
+  gender: string
+  place_of_birth: string
+  date_of_birth: string | null
+  relationship_status: string
+  interests: string[]
+  core_competencies: string[]
+}
+
 export default function EditProfilePage() {
   const router = useRouter()
   const { user, refreshProfile } = useAuth()
@@ -28,7 +51,7 @@ export default function EditProfilePage() {
   const [saving, setSaving] = useState(false)
 
   // Enhanced form data state
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ProfileFormData>({
     first_name: "",
     last_name: "",
     username: "",
@@ -44,10 +67,10 @@ export default function EditProfilePage() {
     region: "",
     gender: "",
     place_of_birth: "",
-    date_of_birth: "",
+    date_of_birth: null,
     relationship_status: "",
-    interests: [] as string[],
-    core_competencies: [] as string[]
+    interests: [],
+    core_competencies: []
   })
 
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([])
@@ -110,7 +133,7 @@ export default function EditProfilePage() {
           region: data.region || '',
           gender: data.gender || '',
           place_of_birth: data.place_of_birth || '',
-          date_of_birth: data.date_of_birth || '',
+          date_of_birth: data.date_of_birth || null,
           relationship_status: data.relationship_status || '',
           interests: data.interests || [],
           core_competencies: data.core_competencies || []
@@ -157,7 +180,7 @@ export default function EditProfilePage() {
       region: '',
       gender: '',
       place_of_birth: '',
-      date_of_birth: '',
+      date_of_birth: null,
       relationship_status: '',
       interests: [],
       core_competencies: [],
@@ -191,7 +214,7 @@ export default function EditProfilePage() {
           region: '',
           gender: '',
           place_of_birth: '',
-          date_of_birth: '',
+          date_of_birth: null,
           relationship_status: '',
           interests: [],
           core_competencies: []
@@ -265,9 +288,9 @@ export default function EditProfilePage() {
         company: newWorkExperience.company,
         position: newWorkExperience.position,
         start_date: newWorkExperience.start_date,
-        end_date: newWorkExperience.end_date || undefined,
-        description: newWorkExperience.description || undefined,
-        achievements: newWorkExperience.achievements ? [newWorkExperience.achievements] : undefined
+        end_date: newWorkExperience.end_date && newWorkExperience.end_date.trim() !== '' ? newWorkExperience.end_date : undefined,
+        description: newWorkExperience.description && newWorkExperience.description.trim() !== '' ? newWorkExperience.description : undefined,
+        achievements: newWorkExperience.achievements && newWorkExperience.achievements.trim() !== '' ? [newWorkExperience.achievements] : undefined
       }
       setWorkExperience(prev => [...prev, experience])
       setNewWorkExperience({ company: "", position: "", start_date: "", end_date: "", description: "", achievements: "" })
@@ -302,7 +325,7 @@ export default function EditProfilePage() {
         gender: formData.gender,
         place_of_birth: formData.place_of_birth,
         // Convert empty date string to null for database
-        date_of_birth: formData.date_of_birth || null,
+        date_of_birth: formData.date_of_birth && typeof formData.date_of_birth === 'string' && formData.date_of_birth.trim() !== '' ? formData.date_of_birth : null,
         relationship_status: formData.relationship_status,
         interests: formData.interests,
         core_competencies: formData.core_competencies,
@@ -570,7 +593,7 @@ export default function EditProfilePage() {
                     <Input
                         id="date_of_birth"
                         type="date"
-                        value={formData.date_of_birth}
+                        value={formData.date_of_birth || ''}
                         onChange={(e) => handleInputChange("date_of_birth", e.target.value)}
                       />
                     </div>
