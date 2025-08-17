@@ -25,7 +25,6 @@ export default function SignUpPage() {
     email: "",
     password: "",
     confirmPassword: "",
-    full_name: "",
     first_name: "",
     last_name: "",
     username: "",
@@ -107,14 +106,7 @@ export default function SignUpPage() {
 
     if (!validateForm()) return
 
-    // Combine first and last name for full_name
-    const signupData = {
-      ...formData,
-      full_name: `${formData.first_name} ${formData.last_name}`.trim()
-    }
-
     // Store the form data and move to role selection
-    setFormData(signupData)
     setStep('choose-role')
   }
 
@@ -401,7 +393,7 @@ export default function SignUpPage() {
               <strong>Account:</strong> {formData.email}
             </p>
             <p className="text-sm text-green-800 dark:text-green-200">
-              <strong>Name:</strong> {formData.full_name}
+              <strong>Name:</strong> {formData.first_name} {formData.last_name}
             </p>
             <p className="text-sm text-green-800 dark:text-green-200">
               <strong>Username:</strong> @{formData.username}

@@ -247,7 +247,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
          password: data.password,
          options: {
            data: {
-             full_name: data.full_name,
              first_name: data.first_name,
              last_name: data.last_name,
              username: data.username,
@@ -283,7 +282,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const minimalProfile = {
             id: signUpData.user.id,
             user_id: signUpData.user.id,
-            full_name: data.full_name,
             first_name: data.first_name,
             last_name: data.last_name,
             username: data.username,

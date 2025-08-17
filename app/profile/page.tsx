@@ -147,7 +147,8 @@ export default function ProfilePage() {
   }
 
   const userData = profile || {
-    full_name: (user as any)?.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+    first_name: (user as any)?.user_metadata?.full_name?.split(' ')[0] || user.email?.split('@')[0] || 'User',
+    last_name: (user as any)?.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
     email: user.email,
     bio: '',
     location: '',
@@ -201,7 +202,15 @@ export default function ProfilePage() {
                   {/* User Info */}
                   <div className="flex-1 space-y-2">
                     <div className="flex items-center gap-2">
-                      <h2 className="text-2xl font-bold">{userData.full_name}</h2>
+                      <h2 className="text-2xl font-bold">
+                        {profile?.first_name && profile?.last_name 
+                          ? `${profile.first_name} ${profile.last_name}`
+                          : profile?.first_name || userData.first_name
+                        }
+                      </h2>
+                      {profile?.username && (
+                        <p className="text-primary font-medium">@{profile.username}</p>
+                      )}
                       <Badge variant="secondary" className="bg-green-100 text-green-800">
                         <Shield className="mr-1 h-3 w-3" />
                         Member

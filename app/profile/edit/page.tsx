@@ -29,7 +29,8 @@ export default function EditProfilePage() {
 
   // Enhanced form data state
   const [formData, setFormData] = useState({
-    full_name: "",
+    first_name: "",
+    last_name: "",
     username: "",
     email: "",
     bio: "",
@@ -94,7 +95,8 @@ export default function EditProfilePage() {
         await createDefaultProfile()
       } else {
         setFormData({
-          full_name: data.full_name || '',
+          first_name: data.first_name || '',
+          last_name: data.last_name || '',
           username: data.username || '',
           email: data.email || user.email || '',
           bio: data.bio || '',
@@ -132,10 +134,17 @@ export default function EditProfilePage() {
   const createDefaultProfile = async () => {
     if (!user || !supabase) return
 
+    // Extract first and last name from user metadata or email
+    const fullName = (user as any)?.user_metadata?.full_name || user.email?.split('@')[0] || 'User'
+    const nameParts = fullName.split(' ')
+    const firstName = nameParts[0] || 'User'
+    const lastName = nameParts.slice(1).join(' ') || ''
+
     const defaultProfile = {
       user_id: user.id,
-      email: user.email,
-      full_name: (user as any)?.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+      email: user.email || '',
+      first_name: firstName,
+      last_name: lastName,
       username: user.email?.split('@')[0] || 'User',
       bio: '',
       location: '',
@@ -167,7 +176,25 @@ export default function EditProfilePage() {
         // Set form data with default values
         setFormData({
           ...formData,
-          ...defaultProfile
+          first_name: firstName,
+          last_name: lastName,
+          username: user.email?.split('@')[0] || 'User',
+          email: user.email || '',
+          bio: '',
+          location: '',
+          website: '',
+          phone: '',
+          occupation: '',
+          education: '',
+          avatar_url: '',
+          language_preference: 'en',
+          region: '',
+          gender: '',
+          place_of_birth: '',
+          date_of_birth: '',
+          relationship_status: '',
+          interests: [],
+          core_competencies: []
         })
       }
     } catch (error) {
@@ -183,7 +210,9 @@ export default function EditProfilePage() {
   const handleAvatarSelect = (avatar: AvatarOption, customizationData?: AvatarCustomization) => {
     setSelectedAvatar(avatar)
     setCustomization(customizationData || null)
-    setFormData(prev => ({ ...prev, avatar_url: avatar.imageUrl }))
+    // Generate a unique identifier for the avatar instead of using imageUrl
+    const avatarId = `${avatar.id}_${avatar.skinTone}_${avatar.hairstyle}_${avatar.expression}`
+    setFormData(prev => ({ ...prev, avatar_url: avatarId }))
   }
 
   const handleImageUpload = (imageUrl: string) => {
@@ -257,16 +286,17 @@ export default function EditProfilePage() {
     try {
       // Prepare profile data for update
       const profileData = {
-            full_name: formData.full_name,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
         username: formData.username,
-            email: formData.email,
-            bio: formData.bio,
-            location: formData.location,
-            website: formData.website,
-            phone: formData.phone,
-            occupation: formData.occupation,
-            education: formData.education,
-            avatar_url: formData.avatar_url,
+        email: formData.email,
+        bio: formData.bio,
+        location: formData.location,
+        website: formData.website,
+        phone: formData.phone,
+        occupation: formData.occupation,
+        education: formData.education,
+        avatar_url: formData.avatar_url,
         language_preference: formData.language_preference,
         region: formData.region,
         gender: formData.gender,
@@ -278,7 +308,7 @@ export default function EditProfilePage() {
         core_competencies: formData.core_competencies,
         family_members: familyMembers,
         work_experience: workExperience,
-            updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString()
       }
 
       const { error: updateError } = await supabase
@@ -381,14 +411,25 @@ export default function EditProfilePage() {
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="full_name">Full Name</Label>
+                    <Label htmlFor="first_name">First Name</Label>
                     <Input
-                      id="full_name"
-                      value={formData.full_name}
-                      onChange={(e) => handleInputChange("full_name", e.target.value)}
-                      placeholder="Enter your full name"
+                      id="first_name"
+                      value={formData.first_name}
+                      onChange={(e) => handleInputChange("first_name", e.target.value)}
+                      placeholder="Enter your first name"
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="last_name">Last Name</Label>
+                    <Input
+                      id="last_name"
+                      value={formData.last_name}
+                      onChange={(e) => handleInputChange("last_name", e.target.value)}
+                      placeholder="Enter your last name"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="username">Username</Label>
                     <Input
@@ -398,9 +439,6 @@ export default function EditProfilePage() {
                       placeholder="Choose a username"
                     />
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="email">Email Address</Label>
                     <Input
@@ -409,16 +447,6 @@ export default function EditProfilePage() {
                       value={formData.email}
                       onChange={(e) => handleInputChange("email", e.target.value)}
                       placeholder="Enter your email"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => handleInputChange("phone", e.target.value)}
-                      placeholder="+1 (555) 123-4567"
                     />
                   </div>
                 </div>

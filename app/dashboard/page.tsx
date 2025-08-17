@@ -28,6 +28,17 @@ export default function DashboardPage() {
   const router = useRouter()
   const { user, profile, loading } = useAuth()
 
+  // Helper function to get first name from full name
+  const getFirstName = (fullName?: string) => {
+    if (!fullName) return 'User'
+    return fullName.split(' ')[0]
+  }
+
+  // Get the best available name for display
+  const getDisplayName = () => {
+    return getFirstName(profile?.full_name || (user as any)?.user_metadata?.full_name || user.email?.split('@')[0])
+  }
+
   useEffect(() => {
     if (!loading && !user) {
       router.push("/auth/signin")
@@ -59,10 +70,10 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-foreground">
-                Welcome back, @{profile?.username || user.email?.split('@')[0] || 'User'}! 👋
+                Welcome back, {getDisplayName()}! 👋
               </h1>
               <p className="text-muted-foreground mt-1">
-                {profile?.full_name || user.full_name || user.email}
+                {profile?.full_name || (user as any)?.user_metadata?.full_name || user.email}
               </p>
               {profile?.username && (
                 <p className="text-sm text-primary font-medium mt-1">
@@ -91,7 +102,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex-1">
                   <h2 className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                    Welcome, @{profile?.username || user.email?.split('@')[0] || 'User'}! 🎉
+                    Welcome, {getDisplayName()}! 🎉
                   </h2>
                   <p className="text-blue-700 dark:text-blue-300 mt-1">
                     Ready to explore The New Alkebulan? Here's what you can do today.

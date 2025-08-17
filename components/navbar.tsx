@@ -61,6 +61,17 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
 
+  // Helper function to get first name from full name
+  const getFirstName = (fullName?: string) => {
+    if (!fullName) return 'User'
+    return fullName.split(' ')[0]
+  }
+
+  // Get the best available name for display
+  const getDisplayName = () => {
+    return getFirstName((user as any)?.user_metadata?.full_name || profile?.first_name || user?.email?.split('@')[0])
+  }
+
   // Debug: Log authentication state
   useEffect(() => {
     console.log('Navbar - User state:', !!user, user?.id, user?.email, loading)
@@ -606,10 +617,10 @@ export function Navbar() {
                     <DropdownMenuLabel>
                       <div className="flex flex-col space-y-1">
                         <p className="text-sm font-medium leading-none">
-                          {(user as any)?.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
+                          {profile?.first_name || (user as any)?.user_metadata?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'User'}
                         </p>
                         <p className="text-xs leading-none text-muted-foreground">
-                          {user.email}
+                          {user?.email}
                         </p>
                       </div>
                     </DropdownMenuLabel>
