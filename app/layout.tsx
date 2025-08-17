@@ -34,8 +34,8 @@ export default function RootLayout({
       <body className={`${inter.className} font-agrandir-regular`}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="light"
-          enableSystem={false}
+          defaultTheme="system"
+          enableSystem={true}
           disableTransitionOnChange={false}
           storageKey="the-new-alkebulan-theme"
         >

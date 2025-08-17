@@ -39,6 +39,9 @@ import {
   Settings,
   LogOut,
   Store,
+  Search,
+  ChevronDown,
+  CheckCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -60,6 +63,7 @@ export function Navbar() {
   const { user, profile, signOut, loading, refreshProfile, forceRefreshProfile } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
 
   // Helper function to get first name from full name
   const getFirstName = (fullName?: string) => {
@@ -234,903 +238,221 @@ export function Navbar() {
     }
   }
 
+  const handleSignOut = async () => {
+    await signOut();
+    setIsOpen(false); // Close dropdown on sign out
+  };
+
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-[hsl(var(--navbar-bg))] text-[hsl(var(--navbar-text))] border-b border-[hsl(var(--border))] shadow-lg">
-      <div className="w-full px-2 sm:px-4 lg:px-6">
-        <div className="flex items-center h-14 gap-2 sm:gap-3">
-          {/* Logo with Text - Fixed width to prevent shifting */}
-          <div className="flex items-center flex-shrink-0 w-auto mr-2 sm:mr-3">
-            <Link href="/" className="flex items-center space-x-2" onClick={handleLogoClick}>
-              <div
-                className="relative w-10 h-10 flex-shrink-0 transition-transform duration-200 ease-in-out cursor-pointer hover:scale-110"
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border transition-all duration-300">
+      <div className="container mx-auto px-4">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo and Brand */}
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={handleLogoClick}
+              className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors duration-200"
+            >
+              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                <span className="text-primary-foreground font-bold text-sm">A</span>
+              </div>
+              <span className="font-bold text-xl hidden sm:block">The New Alkebulan</span>
+            </button>
+          </div>
+
+          {/* Search Bar */}
+          <div className="flex-1 max-w-md mx-8 hidden md:block">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search communities, projects, events..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
+              />
+            </div>
+          </div>
+
+          {/* Right Side Navigation */}
+          <div className="flex items-center space-x-4">
+            {/* Search Button for Mobile */}
+            <button
+              onClick={() => setIsSearchOpen(!isSearchOpen)}
+              className="md:hidden p-2 text-foreground hover:text-primary transition-colors duration-200"
+            >
+              <Search className="h-5 w-5" />
+            </button>
+
+            {/* Navigation Links */}
+            <div className="hidden md:flex items-center space-x-6">
+              <Link
+                href="/communities"
+                className="text-foreground hover:text-primary transition-colors duration-200 font-medium"
               >
-                <Image
-                  src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Scherm_afbeelding_2025-07-20_om_19.00.08-removebg-preview-5SfpVg1sZpmH7Z60mo8coZyoqelzmF.png"
-                  alt="The New Alkebulan Logo"
-                  width={40}
-                  height={40}
-                  className="rounded-full object-contain"
-                />
-              </div>
-              <div className="flex flex-col items-start justify-center text-left leading-tight">
-                <span className="text-[10px] font-medium text-yellow-500 whitespace-nowrap">The New</span>
-                <span className="text-sm font-bold text-yellow-500 whitespace-nowrap -mt-0.5">Alkebulan</span>
-              </div>
-            </Link>
-            
-            {/* Debug: Authentication Status Indicator */}
-            {process.env.NODE_ENV === 'development' && (
-              <div className="ml-2 text-xs text-gray-500">
-                Auth: {isSupabaseConfigured() ? '✅' : '❌'} | 
-                User: {user ? '✅' : '❌'} | 
-                Loading: {loading ? '🔄' : '✅'} |
-                Profile: {profile ? '✅' : '❌'} |
-                Business: {profile?.business_enabled ? '✅' : '❌'} |
-                Investor: {profile?.investor_enabled ? '✅' : '❌'} |
-                Mentor: {profile?.mentor_enabled ? '✅' : '❌'} |
-                Creator: {profile?.creator_enabled ? '✅' : '❌'}
-              </div>
-            )}
-          </div>
+                Communities
+              </Link>
+              <Link
+                href="/marketplace"
+                className="text-foreground hover:text-primary transition-colors duration-200 font-medium"
+              >
+                Marketplace
+              </Link>
+              <Link
+                href="/events"
+                className="text-foreground hover:text-primary transition-colors duration-200 font-medium"
+              >
+                Events
+              </Link>
+              <Link
+                href="/projects"
+                className="text-foreground hover:text-primary transition-colors duration-200 font-medium"
+              >
+                Projects
+              </Link>
+            </div>
 
-          {/* Desktop Navigation - Left aligned with proper spacing */}
-          <div className="hidden lg:flex items-center justify-start space-x-2 flex-1 min-w-0 ml-2 sm:ml-3 overflow-hidden max-w-6xl">
-            {/* Growth */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-1.5 text-[9px] whitespace-nowrap"
-                >
-                  <Sprout className="w-3 h-3 mr-1" />
-                  Growth
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard/daily-planner" className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    Daily Planner
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard/learning" className="flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4" />
-                    Progress
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard/my-journey" className="flex items-center gap-2">
-                    <Target className="w-4 h-4" />
-                    Journey
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/learning" className="flex items-center gap-2">
-                    <BookOpen className="w-4 h-4" />
-                    Learning Hub
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/learning/mentorship" className="flex items-center gap-2">
-                    <UserCheck className="w-4 h-4" />
-                    Mentorship
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard/my-manifesting" className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4" />
-                    The Manifest Lab
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Community */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-1.5 text-[9px] whitespace-nowrap"
-                >
-                  <Users className="w-3 h-3 mr-1" />
-                  Community
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem asChild>
-                  <Link href="/community" className="flex items-center gap-2">
-                    <Users className="w-4 h-4" />
-                    Social Feed
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/community/my-friends" className="flex items-center gap-2">
-                    <UserPlus className="w-4 h-4" />
-                    My Friends
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/community/my-community" className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4" />
-                    My Communities
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/community/my-alkebulan" className="flex items-center gap-2">
-                    <Globe className="w-4 h-4" />
-                    My Alkebulan
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/community/messenger" className="flex items-center gap-2">
-                    <MessageCircle className="w-4 h-4" />
-                    Messenger
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/community/events" className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    Events
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Marketplace */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-1.5 text-[9px] whitespace-nowrap"
-                >
-                  <ShoppingCart className="w-3 h-3 mr-1" />
-                  Marketplace
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem asChild>
-                  <Link href="/marketplace" className="flex items-center gap-2">
-                    <ShoppingCart className="w-4 h-4" />
-                    Browse Products
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/marketplace/companies" className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4" />
-                    All Companies
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/marketplace/upload" className="flex items-center gap-2">
-                    <Upload className="w-4 h-4" />
-                    Sell Product
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-
-
-            {/* Finance */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-1.5 text-[9px] whitespace-nowrap"
-                >
-                  <TrendingUp className="w-3 h-3 mr-1" />
-                  Finance
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard/investments" className="flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4" />
-                    Investments
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard/my-tokens" className="flex items-center gap-2">
-                    <Coins className="w-4 h-4" />
-                    My Tokens
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard/finance" className="flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4" />
-                    My Finances
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Health */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-1.5 text-[9px] whitespace-nowrap"
-                >
-                  <Heart className="w-3 h-3 mr-1" />
-                  Health
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem asChild>
-                  <Link href="/health" className="flex items-center gap-2">
-                    <Heart className="w-4 h-4" />
-                    Health Hub
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/health/stats" className="flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4" />
-                    Wellness Overview
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/health/mental-health-support" className="flex items-center gap-2">
-                    <Ribbon className="w-4 h-4" />
-                    Mental Health Support
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Governance */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] px-2 py-1.5 text-[9px] whitespace-nowrap"
-                >
-                  <Shield className="w-3 h-3 mr-1" />
-                  Governance
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem asChild>
-                  <Link href="/governance/about" className="flex items-center gap-2">
-                    <MessageCircle className="w-4 h-4" />
-                    About Governance
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/governance" className="flex items-center gap-2">
-                    <Shield className="w-4 h-4" />
-                    Proposals
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/governance/land-ownership" className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4" />
-                    Land Ownership
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/governance/justice" className="flex items-center gap-2">
-                    <Scale className="w-4 h-4" />
-                    Justice
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/governance/regions-tribes" className="flex items-center gap-2">
-                    <Map className="w-4 h-4" />
-                    Regions & Tribes
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Spacer to prevent overlap with right side */}
-            <div className="w-4"></div>
-          </div>
-
-          {/* Right Side Icons - Fixed positioning */}
-          <div className="flex items-center space-x-2 flex-shrink-0 ml-auto min-w-0">
-            {/* Loading indicator */}
-            {loading && (
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 border-2 border-[hsl(var(--navbar-text))] border-t-transparent rounded-full animate-spin"></div>
-              </div>
-            )}
-            {/* Join Alkebulan Dropdown - Only show when not logged in */}
-            {(!user || !user.id) && (
-              <DropdownMenu>
+            {/* User Menu */}
+            {user ? (
+              <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
                 <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-yellow-500 hover:bg-[hsl(var(--navbar-hover))] border border-yellow-500 rounded-full px-3 py-1 text-[9px] font-medium hidden lg:flex"
-                  >
-                    Join Alkebulan
-                  </Button>
+                  <button className="flex items-center space-x-2 p-2 rounded-lg hover:bg-accent transition-colors duration-200">
+                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                      <span className="text-primary-foreground font-medium text-sm">
+                        {getDisplayName().charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <span className="text-foreground font-medium hidden sm:block">
+                      {getDisplayName()}
+                    </span>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none text-foreground">
+                        {profile?.first_name || (user as any)?.user_metadata?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'User'}
+                      </p>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        {user?.email}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href="/join-the-team" className="flex items-center gap-2">
-                      <UserPlus className="w-4 h-4" />
-                      Join the Team!
+                    <Link href="/dashboard" className="cursor-pointer flex items-center gap-2">
+                      <Monitor className="w-4 h-4" />
+                      Dashboard
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/auth/signin" className="flex items-center gap-2">
+                    <Link href="/profile" className="cursor-pointer flex items-center gap-2">
                       <UserCheck className="w-4 h-4" />
-                      Sign In
+                      Profile
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/auth/signup" className="flex items-center gap-2">
-                      <UserPlus className="w-4 h-4" />
-                      Sign Up
+                    <Link href="/profile/edit" className="cursor-pointer flex items-center gap-2">
+                      <UserCheck className="w-4 h-4" />
+                      Edit Profile
                     </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {/* Account Type Switcher */}
+                  <DropdownMenuLabel className="text-xs text-muted-foreground px-2 py-1.5">
+                    Account Roles
+                  </DropdownMenuLabel>
+                  <DropdownMenuItem 
+                    className={`cursor-pointer flex items-center gap-2 ${profile?.buyer_enabled ? 'text-primary font-medium' : ''}`}
+                    onClick={() => handleAccountTypeSwitch('buyer')}
+                  >
+                    <ShoppingCart className="w-4 h-4" />
+                    <span>Buyer Mode</span>
+                    {profile?.buyer_enabled && <CheckCircle className="w-4 h-4 ml-auto text-primary" />}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    className={`cursor-pointer flex items-center gap-2 ${profile?.business_enabled ? 'text-primary font-medium' : ''}`}
+                    onClick={() => handleAccountTypeSwitch('business')}
+                  >
+                    <Building2 className="w-4 h-4" />
+                    <span>Business Mode</span>
+                    {profile?.business_enabled && <CheckCircle className="w-4 h-4 ml-auto text-primary" />}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={handleSignOut}
+                    className="cursor-pointer flex items-center gap-2 text-destructive hover:text-destructive"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sign Out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            )}
-
-            {/* Animated Search - Only show when logged in */}
-            {!loading && user && user.id && (
-              <AnimatedSearch
-                onSearch={handleSearch}
-                placeholder="Search..."
-                className="hidden md:flex w-24 lg:w-32 xl:w-36 ml-2"
-              />
-            )}
-
-            {/* Theme Toggle - Only show when logged in */}
-            {!loading && user && user.id && <ThemeToggle />}
-
-            {/* User Menu - Show when logged in */}
-            {!loading && user && user.id ? (
-              <>
-                <NotificationsDropdown />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] p-1.5"
-                >
-                  <Zap className="w-4 h-4" />
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] p-1"
-                    >
-                      <UserAvatar 
-                        size="sm" 
-                        imageUrl={profile?.avatar_url}
-                        fallbackName={profile?.full_name || user.email?.split('@')[0] || 'User'} 
-                      />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>
-                      <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">
-                          {profile?.first_name || (user as any)?.user_metadata?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'User'}
-                        </p>
-                        <p className="text-xs leading-none text-muted-foreground">
-                          {user?.email}
-                        </p>
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href="/dashboard">
-                        <Monitor className="w-4 h-4 mr-2" />
-                        Dashboard
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/profile">
-                        <UserCheck className="w-4 h-4 mr-2" />
-                        Profile
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/profile/edit">
-                        <UserCheck className="w-4 h-4 mr-2" />
-                        Edit Profile
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {/* Account Type Switcher */}
-                    <DropdownMenuLabel className="text-xs text-muted-foreground px-2 py-1.5">
-                      Account Roles
-                    </DropdownMenuLabel>
-                    <DropdownMenuItem 
-                      className="flex items-center justify-between cursor-pointer"
-                      onClick={() => handleAccountTypeSwitch('buyer')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <ShoppingCart className="w-4 h-4" />
-                        Buyer Activities
-                      </div>
-                      {profile?.buyer_enabled && (
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      )}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      className="flex items-center justify-between cursor-pointer"
-                      onClick={() => handleAccountTypeSwitch('business')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Store className="w-4 h-4" />
-                        Business Activities
-                      </div>
-                      {profile?.business_enabled && (
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      )}
-                    </DropdownMenuItem>
-                    
-                    {/* Show dual-role status */}
-                    {profile?.buyer_enabled && profile?.business_enabled && (
-                      <DropdownMenuLabel className="text-xs text-green-500 px-2 py-1.5">
-                        ✅ Dual Role Enabled - Access Both Dashboards
-                      </DropdownMenuLabel>
-                    )}
-
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href="/profile/role-management">
-                        <Settings className="w-4 h-4 mr-2" />
-                        Account Management
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={signOut}>
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Sign out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </>
             ) : (
-              /* No separate buttons needed - use Join Alkebulan dropdown instead */
-              <div className="flex items-center space-x-1">
-                {/* Empty space to maintain layout */}
+              <div className="flex items-center space-x-2">
+                <Link href="/auth/signin">
+                  <Button variant="outline" size="sm" className="text-foreground border-border hover:bg-accent hover:text-accent-foreground">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link href="/auth/signup">
+                  <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
+                    Sign Up
+                  </Button>
+                </Link>
               </div>
             )}
 
-            {/* Mobile menu button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="lg:hidden text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] p-1.5"
-              onClick={toggleMenu}
-            >
-              {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </Button>
+            {/* Theme Toggle */}
+            <ThemeToggle />
           </div>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* Mobile Search Bar */}
+        {isSearchOpen && (
+          <div className="md:hidden pb-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search communities, projects, events..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Mobile Navigation Menu */}
         {isOpen && (
-          <div className="lg:hidden border-t border-[hsl(var(--border))]">
-            <div className="px-2 pt-2 pb-3 space-y-1 bg-[hsl(var(--navbar-bg))]">
-              {/* Mobile Search - Only show when logged in */}
-              {!loading && user && user.id && (
-                <div className="mb-3 md:hidden">
-                  <AnimatedSearch onSearch={handleSearch} placeholder="Search..." className="w-full" />
-                </div>
-              )}
-
-              {/* User Section - Mobile */}
-              {!loading && user ? (
-                <div className="border-b border-[hsl(var(--border))] pb-2 mb-2">
-                  <div className="px-3 py-2 text-[hsl(var(--navbar-text))] font-medium text-sm flex items-center">
-                    <UserCheck className="w-4 h-4 mr-2" />
-                    My Account
-                  </div>
-                  <div className="ml-6 space-y-1">
-                    <Link
-                      href="/dashboard"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Monitor className="w-4 h-4 inline mr-2" />
-                      Dashboard
-                    </Link>
-                    <Link
-                      href="/profile"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <UserCheck className="w-4 h-4 inline mr-2" />
-                      Profile
-                    </Link>
-                    <Link
-                      href="/profile/edit"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Settings className="w-4 h-4 inline mr-2" />
-                      Edit Profile
-                    </Link>
-                    <Link
-                      href="/profile/role-management"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Shield className="w-4 h-4 inline mr-2" />
-                      Account Management
-                    </Link>
-                    {/* Account Type Switcher - Mobile */}
-                    <div className="px-3 py-2">
-                      <div className="text-xs text-muted-foreground mb-2">Account Roles</div>
-                      <div className="space-y-1">
-                        <button
-                          className="flex items-center justify-between w-full px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                          onClick={() => {
-                            handleAccountTypeSwitch('buyer')
-                            setIsOpen(false)
-                          }}
-                        >
-                          <div className="flex items-center gap-2">
-                            <ShoppingCart className="w-4 h-4" />
-                            Buyer Activities
-                          </div>
-                          {profile?.buyer_enabled && (
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                          )}
-                        </button>
-                        <button
-                          className="flex items-center justify-between w-full px-3 py-2 text-[hsl(var(--navbar-hover))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                          onClick={() => {
-                            handleAccountTypeSwitch('business')
-                            setIsOpen(false)
-                          }}
-                        >
-                          <div className="flex items-center gap-2">
-                            <Store className="w-4 h-4" />
-                            Business Activities
-                          </div>
-                          {profile?.business_enabled && (
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                          )}
-                        </button>
-                        
-                        {/* Show dual-role status in mobile menu */}
-                        {profile?.buyer_enabled && profile?.business_enabled && (
-                          <div className="text-xs text-green-500 px-3 py-1">
-                            ✅ Dual Role Enabled - Access Both Dashboards
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                  </div>
-                </div>
-              ) : (
-                /* Show Join Alkebulan dropdown when not logged in - Mobile */
-                <div className="border-b border-[hsl(var(--border))] pb-2 mb-2">
-                  <div className="text-center text-sm text-muted-foreground">
-                    Use the Join Alkebulan menu below for sign in/up
-                  </div>
-                </div>
-              )}
-
-              {/* Join Alkebulan Dropdown Mobile */}
-              <div className="border-b border-[hsl(var(--border))] pb-2 mb-2">
-                <div className="px-3 py-2 text-yellow-500 font-medium text-sm flex items-center border border-yellow-500 rounded-md">
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Join Alkebulan
-                </div>
-                <div className="ml-6 space-y-1 mt-2">
-                  <Link
-                    href="/join-the-team"
-                    className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    <UserPlus className="w-4 h-4 inline mr-2" />
-                    Join the Team!
-                  </Link>
-                  <Link
-                    href="/auth/signin"
-                    className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    <UserCheck className="w-4 h-4 inline mr-2" />
-                    Sign In
-                  </Link>
-                  <Link
-                    href="/auth/signup"
-                    className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-text))] hover:text-[hsl(var(--navbar-bg))] rounded-md text-sm"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    <UserPlus className="w-4 h-4 inline mr-2" />
-                    Sign Up
-                  </Link>
-                </div>
-              </div>
-
-              {/* Mobile Menu Items - Only show when logged in */}
-              {!loading && user && user.id && (
-                <div className="space-y-1">
-                {/* Growth Section */}
-                <div className="border-b border-[hsl(var(--border))] pb-2 mb-2">
-                  <div className="px-3 py-2 text-[hsl(var(--navbar-text))] font-medium text-sm flex items-center">
-                    <Sprout className="w-4 h-4 mr-2" />
-                    Growth
-                  </div>
-                  <div className="ml-6 space-y-1">
-                    <Link
-                      href="/dashboard/daily-planner"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Calendar className="w-4 h-4 inline mr-2" />
-                      Daily Planner
-                    </Link>
-                    <Link
-                      href="/dashboard/learning"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <BarChart3 className="w-4 h-4 inline mr-2" />
-                      Progress
-                    </Link>
-                    <Link
-                      href="/dashboard/my-journey"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Target className="w-4 h-4 inline mr-2" />
-                      Journey
-                    </Link>
-                    <Link
-                      href="/learning"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <BookOpen className="w-4 h-4 inline mr-2" />
-                      Learning Hub
-                    </Link>
-                    <Link
-                      href="/learning/mentorship"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <UserCheck className="w-4 h-4 inline mr-2" />
-                      Mentorship
-                    </Link>
-                    <Link
-                      href="/dashboard/my-manifesting"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Sparkles className="w-4 h-4 inline mr-2" />
-                      The Manifest Lab
-                    </Link>
-                  </div>
-                </div>
-
-                {/* Community Section */}
-                <div className="border-b border-[hsl(var(--border))] pb-2 mb-2">
-                  <div className="px-3 py-2 text-[hsl(var(--navbar-text))] font-medium text-sm flex items-center">
-                    <Users className="w-4 h-4 mr-2" />
-                    Community
-                  </div>
-                  <div className="ml-6 space-y-1">
-                    <Link
-                      href="/community"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Users className="w-4 h-4 inline mr-2" />
-                      Social Feed
-                    </Link>
-                    <Link
-                      href="/community/my-friends"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <UserPlus className="w-4 h-4 inline mr-2" />
-                      My Friends
-                    </Link>
-                    <Link
-                      href="/community/my-community"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Building2 className="w-4 h-4 inline mr-2" />
-                      My Communities
-                    </Link>
-                    <Link
-                      href="/community/my-alkebulan"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Globe className="w-4 h-4 inline mr-2" />
-                      My Alkebulan
-                    </Link>
-                    <Link
-                      href="/community/events"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Calendar className="w-4 h-4 inline mr-2" />
-                      Events
-                    </Link>
-                  </div>
-                </div>
-
-                {/* Marketplace Section */}
-                <div className="border-b border-[hsl(var(--border))] pb-2 mb-2">
-                  <div className="px-3 py-2 text-[hsl(var(--navbar-text))] font-medium text-sm flex items-center">
-                    <ShoppingCart className="w-4 h-4 mr-2" />
-                    Marketplace
-                  </div>
-                  <div className="ml-6 space-y-1">
-                    <Link
-                      href="/marketplace"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <ShoppingCart className="w-4 h-4 inline mr-2" />
-                      Browse Products
-                    </Link>
-                    <Link
-                      href="/marketplace/companies"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Building2 className="w-4 h-4 inline mr-2" />
-                      All Companies
-                    </Link>
-                    <Link
-                      href="/marketplace/upload"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Upload className="w-4 h-4 inline mr-2" />
-                      Sell Product
-                    </Link>
-                  </div>
-                </div>
-
-
-
-                {/* Finance Section */}
-                <div className="border-b border-[hsl(var(--border))] pb-2 mb-2">
-                  <div className="px-3 py-2 text-[hsl(var(--navbar-text))] font-medium text-sm flex items-center">
-                    <TrendingUp className="w-4 h-4 mr-2" />
-                    Finance
-                  </div>
-                  <div className="ml-6 space-y-1">
-                    <Link
-                      href="/dashboard/investments"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <TrendingUp className="w-4 h-4 inline mr-2" />
-                      Investments
-                    </Link>
-                    <Link
-                      href="/dashboard/my-tokens"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Coins className="w-4 h-4 inline mr-2" />
-                      My Tokens
-                    </Link>
-                    <Link
-                      href="/dashboard/finance"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <BarChart3 className="w-4 h-4 inline mr-2" />
-                      My Finances
-                    </Link>
-                  </div>
-                </div>
-
-                {/* Health Section */}
-                <div className="border-b border-[hsl(var(--border))] pb-2 mb-2">
-                  <div className="px-3 py-2 text-[hsl(var(--navbar-text))] font-medium text-sm flex items-center">
-                    <Heart className="w-4 h-4 mr-2" />
-                    Health
-                  </div>
-                  <div className="ml-6 space-y-1">
-                    <Link
-                      href="/health"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Heart className="w-4 h-4 inline mr-2" />
-                      Health Hub
-                    </Link>
-                    <Link
-                      href="/health/stats"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <BarChart3 className="w-4 h-4 inline mr-2" />
-                      Wellness Overview
-                    </Link>
-                    <Link
-                      href="/health/mental-health-support"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Ribbon className="w-4 h-4 inline mr-2" />
-                      Mental Health Support
-                    </Link>
-                  </div>
-                </div>
-
-                {/* Governance Section */}
-                <div className="pb-2">
-                  <div className="px-3 py-2 text-[hsl(var(--navbar-text))] font-medium text-sm flex items-center">
-                    <Shield className="w-4 h-4 mr-2" />
-                    Governance
-                  </div>
-                  <div className="ml-6 space-y-1">
-                    <Link
-                      href="/governance/about"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <MessageCircle className="w-4 h-4 inline mr-2" />
-                      About Governance
-                    </Link>
-                    <Link
-                      href="/governance"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Shield className="w-4 h-4 inline mr-2" />
-                      Proposals
-                    </Link>
-                    <Link
-                      href="/governance/land-ownership"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <MapPin className="w-4 h-4 inline mr-2" />
-                      Land Ownership
-                    </Link>
-                    <Link
-                      href="/governance/justice"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Scale className="w-4 h-4 inline mr-2" />
-                      Justice
-                    </Link>
-                    <Link
-                      href="/governance/regions-tribes"
-                      className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Map className="w-4 h-4 inline mr-2" />
-                      Regions & Tribes
-                    </Link>
-                  </div>
-                </div>
-
-                {/* Join the Team Section */}
-                <div className="pb-2">
-                  <Link
-                    href="/join-the-team"
-                    className="block px-3 py-2 text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] rounded-md text-sm font-medium"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    <UserPlus className="w-4 h-4 inline mr-2" />
-                    Join the Team!
-                  </Link>
-                </div>
-              </div>
-              )}
+          <div className="md:hidden pb-4 border-t border-border">
+            <div className="flex flex-col space-y-2 pt-4">
+              <Link
+                href="/communities"
+                className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent"
+              >
+                Communities
+              </Link>
+              <Link
+                href="/marketplace"
+                className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent"
+              >
+                Marketplace
+              </Link>
+              <Link
+                href="/events"
+                className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent"
+              >
+                Events
+              </Link>
+              <Link
+                href="/projects"
+                className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent"
+              >
+                Projects
+              </Link>
             </div>
           </div>
         )}

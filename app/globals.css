@@ -44,26 +44,26 @@
 
 @layer base {
   :root {
-    /* Simple design with #142b20 background for all themes */
-    --background: 150 40% 8%; /* #142b20 */
-    --foreground: 0 0% 100%; /* White text */
-    --card: 150 35% 10%; /* Slightly lighter than background */
-    --card-foreground: 0 0% 100%;
-    --popover: 150 35% 10%;
-    --popover-foreground: 0 0% 100%;
-    --primary: 51 100% 50%; /* Fade yellow (#FFD700) */
-    --primary-foreground: 150 40% 8%; /* Dark background for contrast */
-    --secondary: 150 30% 15%; /* Darker green for secondary elements */
-    --secondary-foreground: 0 0% 100%;
-    --muted: 150 25% 12%; /* Muted dark green */
-    --muted-foreground: 0 0% 75%; /* Light gray for muted text */
-    --accent: 51 100% 50%; /* Fade yellow accent */
-    --accent-foreground: 150 40% 8%;
+    /* Light theme - Clean, bright design */
+    --background: 0 0% 100%; /* Pure white */
+    --foreground: 0 0% 10%; /* Dark text */
+    --card: 0 0% 98%; /* Very light gray */
+    --card-foreground: 0 0% 10%;
+    --popover: 0 0% 98%;
+    --popover-foreground: 0 0% 10%;
+    --primary: 51 100% 50%; /* Gold yellow (#FFD700) */
+    --primary-foreground: 0 0% 10%; /* Dark text for contrast */
+    --secondary: 0 0% 96%; /* Light gray */
+    --secondary-foreground: 0 0% 10%;
+    --muted: 0 0% 94%; /* Very light gray */
+    --muted-foreground: 0 0% 45%; /* Medium gray text */
+    --accent: 51 100% 50%; /* Gold yellow accent */
+    --accent-foreground: 0 0% 10%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 150 25% 18%; /* Subtle border color */
-    --input: 150 30% 15%; /* Input background */
-    --ring: 51 100% 50%; /* Yellow focus ring */
+    --border: 0 0% 90%; /* Light gray border */
+    --input: 0 0% 96%; /* Light gray input */
+    --ring: 51 100% 50%; /* Gold focus ring */
     --radius: 0.5rem;
     --chart-1: 51 100% 50%;
     --chart-2: 160 60% 45%;
@@ -71,38 +71,38 @@
     --chart-4: 200 60% 45%;
     --chart-5: 280 60% 45%;
 
-    /* Custom theme variables */
-    --navbar-bg: 150 40% 8%; /* Same as background */
-    --navbar-text: 0 0% 100%;
-    --navbar-hover: 150 30% 15%;
-    --navbar-accent: 51 100% 50%; /* Fade yellow accent */
-    --footer-bg: 150 40% 8%;
-    --footer-text: 0 0% 100%;
-    --section-light: 150 35% 10%;
-    --section-dark: 150 40% 8%;
+    /* Custom theme variables for light mode */
+    --navbar-bg: 0 0% 100%; /* White navbar */
+    --navbar-text: 0 0% 10%; /* Dark text */
+    --navbar-hover: 0 0% 96%; /* Light gray hover */
+    --navbar-accent: 51 100% 50%; /* Gold accent */
+    --footer-bg: 0 0% 98%; /* Light gray footer */
+    --footer-text: 0 0% 10%; /* Dark text */
+    --section-light: 0 0% 98%; /* Light section */
+    --section-dark: 0 0% 96%; /* Slightly darker section */
   }
 
   .dark {
-    /* Dark theme - Same as light theme for consistency */
-    --background: 150 40% 8%; /* #142b20 */
+    /* Dark theme - Rich, deep design */
+    --background: 150 40% 8%; /* #142b20 - Deep green */
     --foreground: 0 0% 100%; /* White text */
     --card: 150 35% 10%; /* Slightly lighter than background */
     --card-foreground: 0 0% 100%;
     --popover: 150 35% 10%;
     --popover-foreground: 0 0% 100%;
-    --primary: 51 100% 50%; /* Fade yellow (#FFD700) */
+    --primary: 51 100% 50%; /* Gold yellow (#FFD700) */
     --primary-foreground: 150 40% 8%; /* Dark background for contrast */
     --secondary: 150 30% 15%; /* Darker green for secondary elements */
     --secondary-foreground: 0 0% 100%;
     --muted: 150 25% 12%; /* Muted dark green */
     --muted-foreground: 0 0% 75%; /* Light gray for muted text */
-    --accent: 51 100% 50%; /* Fade yellow accent */
+    --accent: 51 100% 50%; /* Gold yellow accent */
     --accent-foreground: 150 40% 8%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     --border: 150 25% 18%; /* Subtle border color */
     --input: 150 30% 15%; /* Input background */
-    --ring: 51 100% 50%; /* Yellow focus ring */
+    --ring: 51 100% 50%; /* Gold focus ring */
     --chart-1: 51 100% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 80 60% 45%;
@@ -111,13 +111,13 @@
 
     /* Custom dark theme variables */
     --navbar-bg: 150 40% 8%; /* Same as background */
-    --navbar-text: 0 0% 100%;
-    --navbar-hover: 150 30% 15%;
-    --navbar-accent: 51 100% 50%; /* Fade yellow accent */
-    --footer-bg: 150 40% 8%;
-    --footer-text: 0 0% 100%;
-    --section-light: 150 35% 10%;
-    --section-dark: 150 40% 8%;
+    --navbar-text: 0 0% 100%; /* White text */
+    --navbar-hover: 150 30% 15%; /* Darker green hover */
+    --navbar-accent: 51 100% 50%; /* Gold accent */
+    --footer-bg: 150 40% 8%; /* Same as background */
+    --footer-text: 0 0% 100%; /* White text */
+    --section-light: 150 35% 10%; /* Slightly lighter section */
+    --section-dark: 150 40% 8%; /* Same as background */
   }
 }
 
