@@ -77,10 +77,18 @@ export default function ProfilePage() {
   const createDefaultProfile = async () => {
     if (!user || !supabase) return
 
+    // Extract first and last name from user metadata or email
+    const fullName = (user as any)?.user_metadata?.full_name || user.email?.split('@')[0] || 'User'
+    const nameParts = fullName.split(' ')
+    const firstName = nameParts[0] || 'User'
+    const lastName = nameParts.slice(1).join(' ') || ''
+
     const defaultProfile = {
       user_id: user.id,
       email: user.email,
-      full_name: (user as any)?.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+      first_name: firstName,
+      last_name: lastName,
+      username: user.email?.split('@')[0] || 'User',
       bio: '',
       location: '',
       website: '',
@@ -179,9 +187,9 @@ export default function ProfilePage() {
                   {/* Avatar */}
                   <div className="relative">
                     <Avatar className="h-24 w-24">
-                      <AvatarImage src={userData.avatar_url || "/placeholder.svg"} alt={userData.full_name} />
+                      <AvatarImage src={userData.avatar_url || "/placeholder.svg"} alt={`${userData.first_name} ${userData.last_name}`} />
                       <AvatarFallback className="text-2xl">
-                        {userData.full_name
+                        {`${userData.first_name} ${userData.last_name}`
                           .split(" ")
                           .map((n: string) => n[0])
                           .join("")}
