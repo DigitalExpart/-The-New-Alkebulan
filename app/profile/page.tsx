@@ -243,24 +243,15 @@ export default function ProfilePage() {
                     </div>
 
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      {userData.bio || "No bio added yet. Click 'Edit Profile' to add your bio."}
+                      {userData.bio || (
+                        <span>
+                          No bio added yet.{" "}
+                          <Link href="/profile/edit" className="text-primary hover:underline">Click here</Link> to add your bio.
+                        </span>
+                      )}
                     </p>
 
-                    {/* Action Buttons */}
-                    <div className="flex gap-2 pt-2">
-                      <Button size="sm" asChild>
-                        <Link href="/profile/edit">
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit Profile
-                        </Link>
-                      </Button>
-                      <Button size="sm" variant="outline" asChild>
-                        <Link href="/profile/settings">
-                          <Settings className="mr-2 h-4 w-4" />
-                          Settings
-                        </Link>
-                      </Button>
-                    </div>
+                    {/* Action Buttons - REMOVED */}
                   </div>
                 </div>
               </CardContent>
@@ -375,7 +366,9 @@ export default function ProfilePage() {
                 {!userData.website && !userData.phone && !userData.occupation && !userData.education && (
                   <div className="text-center py-4 text-muted-foreground">
                     <p className="text-sm">No contact information added yet.</p>
-                    <p className="text-xs mt-1">Click "Edit Profile" to add your details.</p>
+                    <p className="text-xs mt-1">
+                      Click <Link href="/profile/edit" className="text-primary hover:underline">"Edit Profile"</Link> to add your details.
+                    </p>
                   </div>
                 )}
               </CardContent>

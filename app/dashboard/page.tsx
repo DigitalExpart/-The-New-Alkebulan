@@ -36,6 +36,7 @@ export default function DashboardPage() {
 
   // Get the best available name for display
   const getDisplayName = () => {
+    if (!user) return 'User'
     return getFirstName(profile?.full_name || (user as any)?.user_metadata?.full_name || user.email?.split('@')[0])
   }
 
@@ -73,13 +74,8 @@ export default function DashboardPage() {
                 Welcome back, {getDisplayName()}! 👋
               </h1>
               <p className="text-muted-foreground mt-1">
-                {profile?.full_name || (user as any)?.user_metadata?.full_name || user.email}
+                Ready to explore The New Alkebulan? Here's what you can do today.
               </p>
-              {profile?.username && (
-                <p className="text-sm text-primary font-medium mt-1">
-                  Username: @{profile.username}
-                </p>
-              )}
             </div>
             <div className="flex items-center gap-4">
               <Badge variant="secondary" className="text-sm">
@@ -92,47 +88,6 @@ export default function DashboardPage() {
 
       {/* Dashboard Content */}
       <div className="container mx-auto px-4 py-8">
-        {/* Welcome Message - Left Hand Corner */}
-        <div className="mb-6">
-          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 dark:from-blue-950 dark:to-indigo-950 dark:border-blue-800">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-full">
-                  <User className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div className="flex-1">
-                  <h2 className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                    Welcome, {getDisplayName()}! 🎉
-                  </h2>
-                  <p className="text-blue-700 dark:text-blue-300 mt-1">
-                    Ready to explore The New Alkebulan? Here's what you can do today.
-                  </p>
-                  {profile?.username && (
-                    <p className="text-sm text-blue-600 dark:text-blue-400 font-medium mt-2">
-                      Your unique username: <span className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded">@{profile.username}</span>
-                    </p>
-                  )}
-                  
-                  {/* Email Verification Notice */}
-                  {user.email && !user.email_confirmed_at && (
-                    <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <Shield className="h-4 w-4 text-yellow-600" />
-                        <span className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
-                          Please verify your email address to unlock all features
-                        </span>
-                      </div>
-                      <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
-                        Check your inbox for a verification link from {user.email}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Debug Info - Remove this after testing */}
         {process.env.NODE_ENV === 'development' && (
           <div className="mb-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs">
