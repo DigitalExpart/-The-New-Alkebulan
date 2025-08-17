@@ -317,11 +317,11 @@ export function Navbar() {
               <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center space-x-2 p-2 rounded-lg hover:bg-accent transition-colors duration-200">
-                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                      <span className="text-primary-foreground font-medium text-sm">
-                        {getDisplayName().charAt(0).toUpperCase()}
-                      </span>
-                    </div>
+                    <UserAvatar 
+                      imageUrl={profile?.avatar_url}
+                      size="sm"
+                      fallbackName={getDisplayName()}
+                    />
                     <ChevronDown className="h-4 w-4 text-muted-foreground" />
                   </button>
                 </DropdownMenuTrigger>
