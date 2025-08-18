@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { ShoppingCart, Building2, User } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { toast } from "sonner"
-import { supabase } from "@/lib/supabase"
+import { supabase, getSupabaseClient } from "@/lib/supabase"
 
 type UserRole = 'buyer' | 'business'
 
@@ -26,8 +26,14 @@ export function RoleSwitcher({ onRoleChange, className = "" }: RoleSwitcherProps
       setCurrentRole('business')
     } else if (profile?.buyer_enabled && profile?.account_type === 'buyer') {
       setCurrentRole('buyer')
+    } else if (profile?.business_enabled) {
+      // If business is enabled but no account_type set, default to business
+      setCurrentRole('business')
+    } else if (profile?.buyer_enabled) {
+      // If buyer is enabled but no account_type set, default to buyer
+      setCurrentRole('buyer')
     } else {
-      // Default to buyer if no specific role is set
+      // Default to buyer if no roles are enabled
       setCurrentRole('buyer')
     }
   }, [profile])
@@ -53,7 +59,7 @@ export function RoleSwitcher({ onRoleChange, className = "" }: RoleSwitcherProps
       if (user && profile) {
         console.log('🔄 Switching active role to:', newRole)
         
-        const { error } = await supabase
+        const { error } = await getSupabaseClient()
           .from('profiles')
           .update({
             account_type: newRole, // Only change the active role, not the enabled status
@@ -128,58 +134,60 @@ export function RoleSwitcher({ onRoleChange, className = "" }: RoleSwitcherProps
       </div>
       
       <div className="grid grid-cols-2 gap-2">
-        <Button
-          variant={currentRole === 'buyer' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => handleRoleSwitch('buyer')}
-          disabled={loading || !profile?.buyer_enabled}
-          className={`h-20 flex flex-col gap-2 ${
-            currentRole === 'buyer' 
-              ? 'bg-blue-500 hover:bg-blue-600' 
-              : !profile?.buyer_enabled 
-                ? 'opacity-50 cursor-not-allowed' 
+        {profile?.buyer_enabled && (
+          <Button
+            variant={currentRole === 'buyer' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => handleRoleSwitch('buyer')}
+            disabled={loading}
+            className={`h-20 flex flex-col gap-2 ${
+              currentRole === 'buyer' 
+                ? 'bg-blue-500 hover:bg-blue-600' 
                 : 'hover:bg-blue-50'
-          }`}
-        >
-          <ShoppingCart className="w-5 h-5" />
-          <span className="text-xs">Buyer Activities</span>
-          {!profile?.buyer_enabled && (
-            <span className="text-xs text-red-500">Disabled</span>
-          )}
-        </Button>
+            }`}
+          >
+            <ShoppingCart className="w-5 h-5" />
+            <span className="text-xs">Buyer Activities</span>
+          </Button>
+        )}
         
-        <Button
-          variant={currentRole === 'business' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => handleRoleSwitch('business')}
-          disabled={loading || !profile?.business_enabled}
-          className={`h-20 flex flex-col gap-2 ${
-            currentRole === 'business' 
-              ? 'bg-green-500 hover:bg-green-600' 
-              : !profile?.business_enabled 
-                ? 'opacity-50 cursor-not-allowed' 
+        {profile?.business_enabled && (
+          <Button
+            variant={currentRole === 'business' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => handleRoleSwitch('business')}
+            disabled={loading}
+            className={`h-20 flex flex-col gap-2 ${
+              currentRole === 'business' 
+                ? 'bg-green-500 hover:bg-green-600' 
                 : 'hover:bg-green-50'
-          }`}
-        >
-          <Building2 className="w-5 h-5" />
-          <span className="text-xs">Business Activities</span>
-          {!profile?.business_enabled && (
-            <span className="text-xs text-red-500">Disabled</span>
-          )}
-        </Button>
+            }`}
+          >
+            <Building2 className="w-5 h-5" />
+            <span className="text-xs">Business Activities</span>
+          </Button>
+        )}
       </div>
       
       <div className="text-xs text-muted-foreground text-center">
-        {!profile?.buyer_enabled || !profile?.business_enabled ? (
+        {!profile?.buyer_enabled && !profile?.business_enabled ? (
           <span>
-            Some modes are disabled. Go to{' '}
+            No modes are enabled. Go to{' '}
             <a href="/profile/role-management" className="text-primary hover:underline">
               Role Management
             </a>{' '}
-            to enable them.
+            to activate your roles.
           </span>
-        ) : (
+        ) : profile?.buyer_enabled && profile?.business_enabled ? (
           'Click to switch between buyer and business modes'
+        ) : (
+          <span>
+            Only one mode is enabled. Go to{' '}
+            <a href="/profile/role-management" className="text-primary hover:underline">
+              Role Management
+            </a>{' '}
+            to activate more roles.
+          </span>
         )}
       </div>
     </div>
