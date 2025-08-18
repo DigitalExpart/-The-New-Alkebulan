@@ -108,19 +108,18 @@ export default function RoleManagementPage() {
         updated_at: new Date().toISOString()
       }
 
-      // If enabling a role, also update account_type to the new role
+      // Only update account_type if we're enabling a role and no other roles are currently active
       if (enabled) {
-        updateData.account_type = roleId
-      } else {
-        // If disabling current role, check if other roles are enabled
-        const otherRoles = Object.keys(roleStates).filter(r => r !== roleId)
-        const hasOtherRoles = otherRoles.some(r => roleStates[r as keyof typeof roleStates])
+        // Check if any other roles are currently enabled
+        const otherEnabledRoles = Object.keys(roleStates).filter(r => r !== roleId && roleStates[r as keyof typeof roleStates])
         
-        if (!hasOtherRoles) {
-          // If no other roles enabled, set to 'buyer' as default
-          updateData.account_type = 'buyer'
+        // If this is the first role being enabled, set it as the active role
+        if (otherEnabledRoles.length === 0) {
+          updateData.account_type = roleId
         }
+        // If other roles are enabled, don't change account_type - let user choose via role switcher
       }
+      // If disabling a role, don't change account_type - let user choose via role switcher
 
       const { error } = await supabase
         .from('profiles')
