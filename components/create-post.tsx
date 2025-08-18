@@ -5,7 +5,6 @@ import { useAuth } from "@/hooks/use-auth"
 import { getSupabaseClient } from "@/lib/supabase"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { MessageSquare, Send } from "lucide-react"
@@ -19,7 +18,6 @@ interface CreatePostProps {
 export default function CreatePost({ communityId, onPostCreated }: CreatePostProps) {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
-  const [title, setTitle] = useState("")
   const [content, setContent] = useState("")
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -30,8 +28,8 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
       return
     }
 
-    if (!title.trim() || !content.trim()) {
-      toast.error("Please fill in both title and content")
+    if (!content.trim()) {
+      toast.error("Please fill in the content")
       return
     }
 
@@ -59,7 +57,6 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
         .insert({
           community_id: communityId,
           user_id: user.id,
-          title: title.trim(),
           content: content.trim(),
           likes_count: 0,
           comments_count: 0
@@ -79,7 +76,6 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
         .eq('id', communityId)
 
       toast.success("Post created successfully!")
-      setTitle("")
       setContent("")
       onPostCreated() // Refresh the posts list
       
@@ -113,17 +109,6 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="title">Title</Label>
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Give your post a title..."
-              required
-            />
-          </div>
-          
           <div className="space-y-2">
             <Label htmlFor="content">Content</Label>
             <Textarea

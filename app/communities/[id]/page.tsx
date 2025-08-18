@@ -169,7 +169,6 @@ export default function CommunityDetailPage() {
         .insert({
           community_id: communityId,
           user_id: user.id,
-          title: newPost.trim().substring(0, 100), // Use first 100 chars as title
           content: newPost.trim(),
           likes_count: 0,
           comments_count: 0
