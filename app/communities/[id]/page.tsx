@@ -4,14 +4,13 @@ import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Users, MapPin, MessageCircle, Heart, Share2, Plus } from "lucide-react"
+import { Users, MapPin, MessageCircle, Heart, Share2, Play } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { getSupabaseClient } from "@/lib/supabase"
 import { toast } from "sonner"
+import CreatePost from "@/components/create-post"
 
 interface Community {
   id: string
@@ -50,8 +49,6 @@ export default function CommunityDetailPage() {
   const [community, setCommunity] = useState<Community | null>(null)
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
-  const [newPost, setNewPost] = useState("")
-  const [posting, setPosting] = useState(false)
   const [isMember, setIsMember] = useState(false)
 
   const communityId = params.id as string
@@ -148,61 +145,7 @@ export default function CommunityDetailPage() {
     }
   }
 
-  const handleCreatePost = async () => {
-    if (!user || !newPost.trim()) return
 
-    setPosting(true)
-    try {
-      const supabase = getSupabaseClient()
-      
-      // First check if user is a member of the community
-      const { data: membership, error: membershipError } = await supabase
-        .from('community_members')
-        .select('id')
-        .eq('community_id', communityId)
-        .eq('user_id', user.id)
-        .single()
-
-      if (membershipError || !membership) {
-        toast.error("You must be a member of this community to post")
-        return
-      }
-
-      // Create the post with proper fields
-      const { data, error } = await supabase
-        .from('community_posts')
-        .insert({
-          community_id: communityId,
-          user_id: user.id,
-          content: newPost.trim(),
-          likes_count: 0,
-          comments_count: 0
-        })
-        .select(`
-          *,
-          user:profiles!community_posts_user_id_fkey(
-            first_name,
-            last_name,
-            avatar_url
-          )
-        `)
-        .single()
-
-      if (error) {
-        console.error('Post creation error:', error)
-        throw error
-      }
-      
-      setPosts([data, ...posts])
-      setNewPost("")
-      toast.success("Post created successfully!")
-    } catch (error) {
-      console.error('Error creating post:', error)
-      toast.error("Failed to create post. Please try again.")
-    } finally {
-      setPosting(false)
-    }
-  }
 
   const handleLikePost = async (postId: string) => {
     if (!user) {
@@ -319,31 +262,10 @@ export default function CommunityDetailPage() {
 
         {/* Create Post */}
         {isMember && (
-          <Card className="mb-6">
-            <CardContent className="pt-6">
-              <div className="flex gap-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={profile?.avatar_url} />
-                  <AvatarFallback>
-                    {profile?.first_name?.[0]}{profile?.last_name?.[0]}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <Textarea
-                    placeholder="Share something with your community..."
-                    value={newPost}
-                    onChange={(e) => setNewPost(e.target.value)}
-                    className="min-h-[80px] resize-none"
-                  />
-                  <div className="flex justify-end mt-3">
-                    <Button onClick={handleCreatePost} disabled={posting || !newPost.trim()}>
-                      {posting ? "Posting..." : "Post"}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <CreatePost 
+            communityId={communityId} 
+            onPostCreated={fetchPosts}
+          />
         )}
 
         {/* Posts */}
