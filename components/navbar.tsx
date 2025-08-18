@@ -355,6 +355,12 @@ export function Navbar() {
                       Edit Profile
                     </Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile/role-management" className="cursor-pointer flex items-center gap-2">
+                      <Shield className="w-4 h-4" />
+                      Role Management
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   {/* Account Type Switcher */}
                   <DropdownMenuLabel className="text-xs text-muted-foreground px-2 py-1.5">
