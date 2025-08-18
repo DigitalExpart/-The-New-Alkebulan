@@ -139,13 +139,13 @@ export default function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {/* Always available actions */}
-                <Button variant="outline" className="h-20 w-32 flex flex-col gap-2" onClick={() => router.push("/dashboard/daily-planner")}>
+                <Button variant="outline" className="h-20 w-36 flex flex-col gap-2" onClick={() => router.push("/dashboard/daily-planner")}>
                   <Calendar className="h-6 w-6" />
                   <span className="text-xs">Daily Planner</span>
                 </Button>
-                <Button variant="outline" className="h-20 w-32 flex flex-col gap-2" onClick={() => router.push("/community")}>
+                <Button variant="outline" className="h-20 w-36 flex flex-col gap-2" onClick={() => router.push("/community")}>
                   <Users className="h-6 w-6" />
                   <span className="text-xs">Community</span>
                 </Button>
@@ -153,15 +153,15 @@ export default function DashboardPage() {
                 {/* Business role actions - only show when business_enabled is true */}
                 {profile?.business_enabled && (
                   <>
-                    <Button variant="outline" className="h-20 w-32 flex flex-col gap-2" onClick={() => router.push("/business/dashboard")}>
+                    <Button variant="outline" className="h-20 w-36 flex flex-col gap-2" onClick={() => router.push("/business/dashboard")}>
                       <Building2 className="h-6 w-6" />
                       <span className="text-xs">Business Dashboard</span>
                     </Button>
-                    <Button variant="outline" className="h-20 w-32 flex flex-col gap-2" onClick={() => router.push("/marketplace/upload")}>
+                    <Button variant="outline" className="h-20 w-36 flex flex-col gap-2" onClick={() => router.push("/marketplace/upload")}>
                       <Store className="h-6 w-6" />
                       <span className="text-xs">Upload Products</span>
                     </Button>
-                    <Button variant="outline" className="h-20 w-32 flex flex-col gap-2" onClick={() => router.push("/dashboard/finance")}>
+                    <Button variant="outline" className="h-20 w-36 flex flex-col gap-2" onClick={() => router.push("/dashboard/finance")}>
                       <DollarSign className="h-6 w-6" />
                       <span className="text-xs">Sales Analytics</span>
                     </Button>
@@ -171,15 +171,15 @@ export default function DashboardPage() {
                 {/* Creator role actions - only show when creator_enabled is true */}
                 {profile?.creator_enabled && (
                   <>
-                    <Button variant="outline" className="h-20 w-32 flex flex-col gap-2" onClick={() => router.push("/creator/dashboard")}>
+                    <Button variant="outline" className="h-20 w-36 flex flex-col gap-2" onClick={() => router.push("/creator/dashboard")}>
                       <Palette className="h-6 w-6" />
                       <span className="text-xs">Creator Studio</span>
                     </Button>
-                    <Button variant="outline" className="h-20 w-32 flex flex-col gap-2" onClick={() => router.push("/creator/content")}>
+                    <Button variant="outline" className="h-20 w-36 flex flex-col gap-2" onClick={() => router.push("/creator/content")}>
                       <PenTool className="h-6 w-6" />
                       <span className="text-xs">Content Manager</span>
                     </Button>
-                    <Button variant="outline" className="h-20 w-32 flex flex-col gap-2" onClick={() => router.push("/creator/analytics")}>
+                    <Button variant="outline" className="h-20 w-36 flex flex-col gap-2" onClick={() => router.push("/creator/analytics")}>
                       <TrendingUp className="h-6 w-6" />
                       <span className="text-xs">Creator Analytics</span>
                     </Button>
@@ -189,15 +189,15 @@ export default function DashboardPage() {
                 {/* Investor role actions - only show when investor_enabled is true */}
                 {profile?.investor_enabled && (
                   <>
-                    <Button variant="outline" className="h-20 w-32 flex flex-col gap-2" onClick={() => router.push("/dashboard/investments")}>
+                    <Button variant="outline" className="h-20 w-36 flex flex-col gap-2" onClick={() => router.push("/dashboard/investments")}>
                       <TrendingUp className="h-6 w-6" />
                       <span className="text-xs">Investment Portfolio</span>
                     </Button>
-                    <Button variant="outline" className="h-20 w-32 flex flex-col gap-2" onClick={() => router.push("/investor/opportunities")}>
+                    <Button variant="outline" className="h-20 w-36 flex flex-col gap-2" onClick={() => router.push("/investor/opportunities")}>
                       <Target className="h-6 w-6" />
                       <span className="text-xs">Investment Opportunities</span>
                     </Button>
-                    <Button variant="outline" className="h-20 w-32 flex flex-col gap-2" onClick={() => router.push("/investor/analytics")}>
+                    <Button variant="outline" className="h-20 w-36 flex flex-col gap-2" onClick={() => router.push("/investor/analytics")}>
                       <BarChart3 className="h-6 w-6" />
                       <span className="text-xs">Investment Analytics</span>
                     </Button>
@@ -207,15 +207,15 @@ export default function DashboardPage() {
                 {/* Mentor role actions - only show when mentor_enabled is true */}
                 {profile?.mentor_enabled && (
                   <>
-                    <Button variant="outline" className="h-20 w-32 flex flex-col gap-2" onClick={() => router.push("/mentor/dashboard")}>
+                    <Button variant="outline" className="h-20 w-36 flex flex-col gap-2" onClick={() => router.push("/mentor/dashboard")}>
                       <GraduationCap className="h-6 w-6" />
                       <span className="text-xs">Mentor Dashboard</span>
                     </Button>
-                    <Button variant="outline" className="h-20 w-32 flex flex-col gap-2" onClick={() => router.push("/mentor/sessions")}>
+                    <Button variant="outline" className="h-20 w-36 flex flex-col gap-2" onClick={() => router.push("/mentor/sessions")}>
                       <UserCheck className="h-6 w-6" />
                       <span className="text-xs">Mentoring Sessions</span>
                     </Button>
-                    <Button variant="outline" className="h-20 w-32 flex flex-col gap-2" onClick={() => router.push("/mentor/students")}>
+                    <Button variant="outline" className="h-20 w-36 flex flex-col gap-2" onClick={() => router.push("/mentor/students")}>
                       <Users className="h-6 w-6" />
                       <span className="text-xs">My Students</span>
                     </Button>
@@ -225,11 +225,11 @@ export default function DashboardPage() {
                 {/* Buyer actions - show when business role is NOT enabled (default buyer mode) */}
                 {!profile?.business_enabled && (
                   <>
-                    <Button variant="outline" className="h-20 w-32 flex flex-col gap-2" onClick={() => router.push("/marketplace")}>
+                    <Button variant="outline" className="h-20 w-36 flex flex-col gap-2" onClick={() => router.push("/marketplace")}>
                       <ShoppingCart className="h-6 w-6" />
                       <span className="text-xs">Browse Products</span>
                     </Button>
-                    <Button variant="outline" className="h-20 w-32 flex flex-col gap-2" onClick={() => router.push("/dashboard/purchases")}>
+                    <Button variant="outline" className="h-20 w-36 flex flex-col gap-2" onClick={() => router.push("/dashboard/purchases")}>
                       <DollarSign className="h-6 w-6" />
                       <span className="text-xs">My Purchases</span>
                     </Button>
