@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -72,6 +73,7 @@ const MOCK_COMMUNITIES: Community[] = [
 ]
 
 export default function CommunitiesPage() {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [communities] = useState<Community[]>(MOCK_COMMUNITIES)
@@ -111,7 +113,10 @@ export default function CommunitiesPage() {
                 className="pl-10"
               />
             </div>
-            <Button className="md:w-auto">
+            <Button 
+              className="md:w-auto"
+              onClick={() => router.push('/communities/create')}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Create Community
             </Button>
