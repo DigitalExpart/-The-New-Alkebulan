@@ -71,7 +71,8 @@ export default function CreateCommunityPage() {
     try {
       const supabase = getSupabaseClient()
       
-      const { data, error } = await supabase
+      // Step 1: Create the community
+      const { data: communityData, error: communityError } = await supabase
         .from('communities')
         .insert({
           name: formData.name,
@@ -91,20 +92,37 @@ export default function CreateCommunityPage() {
         .select()
         .single()
 
-      if (error) throw error
+      if (communityError) {
+        console.error('Community creation error:', communityError)
+        throw communityError
+      }
 
-      // Add creator as first member
-      await supabase
+      console.log('Community created:', communityData)
+
+      // Step 2: Add creator as admin member
+      const { error: memberError } = await supabase
         .from('community_members')
         .insert({
-          community_id: data.id,
+          community_id: communityData.id,
           user_id: user.id,
           role: 'admin',
           joined_at: new Date().toISOString()
         })
 
-      toast.success("Community created successfully!")
-      router.push(`/communities/${data.id}`)
+      if (memberError) {
+        console.error('Member creation error:', memberError)
+        // If adding member fails, delete the community to maintain consistency
+        await supabase
+          .from('communities')
+          .delete()
+          .eq('id', communityData.id)
+        throw new Error('Failed to add creator as member: ' + memberError.message)
+      }
+
+      console.log('Creator added as admin member')
+
+      toast.success("Community created successfully! You are now the owner and admin.")
+      router.push(`/communities/${communityData.id}`)
       
     } catch (error) {
       console.error('Error creating community:', error)
