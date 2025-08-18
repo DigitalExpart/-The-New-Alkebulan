@@ -21,10 +21,13 @@ export function RoleSwitcher({ onRoleChange, className = "" }: RoleSwitcherProps
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    // Set initial role based on profile
-    if (profile?.business_enabled) {
+    // Set initial role based on profile - check both enabled status and account_type
+    if (profile?.business_enabled && profile?.account_type === 'business') {
       setCurrentRole('business')
+    } else if (profile?.buyer_enabled && profile?.account_type === 'buyer') {
+      setCurrentRole('buyer')
     } else {
+      // Default to buyer if no specific role is set
       setCurrentRole('buyer')
     }
   }, [profile])
@@ -32,39 +35,39 @@ export function RoleSwitcher({ onRoleChange, className = "" }: RoleSwitcherProps
   const handleRoleSwitch = async (newRole: UserRole) => {
     if (newRole === currentRole) return
     
+    // Check if the target role is actually enabled in Role Management
+    if (newRole === 'business' && !profile?.business_enabled) {
+      toast.error("Business mode is not enabled. Please activate it in Role Management first.")
+      return
+    }
+    
+    if (newRole === 'buyer' && !profile?.buyer_enabled) {
+      toast.error("Buyer mode is not enabled. Please activate it in Role Management first.")
+      return
+    }
+    
     setLoading(true)
     
     try {
-              // Update the profile in Supabase
-        if (user && profile) {
-          console.log('🔄 Updating profile in Supabase:', {
-            profileId: profile.id,
-            newRole,
-            business_enabled: newRole === 'business'
+      // Only update the account_type, don't change the enabled status
+      if (user && profile) {
+        console.log('🔄 Switching active role to:', newRole)
+        
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            account_type: newRole, // Only change the active role, not the enabled status
+            updated_at: new Date().toISOString()
           })
-          
-          const { error } = await supabase
-            .from('profiles')
-            .update({
-              business_enabled: newRole === 'business',
-              buyer_enabled: newRole === 'buyer',
-              account_type: newRole === 'business' ? 'business' : 'buyer',
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', profile.id)
+          .eq('id', profile.id)
 
-          if (error) {
-            console.error('❌ Supabase update error:', error)
-            throw error
-          }
-          
-          console.log('✅ Profile updated successfully in Supabase')
-          console.log('🔄 Updated values:', {
-            business_enabled: newRole === 'business',
-            buyer_enabled: newRole === 'buyer',
-            account_type: newRole === 'business' ? 'business' : 'buyer'
-          })
-
+        if (error) {
+          console.error('❌ Supabase update error:', error)
+          throw error
+        }
+        
+        console.log('✅ Active role updated successfully in Supabase')
+        
         // Update local state immediately for better UX
         setCurrentRole(newRole)
         
@@ -129,35 +132,55 @@ export function RoleSwitcher({ onRoleChange, className = "" }: RoleSwitcherProps
           variant={currentRole === 'buyer' ? 'default' : 'outline'}
           size="sm"
           onClick={() => handleRoleSwitch('buyer')}
-          disabled={loading}
+          disabled={loading || !profile?.buyer_enabled}
           className={`h-20 flex flex-col gap-2 ${
             currentRole === 'buyer' 
               ? 'bg-blue-500 hover:bg-blue-600' 
-              : 'hover:bg-blue-50'
+              : !profile?.buyer_enabled 
+                ? 'opacity-50 cursor-not-allowed' 
+                : 'hover:bg-blue-50'
           }`}
         >
           <ShoppingCart className="w-5 h-5" />
           <span className="text-xs">Buyer Activities</span>
+          {!profile?.buyer_enabled && (
+            <span className="text-xs text-red-500">Disabled</span>
+          )}
         </Button>
         
         <Button
           variant={currentRole === 'business' ? 'default' : 'outline'}
           size="sm"
           onClick={() => handleRoleSwitch('business')}
-          disabled={loading}
+          disabled={loading || !profile?.business_enabled}
           className={`h-20 flex flex-col gap-2 ${
             currentRole === 'business' 
               ? 'bg-green-500 hover:bg-green-600' 
-              : 'hover:bg-green-50'
+              : !profile?.business_enabled 
+                ? 'opacity-50 cursor-not-allowed' 
+                : 'hover:bg-green-50'
           }`}
         >
           <Building2 className="w-5 h-5" />
           <span className="text-xs">Business Activities</span>
+          {!profile?.business_enabled && (
+            <span className="text-xs text-red-500">Disabled</span>
+          )}
         </Button>
       </div>
       
       <div className="text-xs text-muted-foreground text-center">
-        Click to switch between buyer and business modes
+        {!profile?.buyer_enabled || !profile?.business_enabled ? (
+          <span>
+            Some modes are disabled. Go to{' '}
+            <a href="/profile/role-management" className="text-primary hover:underline">
+              Role Management
+            </a>{' '}
+            to enable them.
+          </span>
+        ) : (
+          'Click to switch between buyer and business modes'
+        )}
       </div>
     </div>
   )
