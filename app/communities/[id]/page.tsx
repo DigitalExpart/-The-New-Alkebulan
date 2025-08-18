@@ -10,7 +10,7 @@ import { Users, MapPin, MessageCircle, Heart, Share2, Play } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { getSupabaseClient } from "@/lib/supabase"
 import { toast } from "sonner"
-import CreatePost from "@/components/create-post"
+import CreatePostSimple from "@/components/create-post-simple"
 
 interface Community {
   id: string
@@ -260,13 +260,13 @@ export default function CommunityDetailPage() {
           </CardHeader>
         </Card>
 
-        {/* Create Post */}
-        {isMember && (
-          <CreatePost 
-            communityId={communityId} 
-            onPostCreated={fetchPosts}
-          />
-        )}
+                 {/* Create Post */}
+         {isMember && (
+           <CreatePostSimple 
+             communityId={communityId} 
+             onPostCreated={fetchPosts}
+           />
+         )}
 
         {/* Posts */}
         <div className="space-y-6">
