@@ -112,47 +112,28 @@ export function Navbar() {
     }
     
     console.log('=== ROLE SWITCH DEBUG ===')
-    console.log('Attempting to switch account roles to:', newRole)
+    console.log('Attempting to switch active role to:', newRole)
     console.log('User ID:', user.id)
     console.log('Current profile:', profile)
     console.log('Current buyer_enabled:', profile?.buyer_enabled)
     console.log('Current business_enabled:', profile?.business_enabled)
     
     try {
-      // First, check if the profiles table has the required columns
-      const { data: tableInfo, error: tableError } = await supabase
-        .from('profiles')
-        .select('buyer_enabled, business_enabled')
-        .limit(1)
-      
-      if (tableError) {
-        console.error('Error checking table structure:', tableError)
-        console.error('This might mean the role columns do not exist yet')
-        alert('Account role switching is not available yet. Please run the database migration first.')
+      // Check if the target role is actually enabled in Role Management
+      if (newRole === 'business' && !profile?.business_enabled) {
+        alert('Business mode is not enabled. Please activate it in Role Management first.')
         return
       }
       
-      console.log('Table structure check successful:', tableInfo)
+      if (newRole === 'buyer' && !profile?.buyer_enabled) {
+        alert('Buyer mode is not enabled. Please activate it in Role Management first.')
+        return
+      }
       
-      // Determine the new role settings
-      let updateData: any = {}
-      
-      if (newRole === 'buyer') {
-        // Enable buyer role, disable seller role
-        updateData = { 
-          buyer_enabled: true,
-          business_enabled: false, // Explicitly disable business role
-          account_type: 'buyer',
-          updated_at: new Date().toISOString()
-        }
-      } else if (newRole === 'business') {
-        // Enable business role, disable buyer role
-        updateData = { 
-          buyer_enabled: false, // Explicitly disable buyer role
-          business_enabled: true,
-          account_type: 'business',
-          updated_at: new Date().toISOString()
-        }
+      // Only update account_type, don't change the enabled status
+      const updateData = {
+        account_type: newRole, // Only change the active role, not the enabled status
+        updated_at: new Date().toISOString()
       }
       
       console.log('Update data to be sent:', updateData)
@@ -183,46 +164,27 @@ export function Navbar() {
       }
 
       if (error) {
-        console.error('Error updating account roles:', error)
+        console.error('Error updating account type:', error)
         console.error('Error details:', {
           code: error.code,
           message: error.message,
           details: error.details,
           hint: error.hint
         })
-        alert(`Failed to update account roles: ${error.message}`)
+        alert(`Failed to switch to ${newRole} mode: ${error.message}`)
         return
       }
 
-      console.log('Account roles updated successfully:', data)
+      console.log('Account type updated successfully:', data)
       console.log('Updated profile data:', data)
       
-      // Update the local profile state immediately
-      if (data && data[0]) {
-        const updatedProfile = { ...profile, ...data[0] }
-        console.log('Updated local profile state:', updatedProfile)
-        console.log('New buyer_enabled:', updatedProfile.buyer_enabled)
-        console.log('New business_enabled:', updatedProfile.business_enabled)
-        
-        // Force immediate UI update by updating the profile context
-        // This will trigger a re-render with the new role settings
-        console.log('🔄 Forcing immediate profile state update...')
-        // We need to call the setProfile function from useAuth
-        // For now, let's use the refresh approach
-      }
-      
       // Show success message
-      alert(`Account roles switched to ${newRole} successfully!`)
+      alert(`Switched to ${newRole} mode successfully!`)
       
-      // Refresh the profile data instead of reloading the page
-      console.log('🔄 Calling forceRefreshProfile after role switch...')
+      // Refresh the profile data
+      console.log('🔄 Refreshing profile after role switch...')
       await forceRefreshProfile()
-      console.log('✅ Profile force refreshed after role switch')
-      
-      // Check the profile state after refresh
-      console.log('🔍 Profile state after refresh:', profile)
-      console.log('🔍 Buyer enabled after refresh:', profile?.buyer_enabled)
-              console.log('🔍 Business enabled after refresh:', profile?.business_enabled)
+      console.log('✅ Profile refreshed after role switch')
       
       // Navigate to appropriate dashboard based on role
       if (newRole === 'business') {
@@ -233,8 +195,8 @@ export function Navbar() {
         window.location.href = '/dashboard'
       }
     } catch (error) {
-      console.error('Error switching account roles:', error)
-      alert('An unexpected error occurred while switching account roles.')
+      console.error('Error switching account type:', error)
+      alert('An unexpected error occurred while switching account type.')
     }
   }
 
@@ -367,20 +329,20 @@ export function Navbar() {
                     Account Roles
                   </DropdownMenuLabel>
                   <DropdownMenuItem 
-                    className={`cursor-pointer flex items-center gap-2 ${profile?.buyer_enabled ? 'text-primary font-medium' : ''}`}
+                    className={`cursor-pointer flex items-center gap-2 ${profile?.account_type === 'buyer' ? 'text-primary font-medium' : ''}`}
                     onClick={() => handleAccountTypeSwitch('buyer')}
                   >
                     <ShoppingCart className="w-4 h-4" />
                     <span>Buyer Mode</span>
-                    {profile?.buyer_enabled && <CheckCircle className="w-4 h-4 ml-auto text-primary" />}
+                    {profile?.account_type === 'buyer' && <CheckCircle className="w-4 h-4 ml-auto text-primary" />}
                   </DropdownMenuItem>
                   <DropdownMenuItem 
-                    className={`cursor-pointer flex items-center gap-2 ${profile?.business_enabled ? 'text-primary font-medium' : ''}`}
+                    className={`cursor-pointer flex items-center gap-2 ${profile?.account_type === 'business' ? 'text-primary font-medium' : ''}`}
                     onClick={() => handleAccountTypeSwitch('business')}
                   >
                     <Building2 className="w-4 h-4" />
                     <span>Business Mode</span>
-                    {profile?.business_enabled && <CheckCircle className="w-4 h-4 ml-auto text-primary" />}
+                    {profile?.account_type === 'business' && <CheckCircle className="w-4 h-4 ml-auto text-primary" />}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
