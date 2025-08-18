@@ -27,6 +27,7 @@ import {
   UserCheck
 } from "lucide-react"
 import { RoleSwitcher } from "@/components/role-switcher"
+import MyCommunities from "@/components/my-communities"
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -239,51 +240,23 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Profile Summary */}
+          {/* My Communities */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Profile
+                <Users className="h-5 w-5" />
+                My Communities
               </CardTitle>
+              <CardDescription>
+                Communities you've created and manage
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                  <User className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <p className="font-medium">{user.full_name || "User"}</p>
-                  <p className="text-sm text-muted-foreground">{user.email}</p>
-                                     <div className="flex flex-wrap gap-1 mt-1">
-                     {profile?.business_enabled ? (
-                       <Badge 
-                         variant="default" 
-                         className="text-xs capitalize bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0"
-                       >
-                         <Building2 className="w-3 h-3 mr-1" />
-                         Business Mode
-                       </Badge>
-                     ) : (
-                       <Badge 
-                         variant="default" 
-                         className="text-xs capitalize bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-0"
-                       >
-                         <ShoppingCart className="w-3 h-3 mr-1" />
-                         Buyer Mode
-                       </Badge>
-                     )}
-                   </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <MapPin className="w-4 h-4" />
-                <span>
-                  {profile?.location || profile?.region || 'Location not set'}, {profile?.country || 'Country not set'}
-                </span>
-              </div>
+            <CardContent>
+              <MyCommunities />
             </CardContent>
           </Card>
+
+
 
           {/* Stats */}
           <Card>

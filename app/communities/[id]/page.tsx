@@ -149,11 +149,27 @@ export default function CommunityDetailPage() {
     setPosting(true)
     try {
       const supabase = getSupabaseClient()
+      
+      // First check if user is a member of the community
+      const { data: membership, error: membershipError } = await supabase
+        .from('community_members')
+        .select('id')
+        .eq('community_id', communityId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (membershipError || !membership) {
+        toast.error("You must be a member of this community to post")
+        return
+      }
+
+      // Create the post with proper fields
       const { data, error } = await supabase
         .from('community_posts')
         .insert({
           community_id: communityId,
           user_id: user.id,
+          title: newPost.trim().substring(0, 100), // Use first 100 chars as title
           content: newPost.trim(),
           likes_count: 0,
           comments_count: 0
@@ -168,13 +184,17 @@ export default function CommunityDetailPage() {
         `)
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('Post creation error:', error)
+        throw error
+      }
+      
       setPosts([data, ...posts])
       setNewPost("")
       toast.success("Post created successfully!")
     } catch (error) {
       console.error('Error creating post:', error)
-      toast.error("Failed to create post")
+      toast.error("Failed to create post. Please try again.")
     } finally {
       setPosting(false)
     }
