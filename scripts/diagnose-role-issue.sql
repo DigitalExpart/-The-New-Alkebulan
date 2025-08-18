@@ -30,13 +30,13 @@ WHERE conrelid = 'public.profiles'::regclass;
 -- Step 3: Check for any triggers on the profiles table
 SELECT 
     'Table Triggers' as section,
-    tgname as trigger_name,
-    tgtype,
-    proname as function_name,
-    pg_get_triggerdef(oid) as trigger_definition
+    t.tgname as trigger_name,
+    t.tgtype,
+    p.proname as function_name,
+    pg_get_triggerdef(t.oid) as trigger_definition
 FROM pg_trigger t
 JOIN pg_proc p ON t.tgfoid = p.oid
-WHERE tgrelid = 'public.profiles'::regclass;
+WHERE t.tgrelid = 'public.profiles'::regclass;
 
 -- Step 4: Check for any functions that might be updating profiles
 SELECT 
