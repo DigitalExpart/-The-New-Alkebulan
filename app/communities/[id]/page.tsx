@@ -37,6 +37,11 @@ interface Post {
   likes_count: number
   comments_count: number
   is_liked?: boolean
+  media_urls?: string[]
+  media_type?: string
+  location_name?: string
+  feels_emoji?: string
+  feels_description?: string
 }
 
 export default function CommunityDetailPage() {
@@ -380,10 +385,50 @@ export default function CommunityDetailPage() {
                         </span>
                       </div>
                       
-                      <p className="text-foreground mb-4">{post.content}</p>
-                      
-                      {/* Post Actions */}
-                      <div className="flex items-center gap-6">
+                                             <p className="text-foreground mb-4">{post.content}</p>
+                       
+                       {/* Media Display */}
+                       {post.media_urls && post.media_urls.length > 0 && (
+                         <div className="mb-4">
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                             {post.media_urls.map((url, index) => (
+                               <div key={index} className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+                                 {post.media_type === 'video' ? (
+                                   <div className="w-full h-full flex items-center justify-center bg-muted">
+                                     <Play className="h-12 w-12 text-muted-foreground" />
+                                     <span className="text-sm text-muted-foreground ml-2">Video</span>
+                                   </div>
+                                 ) : (
+                                   <img
+                                     src={url}
+                                     alt={`Post media ${index + 1}`}
+                                     className="w-full h-full object-cover"
+                                   />
+                                 )}
+                               </div>
+                             ))}
+                           </div>
+                         </div>
+                       )}
+                       
+                       {/* Location and Feels */}
+                       <div className="flex items-center gap-4 mb-4 text-sm text-muted-foreground">
+                         {post.location_name && (
+                           <div className="flex items-center gap-1">
+                             <MapPin className="h-4 w-4" />
+                             <span>{post.location_name}</span>
+                           </div>
+                         )}
+                         {post.feels_emoji && (
+                           <div className="flex items-center gap-1">
+                             <span className="text-lg">{post.feels_emoji}</span>
+                             <span>{post.feels_description}</span>
+                           </div>
+                         )}
+                       </div>
+                       
+                       {/* Post Actions */}
+                       <div className="flex items-center gap-6">
                         <button
                           onClick={() => handleLikePost(post.id)}
                           className={`flex items-center gap-2 text-sm transition-colors ${
