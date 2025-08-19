@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   Menu,
   X,
@@ -61,9 +61,13 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase"
 
 export function Navbar() {
   const { user, profile, signOut, loading, refreshProfile, forceRefreshProfile } = useAuth()
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [showSearchResults, setShowSearchResults] = useState(false)
 
   // Helper function to get first name from full name
   const getFirstName = (fullName?: string) => {
@@ -99,11 +103,115 @@ export function Navbar() {
     }, 2500)
   }
 
-  const handleSearch = (query: string) => {
-    console.log("Searching for:", query)
-    // Implement your search logic here
-    // You could navigate to a search results page or trigger a search API call
+  // Search functionality
+  const handleSearch = async (query: string) => {
+    if (!query.trim() || !supabase) {
+      setSearchResults([])
+      setShowSearchResults(false)
+      return
+    }
+
+    setIsSearching(true)
+    try {
+      // Search across multiple tables
+      const results = []
+      
+      // Search communities
+      const { data: communities } = await supabase
+        .from('communities')
+        .select('id, name, description, category')
+        .or(`name.ilike.%${query}%,description.ilike.%${query}%`)
+        .limit(3)
+
+      if (communities) {
+        results.push(...communities.map(c => ({ ...c, type: 'community', url: `/communities/${c.id}` })))
+      }
+
+      // Search projects (if you have a projects table)
+      try {
+        const { data: projects } = await supabase
+          .from('projects')
+          .select('id, name, description, category')
+          .or(`name.ilike.%${query}%,description.ilike.%${query}%`)
+          .limit(3)
+
+        if (projects) {
+          results.push(...projects.map(p => ({ ...p, type: 'project', url: `/projects/${p.id}` })))
+        }
+      } catch (error) {
+        // Projects table might not exist yet
+        console.log('Projects table not available')
+      }
+
+      // Search events (if you have an events table)
+      try {
+        const { data: events } = await supabase
+          .from('events')
+          .select('id, name, description, category')
+          .or(`name.ilike.%${query}%,description.ilike.%${query}%`)
+          .limit(3)
+
+        if (events) {
+          results.push(...events.map(e => ({ ...e, type: 'event', url: `/events/${e.id}` })))
+        }
+      } catch (error) {
+        // Events table might not exist yet
+        console.log('Events table not available')
+      }
+
+      setSearchResults(results)
+      setShowSearchResults(true)
+    } catch (error) {
+      console.error('Search error:', error)
+      setSearchResults([])
+    } finally {
+      setIsSearching(false)
+    }
   }
+
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value
+    setSearchQuery(query)
+    
+    if (query.trim()) {
+      handleSearch(query)
+    } else {
+      setSearchResults([])
+      setShowSearchResults(false)
+    }
+  }
+
+  const handleSearchResultClick = (result: any) => {
+    setSearchQuery('')
+    setShowSearchResults(false)
+    setSearchResults([])
+    router.push(result.url)
+  }
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (searchQuery.trim()) {
+      // Navigate to search results page or perform search
+      router.push(`/search?q=${encodeURIComponent(searchQuery)}`)
+      setShowSearchResults(false)
+      setSearchResults([])
+    }
+  }
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element
+      if (!target.closest('.search-container')) {
+        setShowSearchResults(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+
 
   const handleAccountTypeSwitch = async (newRole: 'buyer' | 'business') => {
     if (!user || !profile || !supabase) {
@@ -223,16 +331,53 @@ export function Navbar() {
           </div>
 
           {/* Search Bar */}
-          <div className="flex-1 max-w-md mx-8 hidden md:block">
+          <div className="flex-1 max-w-md mx-8 hidden md:block search-container">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search communities, projects, events..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
-              />
+              <form onSubmit={handleSearchSubmit}>
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search communities, projects, events..."
+                  value={searchQuery}
+                  onChange={handleSearchInputChange}
+                  className="w-full pl-10 pr-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
+                />
+              </form>
+              
+              {/* Search Results Dropdown */}
+              {showSearchResults && searchResults.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                  {searchResults.map((result, index) => (
+                    <div
+                      key={`${result.type}-${result.id}`}
+                      onClick={() => handleSearchResultClick(result)}
+                      className="p-3 hover:bg-accent cursor-pointer border-b border-border last:border-b-0"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                          {result.type === 'community' && <Users className="h-4 w-4 text-primary" />}
+                          {result.type === 'project' && <FolderOpen className="h-4 w-4 text-primary" />}
+                          {result.type === 'event' && <Calendar className="h-4 w-4 text-primary" />}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-foreground">{result.name}</p>
+                          <p className="text-sm text-muted-foreground">{result.description}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full capitalize">
+                              {result.type}
+                            </span>
+                            {result.category && (
+                              <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full">
+                                {result.category}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -376,16 +521,53 @@ export function Navbar() {
 
         {/* Mobile Search Bar */}
         {isSearchOpen && (
-          <div className="md:hidden pb-4">
+          <div className="md:hidden pb-4 search-container">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search communities, projects, events..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
-              />
+              <form onSubmit={handleSearchSubmit}>
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search communities, projects, events..."
+                  value={searchQuery}
+                  onChange={handleSearchInputChange}
+                  className="w-full pl-10 pr-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
+                />
+              </form>
+              
+              {/* Mobile Search Results */}
+              {showSearchResults && searchResults.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                  {searchResults.map((result, index) => (
+                    <div
+                      key={`${result.type}-${result.id}`}
+                      onClick={() => handleSearchResultClick(result)}
+                      className="p-3 hover:bg-accent cursor-pointer border-b border-border last:border-b-0"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                          {result.type === 'community' && <Users className="h-4 w-4 text-primary" />}
+                          {result.type === 'project' && <FolderOpen className="h-4 w-4 text-primary" />}
+                          {result.type === 'event' && <Calendar className="h-4 w-4 text-primary" />}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-foreground">{result.name}</p>
+                          <p className="text-sm text-muted-foreground">{result.description}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full capitalize">
+                              {result.type}
+                            </span>
+                            {result.category && (
+                              <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full">
+                                {result.category}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

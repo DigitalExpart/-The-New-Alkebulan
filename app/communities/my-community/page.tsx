@@ -72,6 +72,9 @@ export default function MyCommunityPage() {
   const [loading, setLoading] = useState(true)
   const [communities, setCommunities] = useState<Community[]>([])
   const [userCommunities, setUserCommunities] = useState<Community[]>([])
+  const [discoverCommunities, setDiscoverCommunities] = useState<Community[]>([])
+  const [discoverSearchResults, setDiscoverSearchResults] = useState<Community[]>([])
+  const [discoverSearchLoading, setDiscoverSearchLoading] = useState(false)
   const [communityStats, setCommunityStats] = useState({
     totalMembers: 0,
     activeCommunities: 0,
@@ -86,6 +89,7 @@ export default function MyCommunityPage() {
       fetchUserCommunities()
       fetchCommunityStats()
       fetchRecentPosts()
+      fetchDiscoverCommunities()
       
       // Add a timeout to prevent infinite loading
       const timeout = setTimeout(() => {
@@ -210,6 +214,56 @@ export default function MyCommunityPage() {
     }
   }
 
+  const fetchDiscoverCommunities = async () => {
+    try {
+      const supabase = getSupabaseClient()
+      
+      // Fetch all public communities
+      const { data: communitiesData, error: communitiesError } = await supabase
+        .from('communities')
+        .select('*')
+        .eq('is_public', true)
+        .order('created_at', { ascending: false })
+
+      if (communitiesError) {
+        console.error('Error fetching discover communities:', communitiesError)
+        return
+      }
+
+      // Fetch member counts for each community
+      if (communitiesData && communitiesData.length > 0) {
+        const communityIds = communitiesData.map(c => c.id)
+        const { data: memberCounts, error: memberError } = await supabase
+          .from('community_members')
+          .select('community_id')
+          .in('community_id', communityIds)
+
+        if (memberError) {
+          console.error('Error fetching member counts:', memberError)
+        } else {
+          // Count members per community
+          const memberCountMap = new Map()
+          memberCounts?.forEach(member => {
+            const count = memberCountMap.get(member.community_id) || 0
+            memberCountMap.set(member.community_id, count + 1)
+          })
+
+          // Update communities with real member counts
+          const communitiesWithMembers = communitiesData.map(community => ({
+            ...community,
+            member_count: memberCountMap.get(community.id) || 0
+          }))
+
+          setDiscoverCommunities(communitiesWithMembers)
+        }
+      } else {
+        setDiscoverCommunities([])
+      }
+    } catch (error) {
+      console.error('Error fetching discover communities:', error)
+    }
+  }
+
   const handleSearch = () => {
     if (!searchQuery.trim()) {
       setCommunities(userCommunities)
@@ -222,6 +276,117 @@ export default function MyCommunityPage() {
       community.category.toLowerCase().includes(searchQuery.toLowerCase())
     )
     setCommunities(filtered)
+  }
+
+  const handleDiscoverSearch = async () => {
+    if (!searchQuery.trim()) {
+      setDiscoverSearchResults([])
+      return
+    }
+
+    setDiscoverSearchLoading(true)
+    try {
+      const supabase = getSupabaseClient()
+      
+      // Search in discover communities
+      const { data: searchResults, error } = await supabase
+        .from('communities')
+        .select('*')
+        .eq('is_public', true)
+        .or(`name.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%,category.ilike.%${searchQuery}%`)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Discover search error:', error)
+        toast.error('Search failed')
+        return
+      }
+
+      // Fetch member counts for search results
+      if (searchResults && searchResults.length > 0) {
+        const communityIds = searchResults.map(c => c.id)
+        const { data: memberCounts, error: memberError } = await supabase
+          .from('community_members')
+          .select('community_id')
+          .in('community_id', communityIds)
+
+        if (memberError) {
+          console.error('Error fetching member counts:', memberError)
+        } else {
+          // Count members per community
+          const memberCountMap = new Map()
+          memberCounts?.forEach(member => {
+            const count = memberCountMap.get(member.community_id) || 0
+            memberCountMap.set(member.community_id, count + 1)
+          })
+
+          // Update search results with real member counts
+          const searchResultsWithMembers = searchResults.map(community => ({
+            ...community,
+            member_count: memberCountMap.get(community.id) || 0
+          }))
+
+          setDiscoverSearchResults(searchResultsWithMembers)
+        }
+      } else {
+        setDiscoverSearchResults([])
+      }
+    } catch (error) {
+      console.error('Discover search error:', error)
+      toast.error('Search failed')
+    } finally {
+      setDiscoverSearchLoading(false)
+    }
+  }
+
+  const handleJoinCommunity = async (communityId: string) => {
+    if (!user) return
+
+    try {
+      const supabase = getSupabaseClient()
+      
+      // Check if user is already a member
+      const { data: existingMember } = await supabase
+        .from('community_members')
+        .select('id')
+        .eq('community_id', communityId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (existingMember) {
+        toast.info('You are already a member of this community')
+        return
+      }
+
+      // Add user to community
+      const { error } = await supabase
+        .from('community_members')
+        .insert({
+          community_id: communityId,
+          user_id: user.id,
+          role: 'member',
+          joined_at: new Date().toISOString()
+        })
+
+      if (error) {
+        console.error('Error joining community:', error)
+        toast.error('Failed to join community')
+        return
+      }
+
+      toast.success('Successfully joined community!')
+      
+      // Refresh discover communities to update member counts
+      fetchDiscoverCommunities()
+      
+      // If there are search results, refresh them too
+      if (discoverSearchResults.length > 0) {
+        handleDiscoverSearch()
+      }
+    } catch (error) {
+      console.error('Error joining community:', error)
+      toast.error('Failed to join community')
+    }
   }
 
   const handleCreateCommunity = () => {
@@ -566,23 +731,242 @@ export default function MyCommunityPage() {
                     placeholder="Search communities..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                    onKeyDown={(e) => e.key === 'Enter' && handleDiscoverSearch()}
                     className="pl-10 w-64"
                   />
                 </div>
-                <Button onClick={handleSearch}>Search</Button>
+                <Button 
+                  onClick={handleDiscoverSearch}
+                  disabled={discoverSearchLoading}
+                >
+                  {discoverSearchLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Search className="h-4 w-4 mr-2" />
+                  )}
+                  Search
+                </Button>
+                {searchQuery && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSearchQuery('')
+                      setDiscoverSearchResults([])
+                    }}
+                  >
+                    Clear
+                  </Button>
+                )}
               </div>
             </div>
 
-            <div className="text-center py-12">
-              <Search className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Discover New Communities</h3>
-              <p className="text-muted-foreground mb-6">Browse and join communities that match your interests</p>
-              <Button onClick={() => router.push('/communities')}>
-                <Globe className="mr-2 h-4 w-4" />
-                Browse All Communities
-              </Button>
-            </div>
+            {/* Search Results */}
+            {discoverSearchResults.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Search Results</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {discoverSearchResults.map((community) => (
+                    <Card key={community.id} className="hover:shadow-lg transition-shadow duration-200">
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <CardTitle className="text-lg mb-2">{community.name}</CardTitle>
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge variant="secondary" className="text-xs">
+                                {community.category}
+                              </Badge>
+                              {!community.is_public && (
+                                <Badge variant="outline" className="text-xs">
+                                  Private
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      
+                      <CardContent className="space-y-4">
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {community.description}
+                        </p>
+
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Users className="h-4 w-4" />
+                            <span>
+                              {community.member_count === 1 
+                                ? '1 member' 
+                                : `${community.member_count || 0} members`
+                              }
+                            </span>
+                          </div>
+                          {community.location && (
+                            <div className="flex items-center gap-1">
+                              <MapPin className="h-4 w-4" />
+                              <span>{community.location}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Tags */}
+                        {community.tags && community.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-3">
+                            {community.tags.slice(0, 3).map((tag, index) => (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                {tag}
+                              </Badge>
+                            ))}
+                            {community.tags.length > 3 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{community.tags.length - 3} more
+                              </Badge>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Creation Date */}
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Calendar className="h-3 w-3" />
+                          <span>Created {new Date(community.created_at).toLocaleDateString()}</span>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-2 pt-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => router.push(`/communities/${community.id}`)}
+                            className="flex-1"
+                          >
+                            View
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            onClick={() => handleJoinCommunity(community.id)}
+                            className="flex-1"
+                          >
+                            Join
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Default Discover View */}
+            {discoverSearchResults.length === 0 && (
+              <div className="space-y-6">
+                {/* Featured Communities */}
+                {discoverCommunities.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">Featured Communities</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {discoverCommunities.slice(0, 6).map((community) => (
+                        <Card key={community.id} className="hover:shadow-lg transition-shadow duration-200">
+                          <CardHeader>
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <CardTitle className="text-lg mb-2">{community.name}</CardTitle>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Badge variant="secondary" className="text-xs">
+                                    {community.category}
+                                  </Badge>
+                                  {!community.is_public && (
+                                    <Badge variant="outline" className="text-xs">
+                                      Private
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          
+                          <CardContent className="space-y-4">
+                            <p className="text-sm text-muted-foreground leading-relaxed">
+                              {community.description}
+                            </p>
+
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                              <div className="flex items-center gap-1">
+                                <Users className="h-4 w-4" />
+                                <span>
+                                  {community.member_count === 1 
+                                    ? '1 member' 
+                                    : `${community.member_count || 0} members`
+                                  }
+                                </span>
+                              </div>
+                              {community.location && (
+                                <div className="flex items-center gap-1">
+                                  <MapPin className="h-4 w-4" />
+                                  <span>{community.location}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Tags */}
+                            {community.tags && community.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mb-3">
+                                {community.tags.slice(0, 3).map((tag, index) => (
+                                  <Badge key={index} variant="outline" className="text-xs">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                                {community.tags.length > 3 && (
+                                  <Badge variant="outline" className="text-xs">
+                                    +{community.tags.length - 3} more
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Creation Date */}
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Calendar className="h-3 w-3" />
+                              <span>Created {new Date(community.created_at).toLocaleDateString()}</span>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex items-center gap-2 pt-2">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => router.push(`/communities/${community.id}`)}
+                                className="flex-1"
+                              >
+                                View
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                onClick={() => handleJoinCommunity(community.id)}
+                                className="flex-1"
+                              >
+                                Join
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Empty State */}
+                {discoverCommunities.length === 0 && (
+                  <div className="text-center py-12">
+                    <Search className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold mb-2">Discover New Communities</h3>
+                    <p className="text-muted-foreground mb-6">Browse and join communities that match your interests</p>
+                    <Button onClick={() => router.push('/communities')}>
+                      <Globe className="mr-2 h-4 w-4" />
+                      Browse All Communities
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </TabsContent>
 
           {/* Activity Tab */}
