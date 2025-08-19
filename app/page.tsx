@@ -94,7 +94,7 @@ export default function HomePage() {
       icon: Users,
       title: "Community Connection",
       description: "Connect with the global African diaspora community",
-      href: "/community",
+      href: "/communities",
     },
     {
       icon: ShoppingCart,
@@ -256,7 +256,7 @@ export default function HomePage() {
                   variant="outline"
                   className="border-border text-foreground hover:bg-muted bg-transparent"
                 >
-                  <Link href="/community">Explore Platform</Link>
+                  <Link href="/communities">Explore Platform</Link>
                 </Button>
               </div>
 

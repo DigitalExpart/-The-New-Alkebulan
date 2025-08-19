@@ -393,7 +393,7 @@ export default function ProfilePage() {
                   </Link>
                 </Button>
                 <Button asChild variant="outline" className="w-full justify-start bg-transparent">
-                  <Link href="/community/my-community">
+                  <Link href="/communities/my-community">
                     <Users className="mr-2 h-4 w-4" />
                     My Communities
                   </Link>

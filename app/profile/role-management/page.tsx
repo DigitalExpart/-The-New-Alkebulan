@@ -19,7 +19,7 @@ import {
   Info
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
-import { supabase } from "@/lib/supabase"
+import { getSupabaseClient } from "@/lib/supabase"
 import { toast } from "sonner"
 import Link from "next/link"
 
@@ -121,7 +121,7 @@ export default function RoleManagementPage() {
       }
       // If disabling a role, don't change account_type - let user choose via role switcher
 
-      const { error } = await supabase
+      const { error } = await getSupabaseClient()
         .from('profiles')
         .update(updateData)
         .eq('user_id', user.id)
@@ -203,8 +203,7 @@ export default function RoleManagementPage() {
               <div className="space-y-2">
                 <h3 className="font-medium">How Roles Work</h3>
                 <p className="text-sm text-muted-foreground">
-                  Each role gives you access to different features and tools. You can activate multiple roles 
-                  and switch between them as needed. At least one role must be active at all times.
+                  Below are optional roles you can activate/deactivate as needed. You can have multiple roles active simultaneously.
                 </p>
                 <div className="flex items-center gap-2 text-sm">
                   <CheckCircle className="w-4 h-4 text-green-600" />

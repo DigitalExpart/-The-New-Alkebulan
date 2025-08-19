@@ -11,7 +11,7 @@ export const mockNotifications: Notification[] = [
     userId: "user-1",
     userAvatar: "/placeholder.svg?height=40&width=40",
     userName: "Sarah Johnson",
-    actionUrl: "/community/messenger",
+    actionUrl: "/communities/messenger",
     iconColor: "text-blue-500",
   },
   {
@@ -24,7 +24,7 @@ export const mockNotifications: Notification[] = [
     userId: "user-2",
     userAvatar: "/placeholder.svg?height=40&width=40",
     userName: "Marcus Williams",
-    actionUrl: "/community",
+    actionUrl: "/communities",
     iconColor: "text-green-500",
   },
   {
@@ -34,7 +34,7 @@ export const mockNotifications: Notification[] = [
     message: "You've been mentioned in the African Heritage community discussion",
     timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
     isRead: false,
-    actionUrl: "/community/my-alkebulan",
+    actionUrl: "/communities/my-community",
     iconColor: "text-purple-500",
   },
   {
@@ -83,7 +83,7 @@ export const mockNotifications: Notification[] = [
     userId: "user-5",
     userAvatar: "/placeholder.svg?height=40&width=40",
     userName: "David Chen",
-    actionUrl: "/community/messenger",
+    actionUrl: "/communities/messenger",
     iconColor: "text-blue-500",
   },
   {

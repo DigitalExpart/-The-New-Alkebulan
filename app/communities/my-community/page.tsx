@@ -86,6 +86,13 @@ export default function MyCommunityPage() {
       fetchUserCommunities()
       fetchCommunityStats()
       fetchRecentPosts()
+      
+      // Add a timeout to prevent infinite loading
+      const timeout = setTimeout(() => {
+        setLoading(false)
+      }, 10000) // 10 seconds timeout
+      
+      return () => clearTimeout(timeout)
     }
   }, [user])
 
@@ -117,14 +124,17 @@ export default function MyCommunityPage() {
 
       if (membershipError) {
         console.error('Error fetching memberships:', membershipError)
-        return
+        toast.error('Failed to load communities')
+      } else {
+        const userComms = memberships?.map(m => m.communities).filter(Boolean) || []
+        setUserCommunities(userComms)
+        setCommunities(userComms)
       }
-
-      const userComms = memberships?.map(m => m.communities).filter(Boolean) || []
-      setUserCommunities(userComms)
-      setCommunities(userComms)
     } catch (error) {
       console.error('Error fetching user communities:', error)
+      toast.error('Failed to load communities')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -149,7 +159,6 @@ export default function MyCommunityPage() {
       const { data: totalPosts, error: postsError } = await supabase
         .from('community_posts')
         .select('id', { count: 'exact' })
-        .in('community_id', userCommunities.map(c => c.id))
 
       setCommunityStats({
         totalMembers: totalMembers?.length || 0,
@@ -163,34 +172,39 @@ export default function MyCommunityPage() {
   }
 
   const fetchRecentPosts = async () => {
-    if (!user || userCommunities.length === 0) return
+    if (!user) return
 
     try {
       const supabase = getSupabaseClient()
       
-      const { data: posts, error } = await supabase
-        .from('community_posts')
-        .select(`
-          id,
-          content,
-          created_at,
-          user_id,
-          profiles!community_posts_user_id_fkey (
-            first_name,
-            last_name,
-            avatar_url
-          )
-        `)
-        .in('community_id', userCommunities.map(c => c.id))
-        .order('created_at', { ascending: false })
-        .limit(5)
+      // Only fetch posts if user has communities
+      if (userCommunities.length > 0) {
+        const { data: posts, error } = await supabase
+          .from('community_posts')
+          .select(`
+            id,
+            content,
+            created_at,
+            user_id,
+            profiles!community_posts_user_id_fkey (
+              first_name,
+              last_name,
+              avatar_url
+            )
+          `)
+          .in('community_id', userCommunities.map(c => c.id))
+          .order('created_at', { ascending: false })
+          .limit(5)
 
-      if (error) {
-        console.error('Error fetching posts:', error)
-        return
+        if (error) {
+          console.error('Error fetching posts:', error)
+          return
+        }
+
+        setRecentPosts(posts || [])
+      } else {
+        setRecentPosts([])
       }
-
-      setRecentPosts(posts || [])
     } catch (error) {
       console.error('Error fetching posts:', error)
     }

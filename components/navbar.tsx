@@ -45,7 +45,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { UserAvatar } from "@/components/user-avatar"
+import { UserAvatarFixed } from "@/components/user-avatar-fixed"
 import { AnimatedSearch } from "@/components/animated-search"
 import { NotificationsDropdown } from "@/components/notifications/notifications-dropdown"
 import { useAuth } from "@/hooks/use-auth"
@@ -279,7 +279,7 @@ export function Navbar() {
               <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center space-x-2 p-2 rounded-lg hover:bg-accent transition-colors duration-200">
-                    <UserAvatar 
+                    <UserAvatarFixed 
                       imageUrl={profile?.avatar_url}
                       size="sm"
                       fallbackName={getDisplayName()}

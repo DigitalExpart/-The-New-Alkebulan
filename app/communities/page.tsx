@@ -15,9 +15,6 @@ import {
   Globe, 
   MapPin, 
   Calendar,
-  MessageCircle,
-  Heart,
-  Share2,
   Loader2
 } from "lucide-react"
 import { toast } from "sonner"
@@ -56,18 +53,47 @@ export default function CommunitiesPage() {
       setLoading(true)
       const supabase = getSupabaseClient()
       
-      const { data, error } = await supabase
+      // Fetch communities with member counts
+      const { data: communitiesData, error: communitiesError } = await supabase
         .from('communities')
         .select('*')
         .order('created_at', { ascending: false })
 
-      if (error) {
-        console.error('Error fetching communities:', error)
+      if (communitiesError) {
+        console.error('Error fetching communities:', communitiesError)
         toast.error('Failed to load communities')
         return
       }
 
-      setCommunities(data || [])
+      // Fetch member counts for each community
+      if (communitiesData && communitiesData.length > 0) {
+        const communityIds = communitiesData.map(c => c.id)
+        const { data: memberCounts, error: memberError } = await supabase
+          .from('community_members')
+          .select('community_id')
+          .in('community_id', communityIds)
+
+        if (memberError) {
+          console.error('Error fetching member counts:', memberError)
+        } else {
+          // Count members per community
+          const memberCountMap = new Map()
+          memberCounts?.forEach(member => {
+            const count = memberCountMap.get(member.community_id) || 0
+            memberCountMap.set(member.community_id, count + 1)
+          })
+
+          // Update communities with real member counts
+          const communitiesWithMembers = communitiesData.map(community => ({
+            ...community,
+            member_count: memberCountMap.get(community.id) || 0
+          }))
+
+          setCommunities(communitiesWithMembers)
+        }
+      } else {
+        setCommunities([])
+      }
     } catch (error) {
       console.error('Error:', error)
       toast.error('Failed to load communities')
@@ -87,7 +113,7 @@ export default function CommunitiesPage() {
       const supabase = getSupabaseClient()
       
       // Search in communities table
-      const { data, error } = await supabase
+      const { data: searchResults, error } = await supabase
         .from('communities')
         .select('*')
         .or(`name.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`)
@@ -99,7 +125,35 @@ export default function CommunitiesPage() {
         return
       }
 
-      setCommunities(data || [])
+      // Fetch member counts for search results
+      if (searchResults && searchResults.length > 0) {
+        const communityIds = searchResults.map(c => c.id)
+        const { data: memberCounts, error: memberError } = await supabase
+          .from('community_members')
+          .select('community_id')
+          .in('community_id', communityIds)
+
+        if (memberError) {
+          console.error('Error fetching member counts:', memberError)
+        } else {
+          // Count members per community
+          const memberCountMap = new Map()
+          memberCounts?.forEach(member => {
+            const count = memberCountMap.get(member.community_id) || 0
+            memberCountMap.set(member.community_id, count + 1)
+          })
+
+          // Update search results with real member counts
+          const searchResultsWithMembers = searchResults.map(community => ({
+            ...community,
+            member_count: memberCountMap.get(community.id) || 0
+          }))
+
+          setCommunities(searchResultsWithMembers)
+        }
+      } else {
+        setCommunities([])
+      }
     } catch (error) {
       console.error('Search error:', error)
       toast.error('Search failed')
@@ -134,21 +188,36 @@ export default function CommunitiesPage() {
                 placeholder="Search communities..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                className="pl-10"
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                className="pl-10 pr-20"
               />
-              <Button
-                size="sm"
-                onClick={handleSearch}
-                disabled={searchLoading}
-                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8"
-              >
-                {searchLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Search className="h-4 w-4" />
+              <div className="absolute right-1 top-1/2 transform -translate-y-1/2 flex gap-1">
+                {searchQuery && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setSearchQuery('')
+                      fetchCommunities()
+                    }}
+                    className="h-8 px-2"
+                  >
+                    Clear
+                  </Button>
                 )}
-              </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSearch}
+                  disabled={searchLoading}
+                  className="h-8"
+                >
+                  {searchLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
             </div>
             <Button 
               className="md:w-auto"
@@ -179,7 +248,7 @@ export default function CommunitiesPage() {
         {loading && (
           <div className="text-center py-12">
             <Loader2 className="h-16 w-16 mx-auto text-muted-foreground mb-4 animate-spin" />
-            <p className="text-muted-foreground">Loading communities...</p>
+            <p className="text-muted-foreground">Loading communities and member counts...</p>
           </div>
         )}
 
@@ -214,7 +283,12 @@ export default function CommunitiesPage() {
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Users className="h-4 w-4" />
-                      <span>{community.member_count?.toLocaleString() || 0} members</span>
+                      <span>
+                        {community.member_count === 1 
+                          ? '1 member' 
+                          : `${community.member_count || 0} members`
+                        }
+                      </span>
                     </div>
                     {community.location && (
                       <div className="flex items-center gap-1">
@@ -226,7 +300,7 @@ export default function CommunitiesPage() {
 
                   {/* Tags */}
                   {community.tags && community.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-1 mb-3">
                       {community.tags.slice(0, 3).map((tag, index) => (
                         <Badge key={index} variant="outline" className="text-xs">
                           {tag}
@@ -240,6 +314,12 @@ export default function CommunitiesPage() {
                     </div>
                   )}
 
+                  {/* Creation Date */}
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Calendar className="h-3 w-3" />
+                    <span>Created {new Date(community.created_at).toLocaleDateString()}</span>
+                  </div>
+
                   {/* Action Buttons */}
                   <div className="flex items-center gap-2 pt-2">
                     <Button 
@@ -248,15 +328,6 @@ export default function CommunitiesPage() {
                       onClick={() => router.push(`/communities/${community.id}`)}
                     >
                       View Community
-                    </Button>
-                    <Button size="sm" variant="outline">
-                      <MessageCircle className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="outline">
-                      <Heart className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="outline">
-                      <Share2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </CardContent>

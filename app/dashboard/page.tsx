@@ -146,7 +146,7 @@ export default function DashboardPage() {
                   <Calendar className="h-6 w-6" />
                   <span className="text-xs">Daily Planner</span>
                 </Button>
-                <Button variant="outline" className="h-20 w-36 flex flex-col gap-2" onClick={() => router.push("/community")}>
+                <Button variant="outline" className="h-20 w-36 flex flex-col gap-2" onClick={() => router.push("/communities")}>
                   <Users className="h-6 w-6" />
                   <span className="text-xs">Community</span>
                 </Button>
