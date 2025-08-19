@@ -10,7 +10,7 @@ import { Users, MapPin, MessageCircle, Heart, Share2, Play } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { getSupabaseClient } from "@/lib/supabase"
 import { toast } from "sonner"
-import CreatePostSimple from "@/components/create-post-simple"
+import CreatePost from "@/components/create-post"
 
 interface Community {
   id: string
@@ -57,7 +57,7 @@ export default function CommunityDetailPage() {
     fetchCommunity()
     fetchPosts()
     checkMembership()
-  }, [communityId])
+  }, [communityId, user])
 
   const fetchCommunity = async () => {
     try {
@@ -93,7 +93,28 @@ export default function CommunityDetailPage() {
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setPosts(data)
+      
+      // If user is logged in, check which posts they've liked
+      if (user && data) {
+        const postIds = data.map(post => post.id)
+        const { data: userLikes } = await supabase
+          .from('post_likes')
+          .select('post_id')
+          .eq('user_id', user.id)
+          .in('post_id', postIds)
+
+        const likedPostIds = new Set(userLikes?.map(like => like.post_id) || [])
+        
+        // Add like status to posts
+        const postsWithLikes = data.map(post => ({
+          ...post,
+          is_liked: likedPostIds.has(post.id)
+        }))
+        
+        setPosts(postsWithLikes)
+      } else {
+        setPosts(data)
+      }
     } catch (error) {
       console.error('Error fetching posts:', error)
     } finally {
@@ -262,7 +283,7 @@ export default function CommunityDetailPage() {
 
                  {/* Create Post */}
          {isMember && (
-           <CreatePostSimple 
+           <CreatePost 
              communityId={communityId} 
              onPostCreated={fetchPosts}
            />
