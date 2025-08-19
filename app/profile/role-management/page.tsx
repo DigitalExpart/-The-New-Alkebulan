@@ -184,14 +184,14 @@ export default function RoleManagementPage() {
     <div className="min-h-screen bg-muted/30">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Button variant="outline" size="sm" onClick={handleBack}>
+        <div className="flex items-center gap-4 mb-8 max-md:flex-col max-md:text-center">
+          <Button variant="outline" size="sm" onClick={handleBack} className="max-sm:border-green-600/40">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Profile
           </Button>
-          <div>
+          <div className="md:ml-4 ml-0">
             <h1 className="text-3xl font-bold">Account Management</h1>
-            <p className="text-muted-foreground">Activate and manage your account roles and permissions</p>
+            <p className="text-muted-foreground max-md:text-sm max-sm:w-[68vw] max-sm:mx-auto">Activate and manage your account roles and permissions</p>
           </div>
         </div>
 
