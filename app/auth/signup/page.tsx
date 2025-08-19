@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator"
 import { Eye, EyeOff, Mail, Lock, User, Loader2, Building2, TrendingUp, Users, PenTool } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import type { SignUpData } from "@/types/auth"
+import { FaCheckCircle } from "react-icons/fa";
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -368,193 +369,150 @@ export default function SignUpPage() {
 
   // Step 2: Choose Role
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-950 dark:to-emerald-950 p-4">
-      <Card className="w-full max-w-2xl">
-        <CardHeader className="space-y-1 text-center">
-          <div className="flex items-center justify-between">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={goBackToForm}
-              className="text-green-600 hover:text-green-700"
-            >
-              ← Back
-            </Button>
-            <div className="text-center flex-1">
-              <CardTitle className="text-3xl font-bold">Choose Your Roles</CardTitle>
-              <CardDescription className="text-lg">Select how you want to use our platform</CardDescription>
-            </div>
-            <div className="w-16"></div> {/* Spacer for centering */}
-          </div>
+   <div className="min-h-screen flex items-center justify-center bg-[#0c1a0c] p-3">
+  <Card className="w-full max-w-lg bg-transparent shadow-none border-0 px-1">
+    <CardHeader className="space-y-2 text-center">
+      <CardTitle className="text-xl sm:text-2xl font-semibold text-white">
+        How do you want to use the platform?
+      </CardTitle>
+      <CardDescription className="text-gray-300/60 text-lg">
+        Select your Roles
+      </CardDescription>
+    </CardHeader>
+
+    <CardContent className="space-y-5 mt-6">
+
+      {/* Business Option */}
+      <div
+        className={`flex gap-8 items-center mx-auto px-5 py-3 rounded-full cursor-pointer border transition-all w-[80%] ${
+          selectedRoles.includes('business')
+            ? 'bg-yellow-400 text-black font-medium border-yellow-400'
+            : 'border-gray-600 text-white'
+        }`}
+        onClick={() => handleRoleSelection('business')}
+      >
+        {selectedRoles.includes('business') ? (
+          <span className="inline-block">
+            <FaCheckCircle className="w-7 h-7 text-green-600 bg-white rounded-full inline-block mr-2" />
+          </span>
           
-          {/* User Info Display */}
-          <div className="mt-4 p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
-            <p className="text-sm text-green-800 dark:text-green-200">
-              <strong>Account:</strong> {formData.email}
-            </p>
-            <p className="text-sm text-green-800 dark:text-green-200">
-              <strong>Name:</strong> {formData.first_name} {formData.last_name}
-            </p>
-            <p className="text-sm text-green-800 dark:text-green-200">
-              <strong>Username:</strong> @{formData.username}
-            </p>
-            {formData.country && (
-              <p className="text-sm text-green-800 dark:text-green-200">
-                <strong>Country:</strong> {formData.country}
-              </p>
-            )}
+        ) :
+        (
+          <div className="w-7 h-7 rounded-full border border-slate-50/90">
+
           </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Business Option */}
-            <div 
-              className={`relative p-6 border-2 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-lg ${
-                selectedRoles.includes('business')
-                  ? 'border-green-500 bg-green-50 dark:bg-green-950/20' 
-                  : 'border-gray-200 hover:border-green-300 bg-white dark:bg-gray-800'
-              }`}
-              onClick={() => handleRoleSelection('business')}
-            >
-              <div className="text-center space-y-4">
-                <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
-                  <Building2 className="w-8 h-8 text-green-600" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Business</h3>
-                  <p className="text-gray-600 dark:text-gray-400 mt-2">
-                    List products, manage inventory, and process orders
-                  </p>
-                </div>
-                {selectedRoles.includes('business') && (
-                  <div className="absolute top-4 right-4 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                )}
-              </div>
-            </div>
+        )
+        }
+        <span className="text-xl text-center inline-block mx-auto pr-12">Business</span>
+      </div>
 
-            {/* Investor Option */}
-            <div 
-              className={`relative p-6 border-2 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-lg ${
-                selectedRoles.includes('investor')
-                  ? 'border-green-500 bg-green-50 dark:bg-green-950/20' 
-                  : 'border-gray-200 hover:border-green-300 bg-white dark:bg-gray-800'
-              }`}
-              onClick={() => handleRoleSelection('investor')}
-            >
-              <div className="text-center space-y-4">
-                <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
-                  <TrendingUp className="w-8 h-8 text-green-600" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Investor</h3>
-                  <p className="text-gray-600 dark:text-gray-400 mt-2">
-                    Access investing dashboard and manage investments
-                  </p>
-                </div>
-                {selectedRoles.includes('investor') && (
-                  <div className="absolute top-4 right-4 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                )}
-              </div>
-            </div>
 
-            {/* Mentor Option */}
-            <div 
-              className={`relative p-6 border-2 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-lg ${
-                selectedRoles.includes('mentor')
-                  ? 'border-green-500 bg-green-50 dark:bg-green-950/20' 
-                  : 'border-gray-200 hover:border-green-300 bg-white dark:bg-gray-800'
-              }`}
-              onClick={() => handleRoleSelection('mentor')}
-            >
-              <div className="text-center space-y-4">
-                <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
-                  <Users className="w-8 h-8 text-green-600" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Mentor</h3>
-                  <p className="text-gray-600 dark:text-gray-400 mt-2">
-                    Activate mentorship profile and guide others
-                  </p>
-                </div>
-                {selectedRoles.includes('mentor') && (
-                  <div className="absolute top-4 right-4 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                )}
-              </div>
-            </div>
+      {/* Creator Option */}
+      <div
+        className={`flex gap-8 items-center mx-auto px-5 py-3 rounded-full cursor-pointer border transition-all w-[80%] ${
+          selectedRoles.includes('creator')
+            ? 'bg-yellow-400 text-black font-medium border-yellow-400'
+            : 'border-gray-600 text-white'
+        }`}
+        onClick={() => handleRoleSelection('creator')}
+      >
+        {selectedRoles.includes('creator') ? (
+          <span className="inline-block">
+            <FaCheckCircle className="w-7 h-7 text-green-600 bg-white rounded-full inline-block mr-2" />
+          </span>
+          
+        ) :
+        (
+          <div className="w-7 h-7 rounded-full border border-slate-50/90">
 
-            {/* Creator Option */}
-            <div 
-              className={`relative p-6 border-2 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-lg ${
-                selectedRoles.includes('creator')
-                  ? 'border-green-500 bg-green-50 dark:bg-green-950/20' 
-                  : 'border-gray-200 hover:border-green-300 bg-white dark:bg-gray-800'
-              }`}
-              onClick={() => handleRoleSelection('creator')}
-            >
-              <div className="text-center space-y-4">
-                <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
-                  <PenTool className="w-8 h-8 text-green-600" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Creator</h3>
-                  <p className="text-gray-600 dark:text-gray-400 mt-2">
-                    Activate content upload & library tools
-                  </p>
-                </div>
-                {selectedRoles.includes('creator') && (
-                  <div className="absolute top-4 right-4 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
+        )
+        }
+        <span className="text-xl text-center inline-block mx-auto pr-12">Creator</span>
+      </div>
 
-          <div className="text-center space-y-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              You can choose as many roles as you want and activate additional ones later in your dashboard
-            </p>
-            {selectedRoles.length > 0 && (
-              <Button 
-                onClick={createAccount}
-                className="bg-green-600 hover:bg-green-700 text-white"
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating Account...
-                  </>
-                ) : (
-                  `Create Account with ${selectedRoles.length} Role${selectedRoles.length !== 1 ? 's' : ''}`
-                )}
-              </Button>
-            )}
+     {/* Mentor Option */}
+      <div
+        className={`flex gap-8 items-center mx-auto px-5 py-3 rounded-full cursor-pointer border transition-all w-[80%] ${
+          selectedRoles.includes('mentor')
+            ? 'bg-yellow-400 text-black font-medium border-yellow-400'
+            : 'border-gray-600 text-white'
+        }`}
+        onClick={() => handleRoleSelection('mentor')}
+      >
+        {selectedRoles.includes('mentor') ? (
+          <span className="inline-block">
+            <FaCheckCircle className="w-7 h-7 text-green-600 bg-white rounded-full inline-block mr-2" />
+          </span>
+          
+        ) :
+        (
+          <div className="w-7 h-7 rounded-full border border-slate-50/90">
+
           </div>
-        </CardContent>
-        <CardFooter className="justify-center">
-          <p className="text-center text-sm text-muted-foreground">
+        )
+        }
+        <span className="text-xl text-center inline-block mx-auto pr-12">Mentor</span>
+      </div>
+
+
+      {/* Investor Option */}
+      <div
+        className={`flex gap-8 items-center mx-auto px-5 py-3 rounded-full cursor-pointer border transition-all w-[80%] ${
+          selectedRoles.includes('investor')
+            ? 'bg-yellow-400 text-black font-medium border-yellow-400'
+            : 'border-gray-600 text-white'
+        }`}
+        onClick={() => handleRoleSelection('investor')}
+      >
+        {selectedRoles.includes('investor') ? (
+          <span className="inline-block">
+            <FaCheckCircle className="w-7 h-7 text-green-600 bg-white rounded-full inline-block mr-2" />
+          </span>
+          
+        ) :
+        (
+          <div className="w-7 h-7 rounded-full border border-slate-50/90">
+
+          </div>
+        )
+        }
+        <span className="text-xl text-center inline-block mx-auto pr-12">Investor</span>
+      </div>
+
+
+      <div className="pt-4 text-center text-xs sm:text-base text-gray-400 w-full tracking-wider">
+        <p>You can select as many roles as you want.</p>
+        <p>You can also activate additional roles later.</p>
+      </div>
+    </CardContent>
+
+    {/* <CardFooter className="flex justify-end mt-4">
+      <p className="text-center text-sm text-muted-foreground">
             Already have an account?{" "}
             <Link href="/auth/signin" className="text-primary hover:underline">
               Sign in
             </Link>
           </p>
-        </CardFooter>
-      </Card>
+    </CardFooter> */}
+
+    <div className="flex justify-end pt-4">
+      <Button
+        onClick={createAccount}
+        className="w-[40%] rounded-full bg-green-600 hover:bg-green-700 text-white py-4 text-lg font-medium cursor-pointer ml-8"
+        disabled={selectedRoles.length === 0 || loading}
+      >
+        {loading ? (
+          <>
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            Creating Account...
+          </>
+        ) : (
+          'Create account >'
+        )}
+      </Button>
     </div>
+  </Card>
+</div>
   )
 }
