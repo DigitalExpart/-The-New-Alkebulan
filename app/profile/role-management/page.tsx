@@ -38,32 +38,32 @@ const ROLES: Role[] = [
     name: 'Business',
     description: 'Create and manage business profiles, access business tools, and connect with other entrepreneurs',
     icon: <Building2 className="w-6 h-6" />,
-    color: 'bg-blue-500 hover:bg-blue-600',
-    badgeColor: 'bg-blue-100 text-blue-800'
+    color: 'bg-blue-100 text-blue-800',
+    badgeColor: 'bg-dark-bg text-green-600 border border-green-600/65'
   },
   {
     id: 'creator',
     name: 'Creator',
     description: 'Share content, build your audience, and monetize your creative work',
     icon: <Palette className="w-6 h-6" />,
-    color: 'bg-purple-500 hover:bg-purple-600',
-    badgeColor: 'bg-purple-100 text-purple-800'
+    color: 'bg-purple-100 text-purple-800',
+    badgeColor: 'bg-dark-bg text-green-600 border border-green-600/65'
   },
   {
     id: 'investor',
     name: 'Investor',
     description: 'Access investment opportunities, analyze projects, and manage your investment portfolio',
     icon: <TrendingUp className="w-6 h-6" />,
-    color: 'bg-green-500 hover:bg-green-600',
-    badgeColor: 'bg-green-100 text-green-800'
+    color: 'bg-green-100 text-green-800',
+    badgeColor: 'bg-dark-bg text-green-600 border border-green-600/65'
   },
   {
     id: 'mentor',
     name: 'Mentor',
     description: 'Share your expertise, guide others, and build meaningful mentoring relationships',
     icon: <GraduationCap className="w-6 h-6" />,
-    color: 'bg-orange-500 hover:bg-orange-600',
-    badgeColor: 'bg-orange-100 text-orange-800'
+    color: 'bg-orange-100 text-orange-800',
+    badgeColor: 'bg-dark-bg text-green-600 border border-green-600/65'
   }
 ]
 
@@ -220,11 +220,11 @@ export default function RoleManagementPage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${role.badgeColor}`}>
+                    <div className={`p-2 rounded-lg ${role.color}`}>
                       {role.icon}
                     </div>
                     <div>
-                      <CardTitle className="flex items-center gap-2">
+                      <CardTitle className="flex items-center gap-6">
                         {role.name}
                         {roleStates[role.id as keyof typeof roleStates] && (
                           <Badge variant="secondary" className={role.badgeColor}>
@@ -247,14 +247,14 @@ export default function RoleManagementPage() {
                 </div>
               </CardHeader>
               
-              {roleStates[role.id as keyof typeof roleStates] && (
+              {/* {roleStates[role.id as keyof typeof roleStates] && (
                 <CardContent>
                   <div className="flex items-center gap-2 text-sm text-green-600">
                     <CheckCircle className="w-4 h-4" />
                     <span>This role is currently active</span>
                   </div>
                 </CardContent>
-              )}
+              )} */}
             </Card>
           ))}
         </div>

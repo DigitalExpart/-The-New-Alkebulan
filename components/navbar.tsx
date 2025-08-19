@@ -284,7 +284,7 @@ export function Navbar() {
                       size="sm"
                       fallbackName={getDisplayName()}
                     />
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    <ChevronDown className="h-4 w-4 text-muted-foreground hover:text-black" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
