@@ -1,2 +1,129 @@
-* [32mmain  [m ce2b92d [ahead 2] 🚫 Remove non-binary gender option from all gender selections - Remove non-binary from GENDER_OPTIONS in profile types - Remove non-binary from avatar type definitions - Update avatar presets to use male instead of non-binary - Update default avatar in user-avatar component to use male gender
-  master[m b3418d9 Fix seller profile creation and role management - Update fetchProfile to respect user account type from metadata - Fix hardcoded buyer profile creation - Add comprehensive logging for seller profile debugging - Ensure seller_enabled flag is properly set based on account_type - Update all profile fetching calls to pass user metadata
+[1mdiff --git a/app/auth/signup/page.tsx b/app/auth/signup/page.tsx[m
+[1mindex 13359f6..1e84b14 100644[m
+[1m--- a/app/auth/signup/page.tsx[m
+[1m+++ b/app/auth/signup/page.tsx[m
+[36m@@ -9,10 +9,9 @@[m [mimport { Input } from "@/components/ui/input"[m
+ import { Label } from "@/components/ui/label"[m
+ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"[m
+ import { Separator } from "@/components/ui/separator"[m
+[31m-import { Eye, EyeOff, Mail, Lock, User, Loader2, Building2, TrendingUp, Users, PenTool } from "lucide-react"[m
+[32m+[m[32mimport { Eye, EyeOff, Mail, Lock, User, Loader2, Building2, TrendingUp, Users, PenTool, CheckCircle } from "lucide-react"[m
+ import { useAuth } from "@/hooks/use-auth"[m
+ import type { SignUpData } from "@/types/auth"[m
+[31m-import { FaCheckCircle } from "react-icons/fa";[m
+ [m
+ export default function SignUpPage() {[m
+   const router = useRouter()[m
+[36m@@ -392,7 +391,7 @@[m [mexport default function SignUpPage() {[m
+       >[m
+         {selectedRoles.includes('business') ? ([m
+           <span className="inline-block">[m
+[31m-            <FaCheckCircle className="w-7 h-7 text-green-600 bg-white rounded-full inline-block mr-2" />[m
+[32m+[m[32m            <CheckCircle className="w-7 h-7 text-green-600 bg-white rounded-full inline-block mr-2" />[m
+           </span>[m
+           ) :[m
+         ([m
+[36m@@ -412,7 +411,7 @@[m [mexport default function SignUpPage() {[m
+       >[m
+         {selectedRoles.includes('creator') ? ([m
+           <span className="inline-block">[m
+[31m-            <FaCheckCircle className="w-7 h-7 text-green-600 bg-white rounded-full inline-block mr-2" />[m
+[32m+[m[32m            <CheckCircle className="w-7 h-7 text-green-600 bg-white rounded-full inline-block mr-2" />[m
+           </span>[m
+ [m
+         ) :[m
+[36m@@ -434,7 +433,7 @@[m [mexport default function SignUpPage() {[m
+       >[m
+         {selectedRoles.includes('mentor') ? ([m
+           <span className="inline-block">[m
+[31m-            <FaCheckCircle className="w-7 h-7 text-green-600 bg-white rounded-full inline-block mr-2" />[m
+[32m+[m[32m            <CheckCircle className="w-7 h-7 text-green-600 bg-white rounded-full inline-block mr-2" />[m
+           </span>[m
+ [m
+         ) :[m
+[36m@@ -457,7 +456,7 @@[m [mexport default function SignUpPage() {[m
+       >[m
+         {selectedRoles.includes('investor') ? ([m
+           <span className="inline-block">[m
+[31m-            <FaCheckCircle className="w-7 h-7 text-green-600 bg-white rounded-full inline-block mr-2" />[m
+[32m+[m[32m            <CheckCircle className="w-7 h-7 text-green-600 bg-white rounded-full inline-block mr-2" />[m
+           </span>[m
+ [m
+         ) :[m
+[1mdiff --git a/app/dashboard/page.tsx b/app/dashboard/page.tsx[m
+[1mindex c5d141b..910b083 100644[m
+[1m--- a/app/dashboard/page.tsx[m
+[1m+++ b/app/dashboard/page.tsx[m
+[36m@@ -104,9 +104,9 @@[m [mexport default function DashboardPage() {[m
+           </div>[m
+         )}[m
+ [m
+[31m-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">[m
+[32m+[m[32m        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">[m
+           {/* Role Switcher */}[m
+[31m-          <Card>[m
+[32m+[m[32m          <Card className="lg:col-span-3">[m
+             <CardHeader>[m
+               <CardTitle className="flex items-center gap-2">[m
+                 <User className="h-5 w-5" />[m
+[36m@@ -129,7 +129,7 @@[m [mexport default function DashboardPage() {[m
+           </Card>[m
+ [m
+           {/* Quick Actions */}[m
+[31m-          <Card className="lg:col-span-2">[m
+[32m+[m[32m          <Card className="lg:col-span-9">[m
+             <CardHeader>[m
+               <CardTitle className="flex items-center gap-2">[m
+                 <Target className="h-5 w-5" />[m
+[36m@@ -140,31 +140,31 @@[m [mexport default function DashboardPage() {[m
+               </CardDescription>[m
+             </CardHeader>[m
+             <CardContent>[m
+[31m-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">[m
+[32m+[m[32m              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">[m
+                 {/* Always available actions */}[m
+[31m-                <Button variant="outline" className="h-20 w-36 flex flex-col gap-2" onClick={() => router.push("/dashboard/daily-planner")}>[m
+[31m-                  <Calendar className="h-6 w-6" />[m
+[31m-                  <span className="text-xs">Daily Planner</span>[m
+[32m+[m[32m                <Button variant="outline" className="h-24 w-full flex flex-col gap-2 p-2" onClick={() => router.push("/dashboard/daily-planner")}>[m
+[32m+[m[32m                  <Calendar className="h-5 w-5" />[m
+[32m+[m[32m                  <span className="text-xs text-center leading-tight px-1">Daily Planner</span>[m
+                 </Button>[m
+[31m-                <Button variant="outline" className="h-20 w-36 flex flex-col gap-2" onClick={() => router.push("/communities")}>[m
+[31m-                  <Users className="h-6 w-6" />[m
+[31m-                  <span className="text-xs">Community</span>[m
+[32m+[m[32m                <Button variant="outline" className="h-24 w-full flex flex-col gap-2 p-2" onClick={() => router.push("/communities")}>[m
+[32m+[m[32m                  <Users className="h-5 w-5" />[m
+[32m+[m[32m                  <span className="text-xs text-center leading-tight px-1">Community</span>[m
+                 </Button>[m
+                 [m
+                 {/* Business role actions - only show when business_enabled is true */}[m
+                 {profile?.business_enabled && ([m
+                   <>[m
+[31m-                    <Button variant="outline" className="h-20 w-36 flex flex-col gap-2" onClick={() => router.push("/business/dashboard")}>[m
+[31m-                      <Building2 className="h-6 w-6" />[m
+[31m-                      <span className="text-xs">Business Dashboard</span>[m
+[32m+[m[32m                    <Button variant="outline" className="h-24 w-full flex flex-col gap-2 p-2" onClick={() => router.push("/business/dashboard")}>[m
+[32m+[m[32m                      <Building2 className="h-5 w-5" />[m
+[32m+[m[32m                      <span className="text-xs text-center leading-tight px-1">Business Dashboard</span>[m
+                     </Button>[m
+[31m-                    <Button variant="outline" className="h-20 w-36 flex flex-col gap-2" onClick={() => router.push("/marketplace/upload")}>[m
+[31m-                      <Store className="h-6 w-6" />[m
+[31m-                      <span className="text-xs">Upload Products</span>[m
+[32m+[m[32m                    <Button variant="outline" className="h-24 w-full flex flex-col gap-2 p-2" onClick={() => router.push("/marketplace/upload")}>[m
+[32m+[m[32m                      <Store className="h-5 w-5" />[m
+[32m+[m[32m                      <span className="text-xs text-center leading-tight px-1">Upload Products</span>[m
+                     </Button>[m
+[31m-                    <Button variant="outline" className="h-20 w-36 flex flex-col gap-2" onClick={() => router.push("/dashboard/finance")}>[m
+[31m-                      <DollarSign className="h-6 w-6" />[m
+[31m-                      <span className="text-xs">Sales Analytics</span>[m
+[32m+[m[32m                    <Button variant="outline" className="h-24 w-full flex flex-col gap-2 p-2" onClick={() => router.push("/dashboard/finance")}>[m
+[32m+[m[32m                      <DollarSign className="h-5 w-5" />[m
+[32m+[m[32m                      <span className="text-xs text-center leading-tight px-1">Sales Analytics</span>[m
+                     </Button>[m
+                   </>[m
+                 )}[m
+[36m@@ -172,17 +172,17 @@[m [mexport default function DashboardPage() {[m
+                 {/* Creator role actions - only show when creator_enabled is true */}[m
+                 {profile?.creator_enabled && ([m
+                 

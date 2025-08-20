@@ -421,7 +421,20 @@ export default function MyCommunityPage() {
       <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-muted-foreground">Loading your communities...</p>
+          <p className="text-muted-foreground mb-4">Loading your communities...</p>
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              setLoading(true)
+              fetchUserCommunities()
+              fetchCommunityStats()
+              fetchRecentPosts()
+              fetchDiscoverCommunities()
+            }}
+          >
+            <Loader2 className="h-4 w-4 mr-2" />
+            Retry Loading
+          </Button>
         </div>
       </div>
     )
@@ -551,7 +564,12 @@ export default function MyCommunityPage() {
                               <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
                                 <span className="flex items-center gap-1">
                                   <Users className="h-3 w-3" />
-                                  {community.member_count} members
+                                  <span 
+                                    className="cursor-pointer hover:text-foreground transition-colors"
+                                    onClick={() => router.push(`/communities/${community.id}#community-members`)}
+                                  >
+                                    {community.member_count} members
+                                  </span>
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <Clock className="h-3 w-3" />
@@ -862,9 +880,9 @@ export default function MyCommunityPage() {
                 {discoverCommunities.length > 0 && (
                   <div>
                     <h3 className="text-lg font-semibold mb-4">Featured Communities</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
                       {discoverCommunities.slice(0, 6).map((community) => (
-                        <Card key={community.id} className="hover:shadow-lg transition-shadow duration-200">
+                        <Card key={community.id} className="hover:shadow-lg transition-shadow duration-200 h-full flex flex-col">
                           <CardHeader>
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
@@ -883,53 +901,58 @@ export default function MyCommunityPage() {
                             </div>
                           </CardHeader>
                           
-                          <CardContent className="space-y-4">
-                            <p className="text-sm text-muted-foreground leading-relaxed">
-                              {community.description}
-                            </p>
+                          <CardContent className="space-y-4 flex flex-col h-full">
+                            <div className="flex-1">
+                              <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+                                {community.description}
+                              </p>
 
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                              <div className="flex items-center gap-1">
-                                <Users className="h-4 w-4" />
-                                <span>
-                                  {community.member_count === 1 
-                                    ? '1 member' 
-                                    : `${community.member_count || 0} members`
-                                  }
-                                </span>
-                              </div>
-                              {community.location && (
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
                                 <div className="flex items-center gap-1">
-                                  <MapPin className="h-4 w-4" />
-                                  <span>{community.location}</span>
+                                  <Users className="h-4 w-4" />
+                                                             <span 
+                             className="cursor-pointer hover:text-foreground transition-colors"
+                             onClick={() => router.push(`/communities/${community.id}/members`)}
+                           >
+                             {community.member_count === 1 
+                               ? '1 member' 
+                               : `${community.member_count || 0} members`
+                             }
+                           </span>
                                 </div>
-                              )}
-                            </div>
-
-                            {/* Tags */}
-                            {community.tags && community.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mb-3">
-                                {community.tags.slice(0, 3).map((tag, index) => (
-                                  <Badge key={index} variant="outline" className="text-xs">
-                                    {tag}
-                                  </Badge>
-                                ))}
-                                {community.tags.length > 3 && (
-                                  <Badge variant="outline" className="text-xs">
-                                    +{community.tags.length - 3} more
-                                  </Badge>
+                                {community.location && (
+                                  <div className="flex items-center gap-1">
+                                    <MapPin className="h-4 w-4" />
+                                    <span>{community.location}</span>
+                                  </div>
                                 )}
                               </div>
-                            )}
 
-                            {/* Creation Date */}
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Calendar className="h-3 w-3" />
-                              <span>Created {new Date(community.created_at).toLocaleDateString()}</span>
+                              {/* Tags */}
+                              {community.tags && community.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mb-4">
+                                  {community.tags.slice(0, 3).map((tag, index) => (
+                                    <Badge key={index} variant="outline" className="text-xs">
+                                      {tag}
+                                    </Badge>
+                                  ))}
+                                  {community.tags.length > 3 && (
+                                    <Badge variant="outline" className="text-xs">
+                                      +{community.tags.length - 3} more
+                                    </Badge>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Creation Date */}
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Calendar className="h-3 w-3" />
+                                <span>Created {new Date(community.created_at).toLocaleDateString()}</span>
+                              </div>
                             </div>
 
-                            {/* Action Buttons */}
-                            <div className="flex items-center gap-2 pt-2">
+                            {/* Action Buttons - Always at bottom */}
+                            <div className="flex items-center gap-2 pt-4 mt-auto">
                               <Button 
                                 size="sm" 
                                 variant="outline"

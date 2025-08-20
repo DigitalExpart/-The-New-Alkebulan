@@ -148,6 +148,17 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
     try {
       const supabase = getSupabaseClient()
       
+      // Validate required fields
+      if (!content.trim()) {
+        toast.error("Post content cannot be empty")
+        return
+      }
+
+      if (!communityId) {
+        toast.error("Community ID is required")
+        return
+      }
+
       // First check if user is a member of the community
       const { data: membership, error: membershipError } = await supabase
         .from('community_members')
@@ -179,25 +190,33 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
       }
 
       // Create the post with enhanced fields
+      const postData = {
+        community_id: communityId,
+        user_id: user.id,
+        content: content.trim(),
+        media_urls: uploadedMediaUrls.length > 0 ? uploadedMediaUrls : null,
+        location_name: locationName || null,
+        location_coordinates: locationCoordinates ? `(${locationCoordinates.lat},${locationCoordinates.lng})` : null,
+        feels_emoji: selectedFeels?.emoji || null,
+        feels_description: selectedFeels?.description || null,
+        likes_count: 0,
+        comments_count: 0
+      }
+      
+      console.log('Attempting to insert post with data:', postData)
+      
       const { data: post, error: postError } = await supabase
         .from('community_posts')
-        .insert({
-          community_id: communityId,
-          user_id: user.id,
-          content: content.trim(),
-          media_urls: uploadedMediaUrls,
-          location_name: locationName || null,
-          location_coordinates: locationCoordinates ? `(${locationCoordinates.lat},${locationCoordinates.lng})` : null,
-          feels_emoji: selectedFeels?.emoji || null,
-          feels_description: selectedFeels?.description || null,
-          likes_count: 0,
-          comments_count: 0
-        })
+        .insert(postData)
         .select()
         .single()
 
       if (postError) {
         console.error('Post creation error:', postError)
+        console.log('Error details:', JSON.stringify(postError, null, 2))
+        console.log('Error message:', postError.message)
+        console.log('Error code:', postError.code)
+        console.log('Error details:', postError.details)
         throw postError
       }
 
@@ -220,7 +239,16 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
       
     } catch (error) {
       console.error('Error creating post:', error)
-      toast.error("Failed to create post. Please try again.")
+      console.log('Error type:', typeof error)
+      console.log('Error details:', JSON.stringify(error, null, 2))
+      
+      // Provide more specific error messages
+      let errorMessage = "Failed to create post. Please try again."
+      if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = `Post creation failed: ${error.message}`
+      }
+      
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }

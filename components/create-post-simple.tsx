@@ -66,6 +66,9 @@ export default function CreatePostSimple({ communityId, onPostCreated }: CreateP
 
       if (postError) {
         console.error('Post creation error:', postError)
+        console.log('Error details:', JSON.stringify(postError, null, 2))
+        console.log('Error message:', postError.message)
+        console.log('Error code:', postError.code)
         throw postError
       }
 
@@ -75,7 +78,16 @@ export default function CreatePostSimple({ communityId, onPostCreated }: CreateP
       
     } catch (error) {
       console.error('Error creating post:', error)
-      toast.error("Failed to create post. Please try again.")
+      console.log('Error type:', typeof error)
+      console.log('Error details:', JSON.stringify(error, null, 2))
+      
+      // Provide more specific error messages
+      let errorMessage = "Failed to create post. Please try again."
+      if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = `Post creation failed: ${error.message}`
+      }
+      
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }

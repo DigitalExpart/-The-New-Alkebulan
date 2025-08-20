@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Users, MapPin, MessageCircle, Heart, Share2, Play } from "lucide-react"
+import { Users, MapPin, MessageCircle, Heart, Share2, Play, Loader2 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { getSupabaseClient } from "@/lib/supabase"
 import { toast } from "sonner"
@@ -45,6 +45,7 @@ interface Post {
 
 export default function CommunityDetailPage() {
   const params = useParams()
+  const router = useRouter()
   const { user, profile } = useAuth()
   const [community, setCommunity] = useState<Community | null>(null)
   const [posts, setPosts] = useState<Post[]>([])
@@ -62,6 +63,7 @@ export default function CommunityDetailPage() {
   const fetchCommunity = async () => {
     try {
       const supabase = getSupabaseClient()
+      
       const { data, error } = await supabase
         .from('communities')
         .select('*')
@@ -79,6 +81,7 @@ export default function CommunityDetailPage() {
   const fetchPosts = async () => {
     try {
       const supabase = getSupabaseClient()
+      
       const { data, error } = await supabase
         .from('community_posts')
         .select(`
@@ -117,6 +120,7 @@ export default function CommunityDetailPage() {
       }
     } catch (error) {
       console.error('Error fetching posts:', error)
+      toast.error("Failed to load posts")
     } finally {
       setLoading(false)
     }
@@ -216,7 +220,19 @@ export default function CommunityDetailPage() {
       <div className="min-h-screen bg-muted/30 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading community...</p>
+          <p className="mt-4 text-muted-foreground mb-4">Loading community...</p>
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              setLoading(true)
+              fetchCommunity()
+              fetchPosts()
+              checkMembership()
+            }}
+          >
+            <Loader2 className="h-4 w-4 mr-2" />
+            Retry Loading
+          </Button>
         </div>
       </div>
     )
@@ -247,9 +263,25 @@ export default function CommunityDetailPage() {
                 <p className="text-muted-foreground text-lg mb-4">{community.description}</p>
                 
                 <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2">
                     <Users className="h-4 w-4" />
-                    <span>{community.member_count} members</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto p-0 text-sm text-muted-foreground hover:text-foreground underline decoration-dotted underline-offset-4"
+                      onClick={() => {
+                        console.log('Navigating to members page:', `/communities/${community.id}/members`)
+                        try {
+                          router.push(`/communities/${community.id}/members`)
+                        } catch (error) {
+                          console.error('Navigation error:', error)
+                          // Fallback to window.location if router fails
+                          window.location.href = `/communities/${community.id}/members`
+                        }
+                      }}
+                    >
+                      {community.member_count} members
+                    </Button>
                   </div>
                   {community.location && (
                     <div className="flex items-center gap-2">
@@ -281,13 +313,15 @@ export default function CommunityDetailPage() {
           </CardHeader>
         </Card>
 
-                 {/* Create Post */}
-         {isMember && (
-           <CreatePost 
-             communityId={communityId} 
-             onPostCreated={fetchPosts}
-           />
-         )}
+
+
+        {/* Create Post */}
+        {isMember && (
+          <CreatePost 
+            communityId={communityId} 
+            onPostCreated={fetchPosts}
+          />
+        )}
 
         {/* Posts */}
         <div className="space-y-6">

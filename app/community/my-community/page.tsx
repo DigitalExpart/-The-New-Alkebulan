@@ -357,7 +357,7 @@ export default function MyCommunityPage() {
                   </CardHeader>
                   <CardContent>
                     {userCommunities.length > 0 ? (
-                      <div className="grid gap-4">
+                      <div className="grid gap-4 auto-rows-fr">
                         {userCommunities.slice(0, 3).map((community) => (
                           <div key={community.id} className="flex items-center gap-4 p-4 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => handleViewCommunity(community.id)}>
                             <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
@@ -372,7 +372,12 @@ export default function MyCommunityPage() {
                               <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
                                 <span className="flex items-center gap-1">
                                   <Users className="h-3 w-3" />
-                                  {community.member_count} members
+                                                             <span 
+                             className="cursor-pointer hover:text-foreground transition-colors"
+                             onClick={() => router.push(`/communities/${community.id}/members`)}
+                           >
+                             {community.member_count} members
+                           </span>
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <Clock className="h-3 w-3" />
@@ -476,9 +481,9 @@ export default function MyCommunityPage() {
             </div>
 
             {userCommunities.length > 0 ? (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr">
                 {userCommunities.map((community) => (
-                  <Card key={community.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => handleViewCommunity(community.id)}>
+                  <Card key={community.id} className="hover:shadow-lg transition-shadow cursor-pointer h-full flex flex-col" onClick={() => handleViewCommunity(community.id)}>
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between mb-4">
                         <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">

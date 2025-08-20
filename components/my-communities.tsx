@@ -16,7 +16,8 @@ import {
   Settings,
   Plus,
   MessageSquare,
-  Heart
+  Heart,
+  Loader2
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -121,7 +122,15 @@ export default function MyCommunities() {
     return (
       <div className="text-center py-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-        <p className="text-muted-foreground text-sm">Loading communities...</p>
+        <p className="text-muted-foreground text-sm mb-4">Loading communities...</p>
+        <Button 
+          variant="outline" 
+          onClick={fetchMyCommunities}
+          size="sm"
+        >
+          <Loader2 className="h-4 w-4 mr-2" />
+          Retry Loading
+        </Button>
       </div>
     )
   }
@@ -145,63 +154,72 @@ export default function MyCommunities() {
   return (
     <div className="space-y-4">
       {communities.map((community) => (
-        <Card key={community.id} className="hover:shadow-md transition-shadow">
+        <Card key={community.id} className="hover:shadow-md transition-shadow overflow-hidden h-full flex flex-col">
           <CardContent className="p-4">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="font-semibold text-foreground">{community.name}</h3>
-                  <Badge variant="secondary" className="text-xs capitalize">
-                    {community.category}
-                  </Badge>
-                  {community.status === 'active' && (
-                    <Badge variant="default" className="text-xs bg-green-500">
-                      Active
-                    </Badge>
-                  )}
-                </div>
-                
-                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                  {community.description}
-                </p>
+                         <div className="flex flex-col lg:flex-row gap-4 h-full">
+               <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
+                 <div className="flex items-center gap-2 mb-2 flex-wrap">
+                   <h3 className="font-semibold text-foreground text-lg break-words">{community.name}</h3>
+                   <Badge variant="secondary" className="text-xs capitalize flex-shrink-0">
+                     {community.category}
+                   </Badge>
+                   {community.status === 'active' && (
+                     <Badge variant="default" className="text-xs bg-green-500 flex-shrink-0">
+                       Active
+                     </Badge>
+                   )}
+                 </div>
+                 
+                 <p className="text-sm text-muted-foreground mb-3 line-clamp-2 break-words">
+                   {community.description}
+                 </p>
 
-                <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
-                  {community.location && (
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      <span>{community.location}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-1">
-                    <Users className="h-3 w-3" />
-                    <span>{community.member_count} member{community.member_count !== 1 ? 's' : ''}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    <span>Created {formatDate(community.created_at)}</span>
-                  </div>
-                </div>
+                 <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3 flex-wrap">
+                   {community.location && (
+                     <div className="flex items-center gap-1 flex-shrink-0">
+                       <MapPin className="h-3 w-3" />
+                       <span className="break-words">{community.location}</span>
+                     </div>
+                   )}
+                   <div className="flex items-center gap-1 flex-shrink-0">
+                     <Users className="h-3 w-3" />
+                                           <span 
+                        className="cursor-pointer hover:text-foreground transition-colors"
+                        onClick={() => router.push(`/communities/${community.id}/members`)}
+                      >
+                        {community.member_count} member{community.member_count !== 1 ? 's' : ''}
+                      </span>
+                   </div>
+                   <div className="flex items-center gap-1 flex-shrink-0">
+                     <Calendar className="h-3 w-3" />
+                     <span>Created {formatDate(community.created_at)}</span>
+                   </div>
+                 </div>
 
-                {community.tags && community.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {community.tags.slice(0, 3).map((tag, index) => (
-                      <Badge key={index} variant="outline" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
-                    {community.tags.length > 3 && (
-                      <Badge variant="outline" className="text-xs">
-                        +{community.tags.length - 3} more
-                      </Badge>
-                    )}
-                  </div>
-                )}
-              </div>
+                 {community.tags && community.tags.length > 0 && (
+                   <div className="flex flex-wrap gap-1 mb-3">
+                     {community.tags.slice(0, 3).map((tag, index) => (
+                       <Badge key={index} variant="outline" className="text-xs flex-shrink-0">
+                         {tag}
+                       </Badge>
+                     ))}
+                     {community.tags.length > 3 && (
+                       <Badge variant="outline" className="text-xs flex-shrink-0">
+                         +{community.tags.length - 3} more
+                       </Badge>
+                     )}
+                   </div>
+                 )}
+                 
+                 {/* Spacer to push buttons to bottom */}
+                 <div className="flex-1"></div>
+               </div>
 
-              <div className="flex items-center gap-2 ml-4">
+               <div className="flex flex-wrap items-center gap-2 lg:flex-col lg:items-stretch lg:min-w-[120px] lg:flex-shrink-0 lg:justify-end">
                 <Button
                   variant="outline"
                   size="sm"
+                  className="flex-1 lg:flex-none lg:w-full"
                   onClick={() => router.push(`/communities/${community.id}`)}
                 >
                   <MessageSquare className="h-4 w-4 mr-1" />
@@ -210,6 +228,7 @@ export default function MyCommunities() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="flex-1 lg:flex-none lg:w-full"
                   onClick={() => router.push(`/communities/${community.id}/edit`)}
                 >
                   <Edit className="h-4 w-4 mr-1" />
@@ -218,6 +237,7 @@ export default function MyCommunities() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="flex-1 lg:flex-none lg:w-full"
                   onClick={() => router.push(`/communities/${community.id}/manage`)}
                 >
                   <Settings className="h-4 w-4 mr-1" />
@@ -226,6 +246,7 @@ export default function MyCommunities() {
                 <Button
                   variant="destructive"
                   size="sm"
+                  className="flex-1 lg:flex-none lg:w-full"
                   onClick={() => handleDeleteCommunity(community.id, community.name)}
                 >
                   <Trash2 className="h-4 w-4 mr-1" />

@@ -268,10 +268,20 @@ export default function ManageCommunityPage() {
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <span>Community Members</span>
-                  <Button size="sm" onClick={() => router.push(`/communities/${community.id}/invite`)}>
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Invite Members
-                  </Button>
+                  <div className="flex items-center gap-2">
+                                 <Button 
+               variant="outline" 
+               size="sm" 
+               onClick={() => router.push(`/communities/${params.id}/members`)}
+             >
+               <Users className="h-4 w-4 mr-1" />
+               View All
+             </Button>
+                    <Button size="sm" onClick={() => router.push(`/communities/${community.id}/invite`)}>
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Invite Members
+                    </Button>
+                  </div>
                 </CardTitle>
               </CardHeader>
               <CardContent>
