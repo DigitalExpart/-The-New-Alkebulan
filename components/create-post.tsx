@@ -204,12 +204,64 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
       }
       
       console.log('Attempting to insert post with data:', postData)
+      console.log('Post data type:', typeof postData)
+      console.log('Post data keys:', Object.keys(postData))
+      console.log('Community ID type:', typeof postData.community_id)
+      console.log('User ID type:', typeof postData.user_id)
+      console.log('Content type:', typeof postData.content)
+      console.log('Content length:', postData.content?.length)
       
-      const { data: post, error: postError } = await supabase
-        .from('community_posts')
-        .insert(postData)
-        .select()
-        .single()
+      let post = null
+      let postError = null
+      
+      try {
+        console.log('Attempting to insert post with full data...')
+        const { data, error } = await supabase
+          .from('community_posts')
+          .insert(postData)
+          .select()
+          .single()
+        
+        post = data
+        postError = error
+      } catch (insertError) {
+        console.log('Exception during insert:', insertError)
+        postError = insertError
+      }
+      
+      // If the full insert failed, try with minimal data
+      if (postError) {
+        console.log('Full insert failed, trying minimal insert...')
+        try {
+          const minimalData = {
+            community_id: postData.community_id,
+            user_id: postData.user_id,
+            content: postData.content,
+            likes_count: 0,
+            comments_count: 0
+          }
+          
+          console.log('Minimal data for fallback insert:', minimalData)
+          
+          const { data, error } = await supabase
+            .from('community_posts')
+            .insert(minimalData)
+            .select()
+            .single()
+          
+          if (error) {
+            console.log('Minimal insert also failed:', error)
+            postError = error
+          } else {
+            console.log('Minimal insert succeeded:', data)
+            post = data
+            postError = null
+          }
+        } catch (minimalError) {
+          console.log('Exception during minimal insert:', minimalError)
+          postError = minimalError
+        }
+      }
 
       if (postError) {
         console.error('Post creation error:', postError)
@@ -217,7 +269,31 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
         console.log('Error message:', postError.message)
         console.log('Error code:', postError.code)
         console.log('Error details:', postError.details)
-        throw postError
+        console.log('Error hint:', postError.hint)
+        console.log('Error where:', postError.where)
+        console.log('Error schema:', postError.schema)
+        console.log('Error table:', postError.table)
+        console.log('Error column:', postError.column)
+        console.log('Error dataType:', postError.dataType)
+        console.log('Error constraint:', postError.constraint)
+        
+        // Create a more informative error object
+        const enhancedError = {
+          originalError: postError,
+          message: postError.message || 'Unknown error',
+          code: postError.code || 'UNKNOWN',
+          details: postError.details || 'No details available',
+          hint: postError.hint || 'No hint available',
+          where: postError.where || 'Unknown location',
+          schema: postError.schema || 'Unknown schema',
+          table: postError.table || 'Unknown table',
+          column: postError.column || 'Unknown column',
+          dataType: postError.dataType || 'Unknown data type',
+          constraint: postError.constraint || 'Unknown constraint'
+        }
+        
+        console.log('Enhanced error object:', enhancedError)
+        throw enhancedError
       }
 
       // Update community post count if needed
@@ -242,11 +318,29 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
       console.log('Error type:', typeof error)
       console.log('Error details:', JSON.stringify(error, null, 2))
       
-      // Provide more specific error messages
+      // Handle enhanced error objects
       let errorMessage = "Failed to create post. Please try again."
-      if (error && typeof error === 'object' && 'message' in error) {
-        errorMessage = `Post creation failed: ${error.message}`
+      let errorDetails = "Unknown error"
+      
+      if (error && typeof error === 'object') {
+        // Check if it's our enhanced error object
+        if ('originalError' in error) {
+          errorMessage = `Post creation failed: ${error.message || 'Unknown error'}`
+          errorDetails = error.details || 'No details available'
+          
+          // Log additional context
+          if (error.table) console.log('Table with issue:', error.table)
+          if (error.column) console.log('Column with issue:', error.column)
+          if (error.constraint) console.log('Constraint issue:', error.constraint)
+          if (error.hint) console.log('Error hint:', error.hint)
+        } else if ('message' in error) {
+          errorMessage = `Post creation failed: ${error.message}`
+          errorDetails = error.details || error.message
+        }
       }
+      
+      console.log('Final error message:', errorMessage)
+      console.log('Final error details:', errorDetails)
       
       toast.error(errorMessage)
     } finally {
