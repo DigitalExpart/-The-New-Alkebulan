@@ -55,6 +55,7 @@ export default function CommunityDetailPage() {
   const communityId = params.id as string
 
   useEffect(() => {
+    console.log('useEffect triggered - communityId:', communityId, 'user:', user?.id)
     fetchCommunity()
     fetchPosts()
     checkMembership()
@@ -84,6 +85,14 @@ export default function CommunityDetailPage() {
       
       console.log('Fetching posts for community ID:', communityId)
       
+      // First, let's check if there are any posts at all
+      const { count: postCount } = await supabase
+        .from('community_posts')
+        .select('*', { count: 'exact', head: true })
+        .eq('community_id', communityId)
+      
+      console.log('Total posts count for this community:', postCount)
+      
       // First, try to fetch posts with profile data
       let postsData = null
       let postsError = null
@@ -94,7 +103,7 @@ export default function CommunityDetailPage() {
           .from('community_posts')
           .select(`
             *,
-            user:profiles!community_posts_user_id_fkey(
+            user:profiles(
               first_name,
               last_name,
               avatar_url
@@ -108,6 +117,10 @@ export default function CommunityDetailPage() {
           postsError = error
         } else {
           console.log('Successfully fetched posts with profiles:', data)
+          console.log('Number of posts found:', data?.length || 0)
+          if (data && data.length > 0) {
+            console.log('First post data:', data[0])
+          }
           postsData = data
         }
       } catch (profileError) {
@@ -419,7 +432,10 @@ export default function CommunityDetailPage() {
         {isMember && (
           <CreatePost 
             communityId={communityId} 
-            onPostCreated={fetchPosts}
+            onPostCreated={() => {
+              console.log('onPostCreated callback triggered - refreshing posts...')
+              fetchPosts()
+            }}
           />
         )}
 
