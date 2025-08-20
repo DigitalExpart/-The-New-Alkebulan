@@ -50,6 +50,7 @@ export default function CommunityDetailPage() {
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
   const [isMember, setIsMember] = useState(false)
+  
   const [createPostVisible, setCreatePostVisible] = useState(false)
 
   const communityId = params.id as string
