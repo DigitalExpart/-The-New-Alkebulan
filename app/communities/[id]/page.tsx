@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Users, MapPin, MessageCircle, Heart, Share2, Play } from "lucide-react"
+import { Users, MapPin, MessageCircle, Heart, Share2, Play, Plus } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { getSupabaseClient } from "@/lib/supabase"
 import { toast } from "sonner"
@@ -50,6 +50,7 @@ export default function CommunityDetailPage() {
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
   const [isMember, setIsMember] = useState(false)
+  const [createPostVisible, setCreatePostVisible] = useState(false)
 
   const communityId = params.id as string
 
@@ -211,6 +212,11 @@ export default function CommunityDetailPage() {
     }
   }
 
+  const onCreatePost = () => {
+  setCreatePostVisible(!createPostVisible)
+}
+
+
   if (loading) {
     return (
       <div className="min-h-screen bg-muted/30 flex items-center justify-center">
@@ -236,9 +242,11 @@ export default function CommunityDetailPage() {
 
   return (
     <div className="min-h-screen bg-muted/30">
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+      <div className="container mx-auto px-4 py-12 max-w-6xl lg:max-w-7xl max-md:w-[96vw]">
+        <div className="md:grid md:grid-cols-3 gap-8">
         {/* Community Header */}
-        <Card className="mb-8">
+        <div className="col-span-1">
+          <Card className="mb-8">
           <CardHeader>
             <div className="flex items-start justify-between">
               <div className="flex-1">
@@ -280,32 +288,82 @@ export default function CommunityDetailPage() {
             </div>
           </CardHeader>
         </Card>
+        </div>
+
 
                  {/* Create Post */}
-         {isMember && (
-           <CreatePost 
-             communityId={communityId} 
-             onPostCreated={fetchPosts}
-           />
-         )}
+        <div className="flex flex-col col-span-2 gap-4">
 
         {/* Posts */}
         <div className="space-y-6">
           {posts.length === 0 ? (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center py-12">
-                  <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No posts yet</h3>
-                  <p className="text-muted-foreground">
-                    {isMember 
-                      ? "Be the first to share something with your community!"
-                      : "Join the community to see posts and start conversations!"
-                    }
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            // <Card>
+            //   <CardContent className="pt-6">
+            //     <div className="text-center py-12">
+            //       <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            //       <h3 className="text-lg font-semibold mb-2">No posts yet</h3>
+            //       <p className="text-muted-foreground">
+            //         {isMember 
+            //           ? "Be the first to share something with your community!"
+            //           : "Join the community to see posts and start conversations!"
+            //         }
+            //       </p>
+            //     </div>
+            //   </CardContent>
+            // </Card>
+
+            <Card className="border-0 shadow-lg bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-950 dark:to-emerald-900 space-y-6">
+  <CardContent className="pt-8 pb-10">
+    <div className="text-center space-y-6">
+      {/* Animated Icon */}
+      <div className="relative mx-auto w-20 h-20">
+        <div className="absolute inset-0 bg-green-200 dark:bg-green-800 rounded-full opacity-50 animate-pulse flex items-center justify-center">
+          <MessageCircle className="h-12 w-12 text-green-600 dark:text-green-400 mx-auto relative z-10" />
+        </div>
+        
+      </div>
+      
+      {/* Text Content */}
+      <div className="space-y-3">
+        <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+          {isMember ? "Start the Conversation!" : "Join the Community!"}
+        </h3>
+        <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto leading-relaxed">
+          {isMember 
+            ? "Be the first to share your thoughts and inspire others in your community!"
+            : "Become a member to discover posts, share ideas, and connect with like-minded people!"
+          }
+        </p>
+      </div>
+
+      {/* Action Button */}
+      {isMember ? (
+        <Button 
+          className="bg-green-600 hover:bg-green-700 text-white px-8 py-6 rounded-full font-semibold transition-all duration-200 hover:shadow-lg"
+          onClick={onCreatePost}
+        >
+          <Plus className="w-5 h-5 mr-2" />
+          Create First Post
+        </Button>
+      ) : (
+        <Button 
+          className="bg-green-600 hover:bg-green-700 text-white px-8 py-6 rounded-full font-semibold transition-all duration-200 hover:shadow-lg"
+        >
+          <Users className="w-5 h-5 mr-2" />
+          Join Community
+        </Button>
+      )}
+
+      
+    </div>
+  </CardContent>
+  {isMember && createPostVisible && (
+           <CreatePost 
+             communityId={communityId} 
+             onPostCreated={fetchPosts}
+           />
+       )}
+</Card>
           ) : (
             posts.map((post) => (
               <Card key={post.id}>
@@ -400,6 +458,8 @@ export default function CommunityDetailPage() {
               </Card>
             ))
           )}
+        </div>
+        </div>
         </div>
       </div>
     </div>
