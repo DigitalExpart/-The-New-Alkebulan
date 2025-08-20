@@ -82,45 +82,103 @@ export default function CommunityDetailPage() {
     try {
       const supabase = getSupabaseClient()
       
-      const { data, error } = await supabase
-        .from('community_posts')
-        .select(`
-          *,
-          user:profiles!community_posts_user_id_fkey(
-            first_name,
-            last_name,
-            avatar_url
-          )
-        `)
-        .eq('community_id', communityId)
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
+      console.log('Fetching posts for community ID:', communityId)
       
-      // If user is logged in, check which posts they've liked
-      if (user && data) {
-        const postIds = data.map(post => post.id)
-        const { data: userLikes } = await supabase
-          .from('post_likes')
-          .select('post_id')
-          .eq('user_id', user.id)
-          .in('post_id', postIds)
+      // First, try to fetch posts with profile data
+      let postsData = null
+      let postsError = null
+      
+      try {
+        console.log('Attempting to fetch posts with profile data...')
+        const { data, error } = await supabase
+          .from('community_posts')
+          .select(`
+            *,
+            user:profiles!community_posts_user_id_fkey(
+              first_name,
+              last_name,
+              avatar_url
+            )
+          `)
+          .eq('community_id', communityId)
+          .order('created_at', { ascending: false })
 
-        const likedPostIds = new Set(userLikes?.map(like => like.post_id) || [])
-        
-        // Add like status to posts
-        const postsWithLikes = data.map(post => ({
-          ...post,
-          is_liked: likedPostIds.has(post.id)
-        }))
-        
-        setPosts(postsWithLikes)
+        if (error) {
+          console.log('Posts with profiles query error:', error)
+          postsError = error
+        } else {
+          console.log('Successfully fetched posts with profiles:', data)
+          postsData = data
+        }
+      } catch (profileError) {
+        console.log('Exception fetching posts with profiles:', profileError)
+        postsError = profileError
+      }
+
+      // If profiles failed, try to fetch just the posts
+      if (!postsData && postsError) {
+        try {
+          console.log('Attempting to fetch posts without profile data...')
+          const { data, error } = await supabase
+            .from('community_posts')
+            .select('*')
+            .eq('community_id', communityId)
+            .order('created_at', { ascending: false })
+
+          if (error) {
+            console.log('Basic posts query error:', error)
+            throw error
+          } else {
+            console.log('Successfully fetched basic posts:', data)
+            postsData = data
+          }
+        } catch (basicError) {
+          console.log('Exception fetching basic posts:', basicError)
+          throw basicError
+        }
+      }
+
+      if (!postsData) {
+        console.log('No posts data available')
+        setPosts([])
+        return
+      }
+
+      // If user is logged in, check which posts they've liked
+      if (user && postsData) {
+        try {
+          const postIds = postsData.map(post => post.id)
+          console.log('Fetching user likes for post IDs:', postIds)
+          
+          const { data: userLikes } = await supabase
+            .from('post_likes')
+            .select('post_id')
+            .eq('user_id', user.id)
+            .in('post_id', postIds)
+
+          const likedPostIds = new Set(userLikes?.map(like => like.post_id) || [])
+          
+          // Add like status to posts
+          const postsWithLikes = postsData.map(post => ({
+            ...post,
+            is_liked: likedPostIds.has(post.id)
+          }))
+          
+          console.log('Posts with likes data:', postsWithLikes)
+          setPosts(postsWithLikes)
+        } catch (likesError) {
+          console.log('Error fetching user likes, setting posts without likes:', likesError)
+          setPosts(postsData)
+        }
       } else {
-        setPosts(data)
+        setPosts(postsData)
       }
     } catch (error) {
       console.error('Error fetching posts:', error)
+      console.log('Error type:', typeof error)
+      console.log('Error details:', JSON.stringify(error, null, 2))
       toast.error("Failed to load posts")
+      setPosts([])
     } finally {
       setLoading(false)
     }

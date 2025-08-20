@@ -183,34 +183,82 @@ export default function MyCommunityPage() {
       
       // Only fetch posts if user has communities
       if (userCommunities.length > 0) {
-        const { data: posts, error } = await supabase
-          .from('community_posts')
-          .select(`
-            id,
-            content,
-            created_at,
-            user_id,
-            profiles!community_posts_user_id_fkey (
-              first_name,
-              last_name,
-              avatar_url
-            )
-          `)
-          .in('community_id', userCommunities.map(c => c.id))
-          .order('created_at', { ascending: false })
-          .limit(5)
+        console.log('Fetching recent posts for user communities...')
+        
+        // First, try to fetch posts with profile data
+        let postsData = null
+        let postsError = null
+        
+        try {
+          console.log('Attempting to fetch posts with profile data...')
+          const { data, error } = await supabase
+            .from('community_posts')
+            .select(`
+              id,
+              content,
+              created_at,
+              user_id,
+              profiles!community_posts_user_id_fkey (
+                first_name,
+                last_name,
+                avatar_url
+              )
+            `)
+            .in('community_id', userCommunities.map(c => c.id))
+            .order('created_at', { ascending: false })
+            .limit(5)
 
-        if (error) {
-          console.error('Error fetching posts:', error)
-          return
+          if (error) {
+            console.log('Posts with profiles query error:', error)
+            postsError = error
+          } else {
+            console.log('Successfully fetched posts with profiles:', data)
+            postsData = data
+          }
+        } catch (profileError) {
+          console.log('Exception fetching posts with profiles:', profileError)
+          postsError = error
         }
 
-        setRecentPosts(posts || [])
+        // If profiles failed, try to fetch just the posts
+        if (!postsData && postsError) {
+          try {
+            console.log('Attempting to fetch posts without profile data...')
+            const { data, error } = await supabase
+              .from('community_posts')
+              .select('id, content, created_at, user_id')
+              .in('community_id', userCommunities.map(c => c.id))
+              .order('created_at', { ascending: false })
+              .limit(5)
+
+            if (error) {
+              console.log('Basic posts query error:', error)
+              throw error
+            } else {
+              console.log('Successfully fetched basic posts:', data)
+              postsData = data
+            }
+          } catch (basicError) {
+            console.log('Exception fetching basic posts:', basicError)
+            throw basicError
+          }
+        }
+
+        if (postsData) {
+          console.log('Setting recent posts:', postsData)
+          setRecentPosts(postsData)
+        } else {
+          console.log('No posts data available')
+          setRecentPosts([])
+        }
       } else {
         setRecentPosts([])
       }
     } catch (error) {
       console.error('Error fetching posts:', error)
+      console.log('Error type:', typeof error)
+      console.log('Error details:', JSON.stringify(error, null, 2))
+      setRecentPosts([])
     }
   }
 
