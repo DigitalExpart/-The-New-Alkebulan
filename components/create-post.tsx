@@ -211,6 +211,40 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
       console.log('Content type:', typeof postData.content)
       console.log('Content length:', postData.content?.length)
       
+      // Debug Supabase client and auth state
+      console.log('=== SUPABASE DEBUG ===')
+      console.log('Supabase client:', supabase)
+      console.log('Current user:', user)
+      console.log('User ID:', user?.id)
+      console.log('User email:', user?.email)
+      console.log('Community ID:', communityId)
+      
+      // Check if user is authenticated
+      try {
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+        console.log('Auth user from supabase:', authUser)
+        console.log('Auth error:', authError)
+      } catch (authCheckError) {
+        console.log('Error checking auth:', authCheckError)
+      }
+      
+      // Check community membership again
+      try {
+        const { data: membershipCheck, error: membershipCheckError } = await supabase
+          .from('community_members')
+          .select('id, role')
+          .eq('community_id', communityId)
+          .eq('user_id', user.id)
+          .single()
+        
+        console.log('Membership check result:', membershipCheck)
+        console.log('Membership check error:', membershipCheckError)
+      } catch (membershipCheckError) {
+        console.log('Exception during membership check:', membershipCheckError)
+      }
+      
+      console.log('=== END SUPABASE DEBUG ===')
+      
       let post = null
       let postError = null
       
@@ -265,22 +299,66 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
 
       if (postError) {
         console.error('Post creation error:', postError)
-        console.log('Error details:', JSON.stringify(postError, null, 2))
-        console.log('Error message:', postError.message)
-        console.log('Error code:', postError.code)
-        console.log('Error details:', postError.details)
-        console.log('Error hint:', postError.hint)
-        console.log('Error where:', postError.where)
-        console.log('Error schema:', postError.schema)
-        console.log('Error table:', postError.table)
-        console.log('Error column:', postError.column)
-        console.log('Error dataType:', postError.dataType)
-        console.log('Error constraint:', postError.constraint)
+        
+        // Try multiple ways to extract error information
+        console.log('=== ERROR ANALYSIS ===')
+        console.log('Error object:', postError)
+        console.log('Error type:', typeof postError)
+        console.log('Error constructor:', postError.constructor?.name)
+        console.log('Error prototype:', Object.getPrototypeOf(postError))
+        
+        // Try JSON.stringify
+        try {
+          console.log('JSON.stringify result:', JSON.stringify(postError, null, 2))
+        } catch (jsonError) {
+          console.log('JSON.stringify failed:', jsonError)
+        }
+        
+        // Try Object.getOwnPropertyNames
+        try {
+          console.log('Own property names:', Object.getOwnPropertyNames(postError))
+        } catch (propError) {
+          console.log('getOwnPropertyNames failed:', propError)
+        }
+        
+        // Try Object.getOwnPropertyDescriptors
+        try {
+          console.log('Own property descriptors:', Object.getOwnPropertyDescriptors(postError))
+        } catch (descError) {
+          console.log('getOwnPropertyDescriptors failed:', descError)
+        }
+        
+        // Try to access common Supabase error properties
+        const errorProps = [
+          'message', 'code', 'details', 'hint', 'where', 'schema', 
+          'table', 'column', 'dataType', 'constraint', 'internal'
+        ]
+        
+        errorProps.forEach(prop => {
+          try {
+            const value = postError[prop]
+            console.log(`Error.${prop}:`, value)
+          } catch (propError) {
+            console.log(`Error accessing ${prop}:`, propError)
+          }
+        })
+        
+        // Try to convert to plain object
+        let plainError = {}
+        try {
+          plainError = Object.fromEntries(
+            Object.entries(postError).map(([key, value]) => [key, value])
+          )
+          console.log('Plain error object:', plainError)
+        } catch (convertError) {
+          console.log('Converting to plain object failed:', convertError)
+        }
         
         // Create a more informative error object
         const enhancedError = {
           originalError: postError,
-          message: postError.message || 'Unknown error',
+          plainError: plainError,
+          message: postError.message || postError.details || 'Unknown error',
           code: postError.code || 'UNKNOWN',
           details: postError.details || 'No details available',
           hint: postError.hint || 'No hint available',
@@ -289,10 +367,20 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
           table: postError.table || 'Unknown table',
           column: postError.column || 'Unknown column',
           dataType: postError.dataType || 'Unknown data type',
-          constraint: postError.constraint || 'Unknown constraint'
+          constraint: postError.constraint || 'Unknown constraint',
+          internal: postError.internal || 'No internal details'
         }
         
         console.log('Enhanced error object:', enhancedError)
+        console.log('=== END ERROR ANALYSIS ===')
+        
+        // Check if this is an RLS policy violation
+        if (postError.message && postError.message.includes('row-level security policy')) {
+          console.log('RLS POLICY VIOLATION DETECTED!')
+          console.log('This suggests the user does not have permission to insert into community_posts')
+          console.log('Check if the user is properly authenticated and has community membership')
+        }
+        
         throw enhancedError
       }
 
@@ -315,8 +403,22 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
       
     } catch (error) {
       console.error('Error creating post:', error)
+      console.log('=== CATCH BLOCK ERROR ANALYSIS ===')
       console.log('Error type:', typeof error)
-      console.log('Error details:', JSON.stringify(error, null, 2))
+      console.log('Error constructor:', error.constructor?.name)
+      
+      // Try multiple ways to extract error information
+      try {
+        console.log('JSON.stringify result:', JSON.stringify(error, null, 2))
+      } catch (jsonError) {
+        console.log('JSON.stringify failed:', jsonError)
+      }
+      
+      try {
+        console.log('Own property names:', Object.getOwnPropertyNames(error))
+      } catch (propError) {
+        console.log('getOwnPropertyNames failed:', propError)
+      }
       
       // Handle enhanced error objects
       let errorMessage = "Failed to create post. Please try again."
@@ -325,6 +427,7 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
       if (error && typeof error === 'object') {
         // Check if it's our enhanced error object
         if ('originalError' in error) {
+          console.log('Enhanced error object detected')
           errorMessage = `Post creation failed: ${error.message || 'Unknown error'}`
           errorDetails = error.details || 'No details available'
           
@@ -333,14 +436,29 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
           if (error.column) console.log('Column with issue:', error.column)
           if (error.constraint) console.log('Constraint issue:', error.constraint)
           if (error.hint) console.log('Error hint:', error.hint)
+          if (error.plainError) console.log('Plain error object:', error.plainError)
         } else if ('message' in error) {
+          console.log('Standard error object detected')
           errorMessage = `Post creation failed: ${error.message}`
           errorDetails = error.details || error.message
+        } else {
+          console.log('Unknown error object structure')
+          // Try to extract any readable information
+          const errorKeys = Object.keys(error)
+          console.log('Available error keys:', errorKeys)
+          errorKeys.forEach(key => {
+            try {
+              console.log(`Error.${key}:`, error[key])
+            } catch (keyError) {
+              console.log(`Error accessing ${key}:`, keyError)
+            }
+          })
         }
       }
       
       console.log('Final error message:', errorMessage)
       console.log('Final error details:', errorDetails)
+      console.log('=== END CATCH BLOCK ANALYSIS ===')
       
       toast.error(errorMessage)
     } finally {
