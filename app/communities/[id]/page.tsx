@@ -274,8 +274,6 @@ export default function CommunityDetailPage() {
     }
   }
 
-
-
   const handleLikePost = async (postId: string) => {
     if (!user) {
       toast.error("Please log in to like posts")
@@ -367,7 +365,7 @@ export default function CommunityDetailPage() {
                 <p className="text-muted-foreground text-lg mb-4">{community.description}</p>
                 
                 <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
-                                    <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2">
                     <Users className="h-4 w-4" />
                     <Button
                       variant="ghost"
@@ -416,8 +414,6 @@ export default function CommunityDetailPage() {
             </div>
           </CardHeader>
         </Card>
-
-
 
         {/* Create Post */}
         {isMember && (
@@ -468,84 +464,83 @@ export default function CommunityDetailPage() {
                           <span className="font-semibold">
                             {post.user.first_name} {post.user.last_name}
                           </span>
-                        <span className="text-sm text-muted-foreground">
-                          {new Date(post.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                      
-                                             <p className="text-foreground mb-4">{post.content}</p>
-                       
-                       {/* Media Display */}
-                       {post.media_urls && post.media_urls.length > 0 && (
-                         <div className="mb-4">
-                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                             {post.media_urls.map((url, index) => (
-                               <div key={index} className="relative aspect-video bg-muted rounded-lg overflow-hidden">
-                                 {post.media_type === 'video' ? (
-                                   <div className="w-full h-full flex items-center justify-center bg-muted">
-                                     <Play className="h-12 w-12 text-muted-foreground" />
-                                     <span className="text-sm text-muted-foreground ml-2">Video</span>
-                                   </div>
-                                 ) : (
-                                   <img
-                                     src={url}
-                                     alt={`Post media ${index + 1}`}
-                                     className="w-full h-full object-cover"
-                                   />
-                                 )}
-                               </div>
-                             ))}
-                           </div>
-                         </div>
-                       )}
-                       
-                       {/* Location and Feels */}
-                       <div className="flex items-center gap-4 mb-4 text-sm text-muted-foreground">
-                         {post.location_name && (
-                           <div className="flex items-center gap-1">
-                             <MapPin className="h-4 w-4" />
-                             <span>{post.location_name}</span>
-                           </div>
-                         )}
-                         {post.feels_emoji && (
-                           <div className="flex items-center gap-1">
-                             <span className="text-lg">{post.feels_emoji}</span>
-                             <span>{post.feels_description}</span>
-                           </div>
-                         )}
-                       </div>
-                       
-                       {/* Post Actions */}
-                       <div className="flex items-center gap-6">
-                        <button
-                          onClick={() => handleLikePost(post.id)}
-                          className={`flex items-center gap-2 text-sm transition-colors ${
-                            post.is_liked 
-                              ? 'text-red-500' 
-                              : 'text-muted-foreground hover:text-foreground'
-                          }`}
-                        >
-                          <Heart className={`h-4 w-4 ${post.is_liked ? 'fill-current' : ''}`} />
-                          <span>{post.likes_count}</span>
-                        </button>
+                          <span className="text-sm text-muted-foreground">
+                            {new Date(post.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
                         
-                        <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                          <MessageCircle className="h-4 w-4" />
-                          <span>{post.comments_count}</span>
-                        </button>
+                        <p className="text-foreground mb-4">{post.content}</p>
                         
-                        <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                          <Share2 className="h-4 w-4" />
-                          <span>Share</span>
-                        </button>
+                        {/* Media Display */}
+                        {post.media_urls && post.media_urls.length > 0 && (
+                          <div className="mb-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {post.media_urls.map((url, index) => (
+                                <div key={index} className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+                                  {post.media_type === 'video' ? (
+                                    <div className="w-full h-full flex items-center justify-center bg-muted">
+                                      <Play className="h-12 w-12 text-muted-foreground" />
+                                      <span className="text-sm text-muted-foreground ml-2">Video</span>
+                                    </div>
+                                  ) : (
+                                    <img
+                                      src={url}
+                                      alt={`Post media ${index + 1}`}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Location and Feels */}
+                        <div className="flex items-center gap-4 mb-4 text-sm text-muted-foreground">
+                          {post.location_name && (
+                            <div className="flex items-center gap-1">
+                              <MapPin className="h-4 w-4" />
+                              <span>{post.location_name}</span>
+                            </div>
+                          )}
+                          {post.feels_emoji && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-lg">{post.feels_emoji}</span>
+                              <span>{post.feels_description}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Post Actions */}
+                        <div className="flex items-center gap-6">
+                          <button
+                            onClick={() => handleLikePost(post.id)}
+                            className={`flex items-center gap-2 text-sm transition-colors ${
+                              post.is_liked 
+                                ? 'text-red-500' 
+                                : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            <Heart className={`h-4 w-4 ${post.is_liked ? 'fill-current' : ''}`} />
+                            <span>{post.likes_count}</span>
+                          </button>
+                          
+                          <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                            <MessageCircle className="h-4 w-4" />
+                            <span>{post.comments_count}</span>
+                          </button>
+                          
+                          <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                            <Share2 className="h-4 w-4" />
+                            <span>Share</span>
+                          </button>
+                        </div>
                       </div>
-                                            </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })
-            ).filter(Boolean) // Remove any null posts
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            }).filter(Boolean) // Remove any null posts
           )}
         </div>
       </div>
