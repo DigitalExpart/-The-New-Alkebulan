@@ -115,7 +115,7 @@ export default function CommunityDetailPage() {
         postsError = profileError
       }
 
-      // If profiles failed, try to fetch just the posts
+      // If profiles failed, try to fetch just the posts and get basic user info
       if (!postsData && postsError) {
         try {
           console.log('Attempting to fetch posts without profile data...')
@@ -130,7 +130,53 @@ export default function CommunityDetailPage() {
             throw error
           } else {
             console.log('Successfully fetched basic posts:', data)
-            postsData = data
+            
+            // Try to get basic user info from auth.users table
+            if (data && data.length > 0) {
+              const userIds = [...new Set(data.map(post => post.user_id))]
+              console.log('Fetching basic user info for user IDs:', userIds)
+              
+              try {
+                const { data: userData, error: userError } = await supabase
+                  .from('auth.users')
+                  .select('id, email')
+                  .in('id', userIds)
+                
+                if (userError) {
+                  console.log('Error fetching user data from auth.users:', userError)
+                } else {
+                  console.log('Successfully fetched user data:', userData)
+                  // Create a map of user_id to user data
+                  const userMap = new Map(userData?.map(u => [u.id, u]) || [])
+                  
+                  // Add user data to posts
+                  postsData = data.map(post => {
+                    const userInfo = userMap.get(post.user_id)
+                    return {
+                      ...post,
+                      user: {
+                        first_name: 'User',
+                        last_name: userInfo?.email ? userInfo.email.split('@')[0] : post.user_id.slice(0, 8),
+                        avatar_url: undefined
+                      }
+                    }
+                  })
+                }
+              } catch (userFetchError) {
+                console.log('Exception fetching user data:', userFetchError)
+                // Fallback to basic user data
+                postsData = data.map(post => ({
+                  ...post,
+                  user: {
+                    first_name: 'User',
+                    last_name: post.user_id ? post.user_id.slice(0, 8) : 'Unknown',
+                    avatar_url: undefined
+                  }
+                }))
+              }
+            } else {
+              postsData = []
+            }
           }
         } catch (basicError) {
           console.log('Exception fetching basic posts:', basicError)
@@ -138,10 +184,10 @@ export default function CommunityDetailPage() {
         }
       }
 
+      // Ensure postsData is always defined
       if (!postsData) {
-        console.log('No posts data available')
-        setPosts([])
-        return
+        console.log('No posts data available, setting empty array')
+        postsData = []
       }
 
       // If user is logged in, check which posts they've liked
@@ -399,22 +445,29 @@ export default function CommunityDetailPage() {
               </CardContent>
             </Card>
           ) : (
-            posts.map((post) => (
-              <Card key={post.id}>
-                <CardContent className="pt-6">
-                  <div className="flex gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={post.user.avatar_url} />
-                      <AvatarFallback>
-                        {post.user.first_name[0]}{post.user.last_name[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                    
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-semibold">
-                          {post.user.first_name} {post.user.last_name}
-                        </span>
+            posts.map((post) => {
+              // Safety check for post.user
+              if (!post.user) {
+                console.warn('Post missing user data:', post)
+                return null // Skip rendering this post
+              }
+              
+              return (
+                <Card key={post.id}>
+                  <CardContent className="pt-6">
+                    <div className="flex gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={post.user.avatar_url} />
+                        <AvatarFallback>
+                          {post.user.first_name[0]}{post.user.last_name[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-semibold">
+                            {post.user.first_name} {post.user.last_name}
+                          </span>
                         <span className="text-sm text-muted-foreground">
                           {new Date(post.created_at).toLocaleDateString()}
                         </span>
@@ -486,11 +539,13 @@ export default function CommunityDetailPage() {
                           <span>Share</span>
                         </button>
                       </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                                            </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })
+            ).filter(Boolean) // Remove any null posts
           )}
         </div>
       </div>
