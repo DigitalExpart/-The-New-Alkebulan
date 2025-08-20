@@ -57,22 +57,54 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || [])
+    console.log('=== FILE SELECTION DEBUG ===')
+    console.log('Selected files:', files.map(f => ({ name: f.name, type: f.type, size: f.size })))
+    
     const validFiles = files.filter(file => {
-      const isValidImage = file.type.startsWith('image/') && file.size <= 10 * 1024 * 1024 // 10MB
-      const isValidVideo = file.type.startsWith('video/') && file.size <= 100 * 1024 * 1024 // 100MB
+      console.log('Validating file:', file.name, 'Type:', file.type, 'Size:', file.size)
+      
+      // Check file type
+      const isValidImage = file.type.startsWith('image/')
+      const isValidVideo = file.type.startsWith('video/')
       
       if (!isValidImage && !isValidVideo) {
+        console.error('Invalid file type:', file.type, 'for file:', file.name)
         toast.error(`${file.name} is not a valid image or video file`)
         return false
       }
       
-      if (file.size > (file.type.startsWith('image/') ? 10 * 1024 * 1024 : 100 * 1024 * 1024)) {
-        toast.error(`${file.name} is too large`)
+      // Check file size based on type
+      const maxImageSize = 10 * 1024 * 1024 // 10MB
+      const maxVideoSize = 100 * 1024 * 1024 // 100MB
+      const maxSize = isValidImage ? maxImageSize : maxVideoSize
+      
+      if (file.size > maxSize) {
+        console.error('File too large:', file.name, 'Size:', file.size, 'Max:', maxSize)
+        toast.error(`${file.name} is too large (max ${isValidImage ? '10MB' : '100MB'})`)
         return false
       }
       
+      // Additional format validation for common types
+      const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+      const allowedVideoTypes = ['video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/flv', 'video/webm']
+      
+      if (isValidImage && !allowedImageTypes.includes(file.type)) {
+        console.warn('Unsupported image format:', file.type, 'for file:', file.name)
+        toast.error(`${file.name} has an unsupported image format. Use JPEG, PNG, GIF, or WebP`)
+        return false
+      }
+      
+      if (isValidVideo && !allowedVideoTypes.includes(file.type)) {
+        console.warn('Unsupported video format:', file.type, 'for file:', file.name)
+        toast.error(`${file.name} has an unsupported video format. Use MP4, AVI, MOV, WMV, FLV, or WebM`)
+        return false
+      }
+      
+      console.log('File validation passed:', file.name)
       return true
     })
+    
+    console.log('Valid files after filtering:', validFiles.length)
     
     if (validFiles.length + mediaFiles.length > 5) {
       toast.error("Maximum 5 media files allowed per post")
@@ -80,6 +112,7 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
     }
     
     setMediaFiles(prev => [...prev, ...validFiles])
+    console.log('=== END FILE SELECTION DEBUG ===')
   }
 
   const removeMediaFile = (index: number) => {
@@ -175,18 +208,67 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
       // Upload media files first if any
       let uploadedMediaUrls: string[] = []
       if (mediaFiles.length > 0) {
+        console.log('=== MEDIA UPLOAD DEBUG ===')
+        console.log('Number of files to upload:', mediaFiles.length)
+        
         for (const file of mediaFiles) {
           try {
-            // For now, we'll use a placeholder approach
-            // In production, you'd upload to Supabase Storage or another service
-            const fileName = `${Date.now()}-${file.name}`
-            const fileUrl = `https://via.placeholder.com/400x300/666666/FFFFFF?text=${encodeURIComponent(fileName)}`
-            uploadedMediaUrls.push(fileUrl)
+            console.log('Processing file:', file.name)
+            console.log('File type:', file.type)
+            console.log('File size:', file.size, 'bytes')
+            
+            // Validate file type and size
+            const isValidImage = file.type.startsWith('image/') && file.size <= 10 * 1024 * 1024 // 10MB
+            const isValidVideo = file.type.startsWith('video/') && file.size <= 100 * 1024 * 1024 // 100MB
+            
+            if (!isValidImage && !isValidVideo) {
+              console.error('Invalid file type:', file.type)
+              toast.error(`${file.name} is not a valid image or video file`)
+              continue
+            }
+            
+            // Generate unique filename with timestamp and original extension
+            const fileExtension = file.name.split('.').pop()
+            const timestamp = Date.now()
+            const uniqueFileName = `${timestamp}-${Math.random().toString(36).substring(2)}.${fileExtension}`
+            
+            console.log('Generated filename:', uniqueFileName)
+            
+            // Upload to Supabase Storage
+            const { data: uploadData, error: uploadError } = await supabase.storage
+              .from('community-media')
+              .upload(uniqueFileName, file, {
+                cacheControl: '3600',
+                upsert: false
+              })
+            
+            if (uploadError) {
+              console.error('Upload error for', file.name, ':', uploadError)
+              toast.error(`Failed to upload ${file.name}: ${uploadError.message}`)
+              continue
+            }
+            
+            // Get public URL for the uploaded file
+            const { data: urlData } = supabase.storage
+              .from('community-media')
+              .getPublicUrl(uniqueFileName)
+            
+            if (urlData?.publicUrl) {
+              console.log('Successfully uploaded:', file.name, 'to:', urlData.publicUrl)
+              uploadedMediaUrls.push(urlData.publicUrl)
+            } else {
+              console.error('Failed to get public URL for:', file.name)
+              toast.error(`Failed to get public URL for ${file.name}`)
+            }
+            
           } catch (error) {
-            console.error('Error uploading file:', error)
+            console.error('Error uploading file:', file.name, ':', error)
             toast.error(`Failed to upload ${file.name}`)
           }
         }
+        
+        console.log('Final uploaded URLs:', uploadedMediaUrls)
+        console.log('=== END MEDIA UPLOAD DEBUG ===')
       }
 
       // Create the post with enhanced fields
@@ -499,11 +581,14 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
             />
           </div>
 
-          {/* Media Upload Section */}
-          {mediaFiles.length > 0 && (
-            <div className="space-y-2">
-              <Label>Media Files</Label>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                     {/* Media Upload Section */}
+           {mediaFiles.length > 0 && (
+             <div className="space-y-2">
+               <Label>Media Files</Label>
+               <div className="text-xs text-muted-foreground mb-2">
+                 Supported formats: Images (JPEG, PNG, GIF, WebP) up to 10MB, Videos (MP4, AVI, MOV, WMV, FLV, WebM) up to 100MB
+               </div>
+               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {mediaFiles.map((file, index) => (
                   <div key={index} className="relative group">
                     <div className="aspect-square bg-muted rounded-lg flex items-center justify-center overflow-hidden">
@@ -552,7 +637,7 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
               ref={fileInputRef}
               type="file"
               multiple
-              accept="image/*,video/*"
+              accept=".jpg,.jpeg,.png,.gif,.webp,.mp4,.avi,.mov,.wmv,.flv,.webm"
               onChange={handleFileSelect}
               className="hidden"
             />
