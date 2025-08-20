@@ -203,6 +203,19 @@ export default function CommunityDetailPage() {
         postsData = []
       }
 
+      console.log('Final postsData before setting state:', postsData)
+      console.log('Posts data type:', typeof postsData)
+      console.log('Posts data length:', postsData?.length || 0)
+      if (postsData && postsData.length > 0) {
+        console.log('Sample post structure:', {
+          id: postsData[0].id,
+          content: postsData[0].content,
+          user: postsData[0].user,
+          hasUser: !!postsData[0].user,
+          userType: typeof postsData[0].user
+        })
+      }
+
       // If user is logged in, check which posts they've liked
       if (user && postsData) {
         try {
@@ -224,12 +237,15 @@ export default function CommunityDetailPage() {
           }))
           
           console.log('Posts with likes data:', postsWithLikes)
+          console.log('Setting posts state with likes data, count:', postsWithLikes.length)
           setPosts(postsWithLikes)
         } catch (likesError) {
           console.log('Error fetching user likes, setting posts without likes:', likesError)
+          console.log('Setting posts state without likes, count:', postsData.length)
           setPosts(postsData)
         }
       } else {
+        console.log('Setting posts state (no user), count:', postsData.length)
         setPosts(postsData)
       }
     } catch (error) {
@@ -433,7 +449,8 @@ export default function CommunityDetailPage() {
           <CreatePost 
             communityId={communityId} 
             onPostCreated={() => {
-              console.log('onPostCreated callback triggered - refreshing posts...')
+              console.log('🎉 onPostCreated callback triggered - refreshing posts...')
+              toast.success('Refreshing posts...')
               fetchPosts()
             }}
           />
@@ -441,6 +458,7 @@ export default function CommunityDetailPage() {
 
         {/* Posts */}
         <div className="space-y-6">
+          {console.log('Rendering posts section, posts count:', posts.length, 'posts:', posts)}
           {posts.length === 0 ? (
             <Card>
               <CardContent className="pt-6">
