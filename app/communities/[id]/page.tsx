@@ -95,6 +95,7 @@ export default function CommunityDetailPage() {
 
       if (error) throw error
       
+
       // If user is logged in, check which posts they've liked
       if (user && data) {
         const postIds = data.map(post => post.id)
@@ -244,6 +245,7 @@ export default function CommunityDetailPage() {
     <div className="min-h-screen bg-muted/30">
       <div className="container mx-auto px-4 py-12 max-w-6xl lg:max-w-7xl max-md:w-[96vw]">
         <div className="md:grid md:grid-cols-3 gap-8">
+        
         {/* Community Header */}
         <div className="col-span-1">
           <Card className="mb-8">
