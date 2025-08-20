@@ -285,6 +285,7 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
         comments_count: 0
       }
       
+      console.log('=== POST CREATION DEBUG ===')
       console.log('Attempting to insert post with data:', postData)
       console.log('Post data type:', typeof postData)
       console.log('Post data keys:', Object.keys(postData))
@@ -294,7 +295,6 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
       console.log('Content length:', postData.content?.length)
       
       // Debug Supabase client and auth state
-      console.log('=== SUPABASE DEBUG ===')
       console.log('Supabase client:', supabase)
       console.log('Current user:', user)
       console.log('User ID:', user?.id)
@@ -325,7 +325,7 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
         console.log('Exception during membership check:', membershipCheckError)
       }
       
-      console.log('=== END SUPABASE DEBUG ===')
+      console.log('=== END POST CREATION DEBUG ===')
       
       let post = null
       let postError = null
@@ -474,6 +474,10 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
         })
         .eq('id', communityId)
 
+      console.log('=== POST CREATION SUCCESS ===')
+      console.log('Post created successfully:', post)
+      console.log('Calling onPostCreated callback...')
+      
       toast.success("Post created successfully!")
       setContent("")
       setMediaFiles([])
@@ -481,7 +485,11 @@ export default function CreatePost({ communityId, onPostCreated }: CreatePostPro
       setLocationName("")
       setLocationCoordinates(null)
       setSelectedFeels(null)
+      
+      console.log('About to call onPostCreated()...')
       onPostCreated() // Refresh the posts list
+      console.log('onPostCreated() called successfully')
+      console.log('=== END POST CREATION SUCCESS ===')
       
     } catch (error) {
       console.error('Error creating post:', error)

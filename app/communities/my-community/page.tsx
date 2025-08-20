@@ -25,6 +25,7 @@ import {
   Crown
 } from "lucide-react"
 import { toast } from "sonner"
+import RecentActivities from "@/components/recent-activities"
 
 interface Community {
   id: string
@@ -650,36 +651,7 @@ export default function MyCommunityPage() {
                     <CardDescription>Latest community updates</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {recentPosts.length > 0 ? (
-                      <div className="space-y-4">
-                        {recentPosts.map((post) => (
-                          <div key={post.id} className="flex items-start gap-3">
-                            <Avatar className="w-8 h-8">
-                              <AvatarImage src={post.profile?.avatar_url || ""} />
-                              <AvatarFallback>
-                                {post.profile?.first_name?.charAt(0) || "U"}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <p className="text-sm font-medium truncate">
-                                  {post.profile?.first_name} {post.profile?.last_name}
-                                </p>
-                              </div>
-                              <p className="text-sm text-muted-foreground line-clamp-2">{post.content}</p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {formatDate(post.created_at)}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-4">
-                        <MessageSquare className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-sm text-muted-foreground">No recent activity</p>
-                      </div>
-                    )}
+                    <RecentActivities />
                   </CardContent>
                 </Card>
 

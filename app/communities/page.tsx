@@ -63,18 +63,28 @@ export default function CommunitiesPage() {
     fetchCommunities()
   }, [])
 
+  // Refresh member counts when page becomes visible again
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && communities.length > 0) {
+        // Only refresh if we have communities and the page becomes visible
+        refreshCommunities()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [communities.length])
+
   const fetchCommunities = async () => {
     try {
       setLoading(true)
       const supabase = getSupabaseClient()
       
-      // Optimized query with limit for faster initial load
+      // First, fetch all communities
       const { data: communitiesData, error: communitiesError } = await supabase
         .from('communities')
-        .select(`
-          *,
-          member_count:community_members(count)
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(50) // Limit initial load for faster performance
 
@@ -86,13 +96,46 @@ export default function CommunitiesPage() {
 
       // Process the data with proper member counts
       if (communitiesData && communitiesData.length > 0) {
-        const processedCommunities = communitiesData.map(community => ({
-          ...community,
-          member_count: Array.isArray(community.member_count) 
-            ? community.member_count.length 
-            : 0
-        }))
-        setCommunities(processedCommunities)
+        console.log('=== FETCHING MEMBER COUNTS ===')
+        console.log('Communities found:', communitiesData.length)
+        
+        // Fetch actual member counts for each community
+        const communitiesWithMemberCounts = await Promise.all(
+          communitiesData.map(async (community) => {
+            try {
+              console.log(`Fetching member count for community: ${community.name} (${community.id})`)
+              const { count: memberCount, error: countError } = await supabase
+                .from('community_members')
+                .select('*', { count: 'exact', head: true })
+                .eq('community_id', community.id)
+              
+              if (countError) {
+                console.error(`Error fetching member count for community ${community.id}:`, countError)
+                return {
+                  ...community,
+                  member_count: 0
+                }
+              }
+              
+              console.log(`Community ${community.name}: ${memberCount} members`)
+              return {
+                ...community,
+                member_count: memberCount || 0
+              }
+            } catch (error) {
+              console.error(`Error processing community ${community.id}:`, error)
+              return {
+                ...community,
+                member_count: 0
+              }
+            }
+          })
+        )
+        
+        console.log('Final communities with member counts:', communitiesWithMemberCounts)
+        console.log('=== END FETCHING MEMBER COUNTS ===')
+        
+        setCommunities(communitiesWithMemberCounts)
         setHasMore(communitiesData.length === 50) // Check if there are more communities
       } else {
         setCommunities([])
@@ -147,43 +190,58 @@ export default function CommunitiesPage() {
   }
 
   const handleSearch = async () => {
-    const trimmedQuery = searchQuery.trim()
+    if (!searchQuery.trim()) return
     
-    if (!trimmedQuery) {
-      fetchCommunities()
-      return
-    }
-
     try {
       setSearchLoading(true)
       const supabase = getSupabaseClient()
       
-      // Fast search without timeout
-      const { data: searchResults, error } = await supabase
+      const { data: searchResults, error: searchError } = await supabase
         .from('communities')
-        .select(`
-          *,
-          member_count:community_members(count)
-        `)
-        .or(`name.ilike.%${trimmedQuery}%,description.ilike.%${trimmedQuery}%,category.ilike.%${trimmedQuery}%`)
+        .select('*')
+        .or(`name.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`)
         .order('created_at', { ascending: false })
 
-      if (error) {
-        console.error('Search error:', error)
-        toast.error('Search failed. Please try again.')
+      if (searchError) {
+        console.error('Search error:', searchError)
+        toast.error('Search failed')
         return
       }
 
-      // Process search results
       if (searchResults && searchResults.length > 0) {
-        const processedResults = searchResults.map(community => ({
-          ...community,
-          member_count: Array.isArray(community.member_count) 
-            ? community.member_count.length 
-            : 0
-        }))
-        setCommunities(processedResults)
-        toast.success(`Found ${processedResults.length} community${processedResults.length !== 1 ? 's' : ''}`)
+        // Fetch actual member counts for search results
+        const searchResultsWithMemberCounts = await Promise.all(
+          searchResults.map(async (community) => {
+            try {
+              const { count: memberCount, error: countError } = await supabase
+                .from('community_members')
+                .select('*', { count: 'exact', head: true })
+                .eq('community_id', community.id)
+              
+              if (countError) {
+                console.error(`Error fetching member count for community ${community.id}:`, countError)
+                return {
+                  ...community,
+                  member_count: 0
+                }
+              }
+              
+              return {
+                ...community,
+                member_count: memberCount || 0
+              }
+            } catch (error) {
+              console.error(`Error processing community ${community.id}:`, error)
+              return {
+                ...community,
+                member_count: 0
+              }
+            }
+          })
+        )
+        
+        setCommunities(searchResultsWithMemberCounts)
+        toast.success(`Found ${searchResultsWithMemberCounts.length} community${searchResultsWithMemberCounts.length !== 1 ? 's' : ''}`)
       } else {
         setCommunities([])
         toast.info('No communities found matching your search. Try different keywords.')
@@ -194,6 +252,13 @@ export default function CommunitiesPage() {
     } finally {
       setSearchLoading(false)
     }
+  }
+
+  // Function to refresh all community data including member counts
+  const refreshCommunities = async () => {
+    setLoading(true)
+    await fetchCommunities()
+    setLoading(false)
   }
 
   // Debounced search for better mobile experience
@@ -285,14 +350,23 @@ export default function CommunitiesPage() {
 
           {/* Action Buttons Row */}
           <div className="flex flex-col sm:flex-row gap-3">
-                      <Button 
-            className="w-full sm:w-auto"
-            onClick={() => router.push('/communities/create')}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Create Community
-          </Button>
-          
+            <Button 
+              className="w-full sm:w-auto"
+              onClick={() => router.push('/communities/create')}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Create Community
+            </Button>
+            
+            <Button 
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={refreshCommunities}
+              disabled={loading}
+            >
+              <Loader2 className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
 
             
             {/* Search Status */}

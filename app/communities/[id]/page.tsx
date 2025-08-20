@@ -51,6 +51,7 @@ export default function CommunityDetailPage() {
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
   const [isMember, setIsMember] = useState(false)
+  const [actualMemberCount, setActualMemberCount] = useState(0)
 
   const communityId = params.id as string
 
@@ -59,6 +60,7 @@ export default function CommunityDetailPage() {
     fetchCommunity()
     fetchPosts()
     checkMembership()
+    fetchActualMemberCount()
   }, [communityId, user])
 
   const fetchCommunity = async () => {
@@ -83,15 +85,28 @@ export default function CommunityDetailPage() {
     try {
       const supabase = getSupabaseClient()
       
+      console.log('=== FETCH POSTS DEBUG ===')
       console.log('Fetching posts for community ID:', communityId)
+      console.log('Current user:', user)
+      console.log('User ID:', user?.id)
       
       // First, let's check if there are any posts at all
-      const { count: postCount } = await supabase
+      const { count: postCount, error: countError } = await supabase
         .from('community_posts')
         .select('*', { count: 'exact', head: true })
         .eq('community_id', communityId)
       
+      console.log('Post count query result:', { postCount, countError })
       console.log('Total posts count for this community:', postCount)
+      
+      // Check if the community_posts table exists and has the right structure
+      const { data: tableInfo, error: tableError } = await supabase
+        .from('information_schema.columns')
+        .select('column_name, data_type, is_nullable')
+        .eq('table_name', 'community_posts')
+        .eq('table_schema', 'public')
+      
+      console.log('Table structure info:', { tableInfo, tableError })
       
       // First, try to fetch posts with profile data
       let postsData = null
@@ -112,6 +127,8 @@ export default function CommunityDetailPage() {
           .eq('community_id', communityId)
           .order('created_at', { ascending: false })
 
+        console.log('Posts with profiles query result:', { data, error })
+        
         if (error) {
           console.log('Posts with profiles query error:', error)
           postsError = error
@@ -138,6 +155,8 @@ export default function CommunityDetailPage() {
             .eq('community_id', communityId)
             .order('created_at', { ascending: false })
 
+          console.log('Basic posts query result:', { data, error })
+          
           if (error) {
             console.log('Basic posts query error:', error)
             throw error
@@ -154,6 +173,8 @@ export default function CommunityDetailPage() {
                   .from('auth.users')
                   .select('id, email')
                   .in('id', userIds)
+                
+                console.log('User data query result:', { userData, userError })
                 
                 if (userError) {
                   console.log('Error fetching user data from auth.users:', userError)
@@ -248,10 +269,15 @@ export default function CommunityDetailPage() {
         console.log('Setting posts state (no user), count:', postsData.length)
         setPosts(postsData)
       }
-    } catch (error) {
+      
+      console.log('=== END FETCH POSTS DEBUG ===')
+    } catch (error: unknown) {
       console.error('Error fetching posts:', error)
+      console.log('=== FETCH POSTS ERROR ANALYSIS ===')
       console.log('Error type:', typeof error)
+      console.log('Error constructor:', error?.constructor?.name)
       console.log('Error details:', JSON.stringify(error, null, 2))
+      console.log('=== END FETCH POSTS ERROR ANALYSIS ===')
       toast.error("Failed to load posts")
       setPosts([])
     } finally {
@@ -270,7 +296,8 @@ export default function CommunityDetailPage() {
         .eq('user_id', user.id)
         .single()
       setIsMember(!!data)
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error('Error checking membership:', error)
       setIsMember(false)
     }
   }
@@ -295,7 +322,10 @@ export default function CommunityDetailPage() {
 
       setIsMember(true)
       toast.success("Successfully joined the community!")
-    } catch (error) {
+      
+      // Refresh the member count after joining
+      fetchActualMemberCount()
+    } catch (error: unknown) {
       console.error('Error joining community:', error)
       toast.error("Failed to join community")
     } finally {
@@ -340,10 +370,40 @@ export default function CommunityDetailPage() {
             : p
         ))
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error toggling like:', error)
       toast.error("Failed to update like")
     }
+  }
+
+  const fetchActualMemberCount = async () => {
+    try {
+      const supabase = getSupabaseClient()
+      
+      const { count, error } = await supabase
+        .from('community_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('community_id', communityId)
+      
+      if (error) {
+        console.error('Error fetching member count:', error)
+        return
+      }
+      
+      console.log('Actual member count from community_members table:', count)
+      setActualMemberCount(count || 0)
+    } catch (error: unknown) {
+      console.error('Error fetching member count:', error)
+    }
+  }
+
+  const refreshCommunityData = async () => {
+    await Promise.all([
+      fetchCommunity(),
+      fetchPosts(),
+      checkMembership(),
+      fetchActualMemberCount()
+    ])
   }
 
   if (loading) {
@@ -356,9 +416,7 @@ export default function CommunityDetailPage() {
             variant="outline" 
             onClick={() => {
               setLoading(true)
-              fetchCommunity()
-              fetchPosts()
-              checkMembership()
+              refreshCommunityData()
             }}
           >
             <Loader2 className="h-4 w-4 mr-2" />
@@ -411,7 +469,7 @@ export default function CommunityDetailPage() {
                         }
                       }}
                     >
-                      {community.member_count} members
+                      {actualMemberCount} members
                     </Button>
                   </div>
                   {community.location && (
@@ -450,15 +508,19 @@ export default function CommunityDetailPage() {
             communityId={communityId} 
             onPostCreated={() => {
               console.log('🎉 onPostCreated callback triggered - refreshing posts...')
+              console.log('=== ON POST CREATED DEBUG ===')
+              console.log('Current posts state before refresh:', posts)
+              console.log('About to call fetchPosts()...')
               toast.success('Refreshing posts...')
               fetchPosts()
+              console.log('fetchPosts() called successfully')
+              console.log('=== END ON POST CREATED DEBUG ===')
             }}
           />
         )}
 
         {/* Posts */}
         <div className="space-y-6">
-          {console.log('Rendering posts section, posts count:', posts.length, 'posts:', posts)}
           {posts.length === 0 ? (
             <Card>
               <CardContent className="pt-6">

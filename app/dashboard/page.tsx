@@ -28,6 +28,7 @@ import {
 } from "lucide-react"
 import { RoleSwitcher } from "@/components/role-switcher"
 import MyCommunities from "@/components/my-communities"
+import RecentActivities from "@/components/recent-activities"
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -289,22 +290,7 @@ export default function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                  <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                    <User className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Welcome to The New Alkebulan!</p>
-                    <p className="text-xs text-muted-foreground">Your account has been created successfully.</p>
-                  </div>
-                  <span className="text-xs text-muted-foreground">Just now</span>
-                </div>
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground text-sm">No recent activity yet</p>
-                  <p className="text-muted-foreground text-xs mt-1">Start exploring to see your activity here</p>
-                </div>
-              </div>
+              <RecentActivities />
             </CardContent>
           </Card>
 
