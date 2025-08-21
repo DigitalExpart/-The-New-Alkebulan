@@ -183,7 +183,7 @@ export default function MoreProjectsPage() {
   const sortedProjects = [...filteredProjects].sort((a, b) => {
     switch (sortBy) {
       case 'trending':
-        return parseFloat(b.change.replace(/[+-%]/g, '')) - parseFloat(a.change.replace(/[+-%]/g, ''))
+        return parseFloat(b.change.replace(/[+\-%]/g, '')) - parseFloat(a.change.replace(/[+\-%]/g, ''))
       case 'funding':
         return (b.raisedAmount / b.targetAmount) - (a.raisedAmount / a.targetAmount)
       case 'investors':
