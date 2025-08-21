@@ -22,6 +22,7 @@ import {
   Image as ImageIcon
 } from "lucide-react"
 import { SocialFeed } from "@/components/social-feed/social-feed"
+import { CommunityFeed } from "@/components/community/community-feed"
 import { CommunityStats } from "@/components/community/community-stats"
 import { useAuth } from "@/hooks/use-auth"
 import { CreatePostDialog } from "@/components/social-feed/create-post-dialog"
@@ -91,7 +92,10 @@ export default function CommunityPage() {
                         </span>
                       </div>
                       <div className="flex-1">
-                        <CreatePostDialog>
+                        <CreatePostDialog onPostCreated={() => {
+                          // Refresh the feed when a new post is created
+                          window.location.reload()
+                        }}>
                           <Button variant="outline" className="w-full justify-start text-left text-muted-foreground">
                             What's on your mind?
                           </Button>
@@ -113,7 +117,7 @@ export default function CommunityPage() {
 
                 {/* Feed Tab */}
                 <TabsContent value="feed" className="mt-6">
-                  <SocialFeed />
+                  <CommunityFeed />
                 </TabsContent>
 
                 {/* Trending Tab */}
@@ -170,13 +174,17 @@ export default function CommunityPage() {
                             Manage and explore the communities you're part of
                           </p>
                           <div className="flex gap-2 justify-center">
-                            <Button>
-                              <Globe className="h-4 w-4 mr-2" />
-                              My Communities
+                            <Button asChild>
+                              <a href="/communities/my-community">
+                                <Globe className="h-4 w-4 mr-2" />
+                                My Communities
+                              </a>
                             </Button>
-                            <Button variant="outline">
-                              <Plus className="h-4 w-4 mr-2" />
-                              Discover More
+                            <Button variant="outline" asChild>
+                              <a href="/communities/create">
+                                <Plus className="h-4 w-4 mr-2" />
+                                Create Community
+                              </a>
                             </Button>
                           </div>
                         </div>
@@ -233,21 +241,29 @@ export default function CommunityPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full justify-start">
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  Start Discussion
+                <Button variant="outline" className="w-full justify-start" asChild>
+                  <a href="/communities/create">
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Start Discussion
+                  </a>
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  <Users className="h-4 w-4 mr-2" />
-                  Find Members
+                <Button variant="outline" className="w-full justify-start" asChild>
+                  <a href="/communities">
+                    <Users className="h-4 w-4 mr-2" />
+                    Find Members
+                  </a>
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  View Events
+                <Button variant="outline" className="w-full justify-start" asChild>
+                  <a href="/community/events">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    View Events
+                  </a>
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Community
+                <Button variant="outline" className="w-full justify-start" asChild>
+                  <a href="/communities/create">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Community
+                  </a>
                 </Button>
               </CardContent>
             </Card>

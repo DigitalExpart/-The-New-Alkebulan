@@ -72,7 +72,6 @@ export function Navbar() {
   const [showSearchResults, setShowSearchResults] = useState(false)
   const [isCommunityOpen, setIsCommunityOpen] = useState(false)
   const [isMarketplaceOpen, setIsMarketplaceOpen] = useState(false)
-  const [isInvestingOpen, setIsInvestingOpen] = useState(false)
 
   // Helper function to get first name from full name
   const getFirstName = (fullName?: string) => {
@@ -442,35 +441,12 @@ export function Navbar() {
             >
               Growth
             </Link>
-            {/* Investing Dropdown */}
-            <DropdownMenu open={isInvestingOpen} onOpenChange={setIsInvestingOpen}>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors duration-200 font-medium">
-                  <span>Investing</span>
-                  <ChevronDown className="h-4 w-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuItem asChild>
-                  <Link href="/investing/alkebulan" className="cursor-pointer flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4" />
-                    Investing Alkebulan
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/investing/my-investments" className="cursor-pointer flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4" />
-                    My Investments
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/investing/projects" className="cursor-pointer flex items-center gap-2">
-                    <FolderOpen className="w-4 h-4" />
-                    More Projects
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Link
+              href="/projects"
+              className="text-foreground hover:text-primary transition-colors duration-200 font-medium"
+            >
+              Projects
+            </Link>
           </div>
 
           {/* Right Side - Search and User Menu */}
@@ -736,23 +712,9 @@ export function Navbar() {
               <Link href="/learning" className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
                 Growth
               </Link>
-              <Collapsible open={isInvestingOpen} onOpenChange={setIsInvestingOpen} className="w-full">
-                <CollapsibleTrigger className="flex items-center justify-between w-full px-2 py-2 rounded-lg text-foreground hover:bg-accent font-medium">
-                  Investing
-                  <ChevronDown className={`h-4 w-4 transition-transform ${isInvestingOpen ? 'rotate-180' : 'rotate-0'}`} />
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-2 pl-4 pt-2">
-                  <Link href="/investing/alkebulan" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
-                    <TrendingUp className="h-4 w-4" /> Investing Alkebulan
-                  </Link>
-                  <Link href="/investing/my-investments" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
-                    <BarChart3 className="h-4 w-4" /> My Investments
-                  </Link>
-                  <Link href="/investing/projects" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
-                    <FolderOpen className="h-4 w-4" /> More Projects
-                  </Link>
-                </CollapsibleContent>
-              </Collapsible>
+              <Link href="/projects" className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
+                Projects
+              </Link>
             </div>
           </div>
         )}
