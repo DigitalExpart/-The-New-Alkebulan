@@ -71,6 +71,7 @@ export function Navbar() {
   const [isSearching, setIsSearching] = useState(false)
   const [showSearchResults, setShowSearchResults] = useState(false)
   const [isCommunityOpen, setIsCommunityOpen] = useState(false)
+  const [isMarketplaceOpen, setIsMarketplaceOpen] = useState(false)
 
   // Helper function to get first name from full name
   const getFirstName = (fullName?: string) => {
@@ -411,12 +412,29 @@ export function Navbar() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Link
-              href="/marketplace"
-              className="text-foreground hover:text-primary transition-colors duration-200 font-medium"
-            >
-              Marketplace
-            </Link>
+            {/* Marketplace Dropdown */}
+            <DropdownMenu open={isMarketplaceOpen} onOpenChange={setIsMarketplaceOpen}>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors duration-200 font-medium">
+                  <span>Marketplace</span>
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuItem asChild>
+                  <Link href="/marketplace" className="cursor-pointer flex items-center gap-2">
+                    <Store className="w-4 h-4" />
+                    Browse Products
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/marketplace/companies" className="cursor-pointer flex items-center gap-2">
+                    <Building2 className="w-4 h-4" />
+                    All Companies
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Link
               href="/learning"
               className="text-foreground hover:text-primary transition-colors duration-200 font-medium"
@@ -677,9 +695,20 @@ export function Navbar() {
                   </Link>
                 </CollapsibleContent>
               </Collapsible>
-              <Link href="/marketplace" className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
-                Marketplace
-              </Link>
+              <Collapsible open={isMarketplaceOpen} onOpenChange={setIsMarketplaceOpen} className="w-full">
+                <CollapsibleTrigger className="flex items-center justify-between w-full px-2 py-2 rounded-lg text-foreground hover:bg-accent font-medium">
+                  Marketplace
+                  <ChevronDown className={`h-4 w-4 transition-transform ${isMarketplaceOpen ? 'rotate-180' : 'rotate-0'}`} />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-2 pl-4 pt-2">
+                  <Link href="/marketplace" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
+                    <Store className="h-4 w-4" /> Browse Products
+                  </Link>
+                  <Link href="/marketplace/companies" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
+                    <Building2 className="h-4 w-4" /> All Companies
+                  </Link>
+                </CollapsibleContent>
+              </Collapsible>
               <Link href="/learning" className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
                 Growth
               </Link>
