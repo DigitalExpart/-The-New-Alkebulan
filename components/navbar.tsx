@@ -534,6 +534,11 @@ export function Navbar() {
               <Search className="h-5 w-5" />
             </button>
 
+            {/* Notifications */}
+            {user && (
+              <NotificationsDropdown />
+            )}
+
             {/* User Menu */}
             {user ? (
               <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
@@ -605,6 +610,14 @@ export function Navbar() {
                     {profile?.account_type === 'business' && <CheckCircle className="w-4 w-4 ml-auto text-primary" />}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem className="cursor-pointer flex items-center gap-2">
+                    <Settings className="w-4 h-4" />
+                    <span>Theme</span>
+                    <div className="ml-auto">
+                      <ThemeToggle />
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem 
                     onClick={handleSignOut}
                     className="cursor-pointer flex items-center gap-2 text-destructive hover:text-destructive"
@@ -629,8 +642,7 @@ export function Navbar() {
               </div>
             )}
 
-            {/* Theme Toggle */}
-            <ThemeToggle />
+
           </div>
         </div>
 
