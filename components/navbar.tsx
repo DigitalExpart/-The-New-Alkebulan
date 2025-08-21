@@ -43,6 +43,7 @@ import {
   ChevronDown,
   CheckCircle,
 } from "lucide-react"
+
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { UserAvatarFixed } from "@/components/user-avatar-fixed"
@@ -58,6 +59,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { isSupabaseConfigured, supabase } from "@/lib/supabase"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
 export function Navbar() {
   const { user, profile, signOut, loading, refreshProfile, forceRefreshProfile } = useAuth()
@@ -68,6 +70,7 @@ export function Navbar() {
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [showSearchResults, setShowSearchResults] = useState(false)
+  const [isCommunityOpen, setIsCommunityOpen] = useState(false)
 
   // Helper function to get first name from full name
   const getFirstName = (fullName?: string) => {
@@ -103,7 +106,7 @@ export function Navbar() {
     }, 2500)
   }
 
-  // Search functionality
+  // Enhanced live search functionality with debouncing
   const handleSearch = async (query: string) => {
     if (!query.trim() || !supabase) {
       setSearchResults([])
@@ -121,7 +124,7 @@ export function Navbar() {
         .from('communities')
         .select('id, name, description, category')
         .or(`name.ilike.%${query}%,description.ilike.%${query}%`)
-        .limit(3)
+        .limit(5)
 
       if (communities) {
         results.push(...communities.map(c => ({ ...c, type: 'community', url: `/communities/${c.id}` })))
@@ -133,7 +136,7 @@ export function Navbar() {
           .from('projects')
           .select('id, name, description, category')
           .or(`name.ilike.%${query}%,description.ilike.%${query}%`)
-          .limit(3)
+          .limit(5)
 
         if (projects) {
           results.push(...projects.map(p => ({ ...p, type: 'project', url: `/projects/${p.id}` })))
@@ -149,7 +152,7 @@ export function Navbar() {
           .from('events')
           .select('id, name, description, category')
           .or(`name.ilike.%${query}%,description.ilike.%${query}%`)
-          .limit(3)
+          .limit(5)
 
         if (events) {
           results.push(...events.map(e => ({ ...e, type: 'event', url: `/events/${e.id}` })))
@@ -157,6 +160,27 @@ export function Navbar() {
       } catch (error) {
         // Events table might not exist yet
         console.log('Events table not available')
+      }
+
+      // Search users/profiles
+      try {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, bio, occupation')
+          .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,bio.ilike.%${query}%,occupation.ilike.%${query}%`)
+          .limit(3)
+
+        if (profiles) {
+          results.push(...profiles.map(p => ({ 
+            ...p, 
+            type: 'user', 
+            name: `${p.first_name} ${p.last_name}`.trim() || 'Unknown User',
+            description: p.bio || p.occupation || 'User Profile',
+            url: `/profile/${p.id}` 
+          })))
+        }
+      } catch (error) {
+        console.log('Profiles table not available')
       }
 
       setSearchResults(results)
@@ -169,12 +193,21 @@ export function Navbar() {
     }
   }
 
+  // Debounced search input change
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value
     setSearchQuery(query)
     
+    // Clear previous timeout
+    if ((window as any).searchTimeout) {
+      clearTimeout((window as any).searchTimeout)
+    }
+    
     if (query.trim()) {
-      handleSearch(query)
+      // Debounce search by 300ms
+      (window as any).searchTimeout = setTimeout(() => {
+        handleSearch(query)
+      }, 300)
     } else {
       setSearchResults([])
       setShowSearchResults(false)
@@ -210,8 +243,6 @@ export function Navbar() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
-
-
 
   const handleAccountTypeSwitch = async (newRole: 'buyer' | 'business') => {
     if (!user || !profile || !supabase) {
@@ -330,59 +361,130 @@ export function Navbar() {
             </button>
           </div>
 
-          {/* Search Bar */}
-          <div className="flex-1 max-w-md mx-8 hidden md:block search-container">
-            <div className="relative">
-              <form onSubmit={handleSearchSubmit}>
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Search communities, projects, events..."
-                  value={searchQuery}
-                  onChange={handleSearchInputChange}
-                  className="w-full pl-10 pr-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
-                />
-              </form>
-              
-              {/* Search Results Dropdown */}
-              {showSearchResults && searchResults.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
-                  {searchResults.map((result, index) => (
-                    <div
-                      key={`${result.type}-${result.id}`}
-                      onClick={() => handleSearchResultClick(result)}
-                      className="p-3 hover:bg-accent cursor-pointer border-b border-border last:border-b-0"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                          {result.type === 'community' && <Users className="h-4 w-4 text-primary" />}
-                          {result.type === 'project' && <FolderOpen className="h-4 w-4 text-primary" />}
-                          {result.type === 'event' && <Calendar className="h-4 w-4 text-primary" />}
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-foreground">{result.name}</p>
-                          <p className="text-sm text-muted-foreground">{result.description}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full capitalize">
-                              {result.type}
-                            </span>
-                            {result.category && (
-                              <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full">
-                                {result.category}
+          {/* Navigation Links - Moved to center */}
+          <div className="hidden md:flex items-center space-x-6">
+            {/* Community Dropdown */}
+            <DropdownMenu open={isCommunityOpen} onOpenChange={setIsCommunityOpen}>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors duration-200 font-medium">
+                  <span>Community</span>
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuItem asChild>
+                  <Link href="/community" className="cursor-pointer flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    Social Feed
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/community/my-friends" className="cursor-pointer flex items-center gap-2">
+                    <UserPlus className="w-4 h-4" />
+                    My Friends
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/community/my-communities" className="cursor-pointer flex items-center gap-2">
+                    <Building2 className="w-4 h-4" />
+                    My Communities
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/community/my-alkebulan" className="cursor-pointer flex items-center gap-2">
+                    <Globe className="w-4 h-4" />
+                    My Alkebulan
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/messages" className="cursor-pointer flex items-center gap-2">
+                    <MessageCircle className="w-4 h-4" />
+                    Messenger
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/community/events" className="cursor-pointer flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    Events
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Link
+              href="/marketplace"
+              className="text-foreground hover:text-primary transition-colors duration-200 font-medium"
+            >
+              Marketplace
+            </Link>
+            <Link
+              href="/learning"
+              className="text-foreground hover:text-primary transition-colors duration-200 font-medium"
+            >
+              Growth
+            </Link>
+            <Link
+              href="/projects"
+              className="text-foreground hover:text-primary transition-colors duration-200 font-medium"
+            >
+              Projects
+            </Link>
+          </div>
+
+          {/* Right Side - Search and User Menu */}
+          <div className="flex items-center space-x-4">
+            {/* Search Bar - Moved to right side and made shorter */}
+            <div className="hidden md:block search-container">
+              <div className="relative">
+                <form onSubmit={handleSearchSubmit}>
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Search..."
+                    value={searchQuery}
+                    onChange={handleSearchInputChange}
+                    className="w-64 pl-10 pr-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
+                  />
+                </form>
+                
+                {/* Search Results Dropdown */}
+                {showSearchResults && searchResults.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                    {searchResults.map((result, index) => (
+                      <div
+                        key={`${result.type}-${result.id}`}
+                        onClick={() => handleSearchResultClick(result)}
+                        className="p-3 hover:bg-accent cursor-pointer border-b border-border last:border-b-0"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                            {result.type === 'community' && <Users className="h-4 w-4 text-primary" />}
+                            {result.type === 'project' && <FolderOpen className="h-4 w-4 text-primary" />}
+                            {result.type === 'event' && <Calendar className="h-4 w-4 text-primary" />}
+                            {result.type === 'user' && <UserCheck className="h-4 w-4 text-primary" />}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium text-foreground">{result.name}</p>
+                            <p className="text-sm text-muted-foreground">{result.description}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full capitalize">
+                                {result.type}
                               </span>
-                            )}
+                              {result.category && (
+                                <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full">
+                                  {result.category}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
 
-          {/* Right Side Navigation */}
-          <div className="flex items-center space-x-4">
             {/* Search Button for Mobile */}
             <button
               onClick={() => setIsSearchOpen(!isSearchOpen)}
@@ -390,76 +492,6 @@ export function Navbar() {
             >
               <Search className="h-5 w-5" />
             </button>
-
-            {/* Navigation Links */}
-            <div className="hidden md:flex items-center space-x-6">
-              {/* Community Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors duration-200 font-medium">
-                    <span>Community</span>
-                    <ChevronDown className="h-4 w-4" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-56">
-                  <DropdownMenuItem asChild>
-                    <Link href="/community" className="cursor-pointer flex items-center gap-2">
-                      <Users className="w-4 h-4" />
-                      Social Feed
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/community/my-friends" className="cursor-pointer flex items-center gap-2">
-                      <UserPlus className="w-4 h-4" />
-                      My Friends
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/community/my-communities" className="cursor-pointer flex items-center gap-2">
-                      <Building2 className="w-4 h-4" />
-                      My Communities
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/community/my-alkebulan" className="cursor-pointer flex items-center gap-2">
-                      <Globe className="w-4 h-4" />
-                      My Alkebulan
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/messages" className="cursor-pointer flex items-center gap-2">
-                      <MessageCircle className="w-4 h-4" />
-                      Messenger
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/community/events" className="cursor-pointer flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      Events
-                    </Link>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <Link
-                href="/marketplace"
-                className="text-foreground hover:text-primary transition-colors duration-200 font-medium"
-              >
-                Marketplace
-              </Link>
-              <Link
-                href="/events"
-                className="text-foreground hover:text-primary transition-colors duration-200 font-medium"
-              >
-                Events
-              </Link>
-              <Link
-                href="/projects"
-                className="text-foreground hover:text-primary transition-colors duration-200 font-medium"
-              >
-                Projects
-              </Link>
-            </div>
 
             {/* User Menu */}
             {user ? (
@@ -521,7 +553,7 @@ export function Navbar() {
                   >
                     <ShoppingCart className="w-4 h-4" />
                     <span>Buyer Mode</span>
-                    {profile?.account_type === 'buyer' && <CheckCircle className="w-4 h-4 ml-auto text-primary" />}
+                    {profile?.account_type === 'buyer' && <CheckCircle className="w-4 w-4 ml-auto text-primary" />}
                   </DropdownMenuItem>
                   <DropdownMenuItem 
                     className={`cursor-pointer flex items-center gap-2 ${profile?.account_type === 'business' ? 'text-primary font-medium' : ''}`}
@@ -529,7 +561,7 @@ export function Navbar() {
                   >
                     <Building2 className="w-4 h-4" />
                     <span>Business Mode</span>
-                    {profile?.account_type === 'business' && <CheckCircle className="w-4 h-4 ml-auto text-primary" />}
+                    {profile?.account_type === 'business' && <CheckCircle className="w-4 w-4 ml-auto text-primary" />}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
@@ -569,7 +601,7 @@ export function Navbar() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
                   type="text"
-                  placeholder="Search communities, projects, events..."
+                  placeholder="Search..."
                   value={searchQuery}
                   onChange={handleSearchInputChange}
                   className="w-full pl-10 pr-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
@@ -590,6 +622,7 @@ export function Navbar() {
                           {result.type === 'community' && <Users className="h-4 w-4 text-primary" />}
                           {result.type === 'project' && <FolderOpen className="h-4 w-4 text-primary" />}
                           {result.type === 'event' && <Calendar className="h-4 w-4 text-primary" />}
+                          {result.type === 'user' && <UserCheck className="h-4 w-4 text-primary" />}
                         </div>
                         <div className="flex-1">
                           <p className="font-medium text-foreground">{result.name}</p>
@@ -618,71 +651,39 @@ export function Navbar() {
         {isOpen && (
           <div className="md:hidden pb-4 border-t border-border">
             <div className="flex flex-col space-y-2 pt-4">
-              {/* Community Section */}
-              <div className="px-2 py-2">
-                <div className="text-sm font-semibold text-muted-foreground mb-2">Community</div>
-                <div className="flex flex-col space-y-1 ml-4">
-                  <Link
-                    href="/community"
-                    className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent flex items-center gap-2"
-                  >
-                    <Users className="w-4 h-4" />
-                    Social Feed
+              <Collapsible open={isCommunityOpen} onOpenChange={setIsCommunityOpen} className="w-full">
+                <CollapsibleTrigger className="flex items-center justify-between w-full px-2 py-2 rounded-lg text-foreground hover:bg-accent font-medium">
+                  Communities
+                  <ChevronDown className={`h-4 w-4 transition-transform ${isCommunityOpen ? 'rotate-180' : 'rotate-0'}`} />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-2 pl-4 pt-2">
+                  <Link href="/community" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
+                    <Users className="h-4 w-4" /> Social Feed
                   </Link>
-                  <Link
-                    href="/community/my-friends"
-                    className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent flex items-center gap-2"
-                  >
-                    <UserPlus className="w-4 h-4" />
-                    My Friends
+                  <Link href="/community/my-friends" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
+                    <UserPlus className="h-4 w-4" /> My Friends
                   </Link>
-                  <Link
-                    href="/community/my-communities"
-                    className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent flex items-center gap-2"
-                  >
-                    <Building2 className="w-4 h-4" />
-                    My Communities
+                  <Link href="/community/my-communities" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
+                    <Building2 className="h-4 w-4" /> My Communities
                   </Link>
-                  <Link
-                    href="/community/my-alkebulan"
-                    className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent flex items-center gap-2"
-                  >
-                    <Globe className="w-4 h-4" />
-                    My Alkebulan
+                  <Link href="/community/my-alkebulan" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
+                    <Globe className="h-4 w-4" /> My Alkebulan
                   </Link>
-                  <Link
-                    href="/messages"
-                    className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent flex items-center gap-2"
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                    Messenger
+                  <Link href="/messages" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
+                    <MessageCircle className="h-4 w-4" /> Messenger
                   </Link>
-                  <Link
-                    href="/community/events"
-                    className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent flex items-center gap-2"
-                  >
-                    <Calendar className="w-4 h-4" />
-                    Events
+                  <Link href="/community/events" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
+                    <Calendar className="h-4 w-4" /> Events
                   </Link>
-                </div>
-              </div>
-              
-              <Link
-                href="/marketplace"
-                className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent"
-              >
+                </CollapsibleContent>
+              </Collapsible>
+              <Link href="/marketplace" className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
                 Marketplace
               </Link>
-              <Link
-                href="/events"
-                className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent"
-              >
-                Events
+              <Link href="/learning" className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
+                Growth
               </Link>
-              <Link
-                href="/projects"
-                className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent"
-              >
+              <Link href="/projects" className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
                 Projects
               </Link>
             </div>
