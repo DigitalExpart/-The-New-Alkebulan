@@ -3,6 +3,36 @@ import type { Notification } from "@/types/notification"
 export const mockNotifications: Notification[] = [
   {
     id: "1",
+    type: "friend_request",
+    title: "Friend Request",
+    message: "Sarah Johnson sent you a friend request",
+    timestamp: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
+    isRead: false,
+    userId: "user-1",
+    userAvatar: "/placeholder.svg?height=40&width=40",
+    userName: "Sarah Johnson",
+    actionUrl: "/notifications",
+    iconColor: "text-green-500",
+    friendRequestId: "fr-1",
+    status: "pending",
+  },
+  {
+    id: "2",
+    type: "friend_request",
+    title: "Friend Request",
+    message: "Marcus Williams sent you a friend request",
+    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+    isRead: false,
+    userId: "user-2",
+    userAvatar: "/placeholder.svg?height=40&width=40",
+    userName: "Marcus Williams",
+    actionUrl: "/notifications",
+    iconColor: "text-green-500",
+    friendRequestId: "fr-2",
+    status: "pending",
+  },
+  {
+    id: "3",
     type: "message",
     title: "New Message",
     message: "You received a message from Sarah Johnson",
@@ -15,7 +45,7 @@ export const mockNotifications: Notification[] = [
     iconColor: "text-blue-500",
   },
   {
-    id: "2",
+    id: "4",
     type: "comment",
     title: "New Comment",
     message: "Marcus Williams commented on your post about sustainable farming",
@@ -28,7 +58,7 @@ export const mockNotifications: Notification[] = [
     iconColor: "text-green-500",
   },
   {
-    id: "3",
+    id: "5",
     type: "mention",
     title: "You were mentioned",
     message: "You've been mentioned in the African Heritage community discussion",
@@ -38,7 +68,7 @@ export const mockNotifications: Notification[] = [
     iconColor: "text-purple-500",
   },
   {
-    id: "4",
+    id: "6",
     type: "like",
     title: "Post Liked",
     message: "Amara Okafor and 12 others liked your marketplace listing",
@@ -51,7 +81,7 @@ export const mockNotifications: Notification[] = [
     iconColor: "text-red-500",
   },
   {
-    id: "5",
+    id: "7",
     type: "follow",
     title: "New Follower",
     message: "Kwame Asante started following you",
@@ -64,7 +94,7 @@ export const mockNotifications: Notification[] = [
     iconColor: "text-blue-600",
   },
   {
-    id: "6",
+    id: "8",
     type: "system",
     title: "Platform Update",
     message: "New features have been added to the learning hub",
@@ -74,7 +104,7 @@ export const mockNotifications: Notification[] = [
     iconColor: "text-yellow-500",
   },
   {
-    id: "7",
+    id: "9",
     type: "message",
     title: "New Message",
     message: "You received a message from David Chen about your business proposal",
@@ -87,7 +117,7 @@ export const mockNotifications: Notification[] = [
     iconColor: "text-blue-500",
   },
   {
-    id: "8",
+    id: "10",
     type: "system",
     title: "Investment Opportunity",
     message: "New investment opportunities are available in the funding section",
@@ -109,6 +139,8 @@ export const getNotificationIcon = (type: Notification["type"]) => {
     case "like":
       return "Heart"
     case "follow":
+      return "UserPlus"
+    case "friend_request":
       return "UserPlus"
     case "system":
       return "Bell"

@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { AIAssistantProvider } from "@/components/ai-assistant/ai-assistant-provider"
 import { AuthProvider } from "@/hooks/use-auth"
 import { PrototypePopup } from "@/components/prototype-popup"
+import { FriendRequestNotification } from "@/components/notifications/friend-request-notification"
 import { Toaster } from "sonner"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -47,6 +48,7 @@ export default function RootLayout({
                 <Footer />
               </div>
               <PrototypePopup />
+              <FriendRequestNotification />
               <Toaster position="top-right" />
             </AIAssistantProvider>
           </AuthProvider>

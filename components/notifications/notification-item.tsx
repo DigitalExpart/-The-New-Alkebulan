@@ -3,12 +3,15 @@
 import { formatTimeAgo } from "@/utils/date-utils"
 import type { Notification } from "@/types/notification"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { MessageCircle, MessageSquare, AtSign, Heart, UserPlus, Bell } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { MessageCircle, MessageSquare, AtSign, Heart, UserPlus, Bell, Check, X } from "lucide-react"
 import Link from "next/link"
+import { useState } from "react"
 
 interface NotificationItemProps {
   notification: Notification
   onClick?: (notification: Notification) => void
+  onFriendRequestAction?: (friendRequestId: string, action: 'accept' | 'reject') => void
 }
 
 const getIcon = (type: Notification["type"]) => {
@@ -25,6 +28,8 @@ const getIcon = (type: Notification["type"]) => {
       return <Heart className={`${iconClass} text-red-500`} />
     case "follow":
       return <UserPlus className={`${iconClass} text-blue-600`} />
+    case "friend_request":
+      return <UserPlus className={`${iconClass} text-green-500`} />
     case "system":
       return <Bell className={`${iconClass} text-yellow-500 dark:text-yellow-400`} />
     default:
@@ -32,10 +37,23 @@ const getIcon = (type: Notification["type"]) => {
   }
 }
 
-export function NotificationItem({ notification, onClick }: NotificationItemProps) {
+export function NotificationItem({ notification, onClick, onFriendRequestAction }: NotificationItemProps) {
+  const [isProcessing, setIsProcessing] = useState(false)
+
   const handleClick = () => {
     if (onClick) {
       onClick(notification)
+    }
+  }
+
+  const handleFriendRequestAction = async (action: 'accept' | 'reject') => {
+    if (!notification.friendRequestId || !onFriendRequestAction) return
+    
+    setIsProcessing(true)
+    try {
+      await onFriendRequestAction(notification.friendRequestId, action)
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -82,11 +100,36 @@ export function NotificationItem({ notification, onClick }: NotificationItemProp
         </p>
 
         <p className="text-xs text-gray-500 dark:text-gray-400">{formatTimeAgo(notification.timestamp)}</p>
+
+        {/* Friend Request Action Buttons */}
+        {notification.type === "friend_request" && notification.status === "pending" && (
+          <div className="flex gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+            <Button
+              size="sm"
+              onClick={() => handleFriendRequestAction('accept')}
+              disabled={isProcessing}
+              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 h-7 text-xs"
+            >
+              <Check className="w-3 h-3 mr-1" />
+              Accept
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleFriendRequestAction('reject')}
+              disabled={isProcessing}
+              className="border-red-300 text-red-600 hover:bg-red-50 px-3 py-1 h-7 text-xs"
+            >
+              <X className="w-3 h-3 mr-1" />
+              Reject
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )
 
-  if (notification.actionUrl) {
+  if (notification.actionUrl && notification.type !== "friend_request") {
     return (
       <Link href={notification.actionUrl} className="block">
         {content}

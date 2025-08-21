@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
+import { useFriendRequests } from "@/hooks/use-friend-requests"
 import { getSupabaseClient } from "@/lib/supabase"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -63,6 +64,7 @@ export default function UserProfilePage() {
   const params = useParams()
   const router = useRouter()
   const { user: currentUser } = useAuth()
+  const { sendRequest } = useFriendRequests()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [posts, setPosts] = useState<UserPost[]>([])
   const [communities, setCommunities] = useState<UserCommunity[]>([])
@@ -101,26 +103,18 @@ export default function UserProfilePage() {
           hint: error.hint,
           code: error.code
         })
-        
-        if (error.code === 'PGRST116') {
-          toast.error('User profile not found in database')
-        } else if (error.message.includes('relation "profiles" does not exist')) {
-          toast.error('Profiles table not set up. Please contact support.')
-        } else {
-          toast.error(`Failed to load user profile: ${error.message}`)
-        }
+        toast.error(`Failed to load user profile: ${error.message}`)
         return
       }
 
-      console.log('Profile data received:', data)
       setProfile(data)
     } catch (error) {
-      console.error('Unexpected error fetching profile:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        error: error
-      })
-      toast.error('Failed to load user profile')
+      console.error('Error fetching profile:', error)
+      if (error instanceof Error) {
+        toast.error(`Failed to load user profile: ${error.message}`)
+      } else {
+        toast.error('Failed to load user profile')
+      }
     } finally {
       setLoading(false)
     }
@@ -164,14 +158,14 @@ export default function UserProfilePage() {
         .from('community_members')
         .select(`
           id,
-          role,
-          joined_at,
           communities (
             id,
             name,
             description,
             member_count
-          )
+          ),
+          role,
+          joined_at
         `)
         .eq('user_id', userId)
 
@@ -180,13 +174,13 @@ export default function UserProfilePage() {
         return
       }
 
-      const userCommunities = data?.map(member => ({
-        id: member.communities.id,
-        name: member.communities.name,
-        description: member.communities.description,
-        member_count: member.communities.member_count,
-        role: member.role,
-        joined_at: member.joined_at
+      const userCommunities = data?.map(item => ({
+        id: item.communities.id,
+        name: item.communities.name,
+        description: item.communities.description,
+        member_count: item.communities.member_count,
+        role: item.role,
+        joined_at: item.joined_at
       })) || []
 
       setCommunities(userCommunities)
@@ -228,28 +222,10 @@ export default function UserProfilePage() {
 
     setIsLoadingFriend(true)
     try {
-      const supabase = getSupabaseClient()
-      
-      const { error } = await supabase
-        .from('friendships')
-        .insert({
-          user_id: currentUser.id,
-          friend_id: userId,
-          status: 'pending',
-          created_at: new Date().toISOString()
-        })
-
-      if (error) {
-        console.error('Error adding friend:', error)
-        toast.error('Failed to add friend')
-        return
-      }
-
-      toast.success('Friend request sent!')
+      await sendRequest(userId)
       setIsFriend(true)
     } catch (error) {
       console.error('Error adding friend:', error)
-      toast.error('Failed to add friend')
     } finally {
       setIsLoadingFriend(false)
     }

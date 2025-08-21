@@ -11,6 +11,7 @@ import { mockNotifications } from "@/data/notifications-data"
 import type { Notification } from "@/types/notification"
 import { groupNotificationsByDate } from "@/utils/date-utils"
 import Link from "next/link"
+import { toast } from "sonner"
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>(mockNotifications)
@@ -41,6 +42,36 @@ export default function NotificationsPage() {
   const handleNotificationClick = (notification: Notification) => {
     if (!notification.isRead) {
       setNotifications((prev) => prev.map((n) => (n.id === notification.id ? { ...n, isRead: true } : n)))
+    }
+  }
+
+  const handleFriendRequestAction = async (friendRequestId: string, action: 'accept' | 'reject') => {
+    try {
+      // Update the notification status
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.friendRequestId === friendRequestId
+            ? { ...n, status: action === 'accept' ? 'accepted' : 'rejected', isRead: true }
+            : n
+        )
+      )
+
+      // Here you would typically make an API call to update the friendship status
+      // For now, we'll just show a toast message
+      if (action === 'accept') {
+        toast.success('Friend request accepted!')
+      } else {
+        toast.success('Friend request rejected')
+      }
+
+      // Remove the notification after a short delay
+      setTimeout(() => {
+        setNotifications((prev) => prev.filter((n) => n.friendRequestId !== friendRequestId))
+      }, 2000)
+
+    } catch (error) {
+      toast.error(`Failed to ${action} friend request`)
+      console.error('Error handling friend request:', error)
     }
   }
 
@@ -121,6 +152,7 @@ export default function NotificationsPage() {
               </SelectTrigger>
               <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
                 <SelectItem value="all">All types</SelectItem>
+                <SelectItem value="friend_request">Friend Requests</SelectItem>
                 <SelectItem value="message">Messages</SelectItem>
                 <SelectItem value="comment">Comments</SelectItem>
                 <SelectItem value="mention">Mentions</SelectItem>
@@ -164,6 +196,7 @@ export default function NotificationsPage() {
                       key={notification.id}
                       notification={notification}
                       onClick={handleNotificationClick}
+                      onFriendRequestAction={handleFriendRequestAction}
                     />
                   ))}
                 </div>

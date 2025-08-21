@@ -1,6 +1,6 @@
 export interface Notification {
   id: string
-  type: "message" | "comment" | "mention" | "like" | "follow" | "system"
+  type: "message" | "comment" | "mention" | "like" | "follow" | "system" | "friend_request"
   title: string
   message: string
   timestamp: Date
@@ -11,6 +11,9 @@ export interface Notification {
   actionUrl?: string
   icon?: string
   iconColor?: string
+  // Friend request specific fields
+  friendRequestId?: string
+  status?: "pending" | "accepted" | "rejected"
 }
 
 export interface NotificationGroup {
@@ -25,6 +28,7 @@ export interface NotificationSettings {
   likes: boolean
   follows: boolean
   system: boolean
+  friendRequests: boolean
   emailNotifications: boolean
   pushNotifications: boolean
 }
