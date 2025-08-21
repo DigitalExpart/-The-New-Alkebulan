@@ -6,9 +6,9 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Loader2, RefreshCw, AlertCircle } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
-import { supabase } from "@/lib/supabase"
+import { getSupabaseClient } from "@/lib/supabase"
 import { toast } from "sonner"
-import { CreatePostDialog } from "./create-post-dialog"
+
 import { PostCard } from "./post-card"
 import type { PostWithStats, SocialFeedFilters } from "@/types/social-feed"
 
@@ -27,6 +27,7 @@ export function SocialFeed({ filters = {}, className = "" }: SocialFeedProps) {
   const limit = 10
 
   const fetchPosts = async (isRefresh = false) => {
+    const supabase = getSupabaseClient()
     if (!supabase) return
 
     try {
@@ -142,14 +143,6 @@ export function SocialFeed({ filters = {}, className = "" }: SocialFeedProps) {
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* Create Post Section */}
-      {user && (
-        <Card>
-          <CardContent className="p-4">
-            <CreatePostDialog onPostCreated={handlePostCreated} />
-          </CardContent>
-        </Card>
-      )}
 
       {/* Posts Feed */}
       <div className="space-y-4">
