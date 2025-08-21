@@ -9,10 +9,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { Eye, EyeOff, Mail, Lock, User, Loader2, Building2, TrendingUp, Users, PenTool } from "lucide-react"
+import { Eye, EyeOff, Mail, Lock, User, Loader2, Building2, TrendingUp, Users, PenTool, CheckCircle } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import type { SignUpData } from "@/types/auth"
-import { FaCheckCircle } from "react-icons/fa";
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -392,7 +391,7 @@ export default function SignUpPage() {
       >
         {selectedRoles.includes('business') ? (
           <span className="inline-block">
-            <FaCheckCircle className="w-7 h-7 text-green-600 bg-white rounded-full inline-block mr-2" />
+            <CheckCircle className="w-7 h-7 text-green-600 bg-white rounded-full inline-block mr-2" />
           </span>
           ) :
         (
@@ -412,7 +411,7 @@ export default function SignUpPage() {
       >
         {selectedRoles.includes('creator') ? (
           <span className="inline-block">
-            <FaCheckCircle className="w-7 h-7 text-green-600 bg-white rounded-full inline-block mr-2" />
+            <CheckCircle className="w-7 h-7 text-green-600 bg-white rounded-full inline-block mr-2" />
           </span>
 
         ) :
@@ -434,7 +433,7 @@ export default function SignUpPage() {
       >
         {selectedRoles.includes('mentor') ? (
           <span className="inline-block">
-            <FaCheckCircle className="w-7 h-7 text-green-600 bg-white rounded-full inline-block mr-2" />
+            <CheckCircle className="w-7 h-7 text-green-600 bg-white rounded-full inline-block mr-2" />
           </span>
 
         ) :
@@ -457,7 +456,7 @@ export default function SignUpPage() {
       >
         {selectedRoles.includes('investor') ? (
           <span className="inline-block">
-            <FaCheckCircle className="w-7 h-7 text-green-600 bg-white rounded-full inline-block mr-2" />
+            <CheckCircle className="w-7 h-7 text-green-600 bg-white rounded-full inline-block mr-2" />
           </span>
 
         ) :

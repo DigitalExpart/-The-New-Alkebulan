@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Users, MapPin, MessageCircle, Heart, Share2, Play, Plus } from "lucide-react"
+import { Users, MapPin, MessageCircle, Heart, Share2, Play, Plus, ChevronRight } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { getSupabaseClient } from "@/lib/supabase"
 import { toast } from "sonner"
@@ -45,11 +45,13 @@ interface Post {
 
 export default function CommunityDetailPage() {
   const params = useParams()
+  const router = useRouter()
   const { user, profile } = useAuth()
   const [community, setCommunity] = useState<Community | null>(null)
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
   const [isMember, setIsMember] = useState(false)
+  const [memberCount, setMemberCount] = useState(0)
   
   const [createPostVisible, setCreatePostVisible] = useState(false)
 
@@ -59,7 +61,37 @@ export default function CommunityDetailPage() {
     fetchCommunity()
     fetchPosts()
     checkMembership()
+    fetchMemberCount()
   }, [communityId, user])
+
+  // Real-time subscription to community members for live count updates
+  useEffect(() => {
+    if (!communityId) return
+
+    const supabase = getSupabaseClient()
+    
+    const channel = supabase
+      .channel(`community-members-${communityId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'community_members',
+          filter: `community_id=eq.${communityId}`
+        },
+        (payload) => {
+          console.log('Community members changed:', payload)
+          // Refresh member count when changes occur
+          fetchMemberCount()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [communityId])
 
   const fetchCommunity = async () => {
     try {
@@ -141,6 +173,22 @@ export default function CommunityDetailPage() {
     }
   }
 
+  const fetchMemberCount = async () => {
+    try {
+      const supabase = getSupabaseClient()
+      const { count, error } = await supabase
+        .from('community_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('community_id', communityId)
+
+      if (error) throw error
+      setMemberCount(count || 0)
+    } catch (error) {
+      console.error('Error fetching member count:', error)
+      setMemberCount(0)
+    }
+  }
+
   const handleJoinCommunity = async () => {
     if (!user) {
       toast.error("Please log in to join the community")
@@ -161,6 +209,8 @@ export default function CommunityDetailPage() {
 
       setIsMember(true)
       toast.success("Successfully joined the community!")
+      // Refresh member count after joining
+      await fetchMemberCount()
     } catch (error) {
       console.error('Error joining community:', error)
       toast.error("Failed to join community")
@@ -218,6 +268,10 @@ export default function CommunityDetailPage() {
   setCreatePostVisible(!createPostVisible)
 }
 
+  const handleViewMembers = () => {
+    router.push(`/communities/${communityId}/members`)
+  }
+
 
   if (loading) {
     return (
@@ -258,10 +312,14 @@ export default function CommunityDetailPage() {
                 <p className="text-muted-foreground text-lg mb-4">{community.description}</p>
                 
                 <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    <span>{community.member_count} members</span>
-                  </div>
+                  <button
+                    onClick={handleViewMembers}
+                    className="flex items-center gap-2 hover:text-foreground transition-colors cursor-pointer group"
+                  >
+                    <Users className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                    <span className="group-hover:underline">{memberCount} members</span>
+                    <ChevronRight className="h-3 w-3 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                  </button>
                   {community.location && (
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4" />
