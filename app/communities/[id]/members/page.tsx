@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Users, Crown, User, Calendar, MapPin, Mail, Building2, Search, Loader2, ArrowLeft } from "lucide-react"
+import { Users, Crown, User, Calendar, MapPin, Mail, Building2, Search, ArrowLeft } from "lucide-react"
 import { getSupabaseClient } from "@/lib/supabase"
 import { toast } from "sonner"
 
@@ -46,7 +45,6 @@ export default function CommunityMembersPage() {
   const [members, setMembers] = useState<CommunityMember[]>([])
   const [community, setCommunity] = useState<Community | null>(null)
   const [loading, setLoading] = useState(true)
-  const [selectedMember, setSelectedMember] = useState<CommunityMember | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
 
   const communityId = params.id as string
@@ -96,245 +94,142 @@ export default function CommunityMembersPage() {
       console.log('Fetching members for community ID:', communityId)
       const supabase = getSupabaseClient()
       
-      // First, get the community members
-      console.log('Fetching members from community_members table for community ID:', communityId)
-      
-      let membersData = null
-      let membersError = null
-      
-      try {
-        console.log('Querying community_members table for community_id:', communityId)
-        const { data, error } = await supabase
-          .from('community_members')
-          .select('id, user_id, role, joined_at')
-          .eq('community_id', communityId)
-          .order('joined_at', { ascending: true })
-        
-        if (error) {
-          console.log('Supabase query error:', error)
-          membersError = error
-        } else {
-          console.log('Raw query result:', data)
-          membersData = data
-        }
-      } catch (tableError) {
-        console.log('Exception accessing community_members table:', tableError)
-        membersError = tableError
-      }
+      // First get community members
+      const { data: membersData, error: membersError } = await supabase
+        .from('community_members')
+        .select('id, user_id, role, joined_at')
+        .eq('community_id', communityId)
+        .order('joined_at', { ascending: true })
 
       if (membersError) {
-        console.error('Supabase members error:', membersError)
-        // Try to create a basic member entry for the community owner
-        console.log('Attempting to create basic member data for community owner')
-        if (community?.created_by) {
-          const basicMember = {
-            id: 'temp-id',
-            user_id: community.created_by,
-            role: 'owner',
-            joined_at: community.created_at,
-            user: {
-              id: community.created_by,
-              first_name: 'Community',
-              last_name: 'Owner',
-              avatar_url: null,
-              bio: null,
-              location: null,
-              company: null,
-              job_title: null
-            }
-          }
-          setMembers([basicMember])
-          return
-        }
-        // If community data isn't loaded yet, just show empty state
-        console.log('Community data not loaded yet, showing empty state')
-        setMembers([])
-        return
-      }
-
-      if (!membersData || membersData.length === 0) {
-        console.log('No members found in community_members table')
-        
-        // If no members found, create a basic entry for the community owner
-        if (community?.created_by) {
-          console.log('Creating basic member entry for community owner:', community.created_by)
-          const basicMember = {
-            id: 'owner-temp-id',
-            user_id: community.created_by,
-            role: 'owner',
-            joined_at: community.created_at,
-            user: {
-              id: community.created_by,
-              first_name: 'Community',
-              last_name: 'Owner',
-              avatar_url: null,
-              bio: null,
-              location: null,
-              company: null,
-              job_title: null
-            }
-          }
-          setMembers([basicMember])
-          return
-        }
-        
-        setMembers([])
-        return
+        console.log('Supabase members query error:', membersError)
+        console.log('Error details:', JSON.stringify(membersError, null, 2))
+        throw membersError
       }
 
       console.log('Raw members data:', membersData)
 
-      // Then, get the user profiles for each member
-      const userIds = membersData.map(member => member.user_id)
-      console.log('Fetching profiles for user IDs:', userIds)
-      
-      let profilesData = null
-      let profilesError = null
-      
-      // Try to fetch from profiles table first
-      try {
-        console.log('Attempting to fetch from profiles table...')
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name, avatar_url, bio, location, company, job_title')
-          .in('id', userIds)
-        
-        if (error) {
-          console.log('Profiles table error:', error)
-          profilesError = error
-        } else {
-          console.log('Successfully fetched from profiles table:', data)
-          profilesData = data
-        }
-      } catch (profileError) {
-        console.log('Exception fetching from profiles table:', profileError)
-        profilesError = profileError
-      }
-
-      // If profiles table failed, try auth.users as fallback
-      if (!profilesData && !profilesError) {
-        try {
-          console.log('Attempting to fetch from auth.users...')
-          const { data, error } = await supabase
-            .from('auth.users')
-            .select('id, email')
-            .in('id', userIds)
-          
-          if (error) {
-            console.log('Auth.users table error:', error)
-            profilesError = error
-          } else {
-            console.log('Successfully fetched from auth.users:', data)
-            profilesData = data
-          }
-        } catch (authError) {
-          console.log('Exception fetching from auth.users:', authError)
-          profilesError = authError
-        }
-      }
-
-      // If both failed, try to get user data from the current auth session
-      if (!profilesData && !profilesError) {
-        try {
-          console.log('Attempting to get user data from auth session...')
-          const { data: { user } } = await supabase.auth.getUser()
-          if (user) {
-            console.log('Current user found:', user)
-            // Create a basic profile for the current user if they're in the member list
-            if (userIds.includes(user.id)) {
-              profilesData = [{
-                id: user.id,
-                email: user.email,
-                first_name: user.email?.split('@')[0] || 'User',
-                last_name: '',
-                avatar_url: null,
-                bio: null,
-                location: null,
-                company: null,
-                job_title: null
-              }]
-            }
-          }
-        } catch (authSessionError) {
-          console.log('Error getting auth session:', authSessionError)
-        }
-      }
-
-      if (profilesError) {
-        console.error('Supabase profiles error:', profilesError)
-        console.log('Error details:', JSON.stringify(profilesError, null, 2))
-        // Don't throw error, just continue with basic member data
-        console.log('Continuing with basic member data only')
-      }
-
-      console.log('Raw profiles data:', profilesData)
-
-      // Combine the data
-      const combinedMembers = membersData.map(member => {
-        let profile = null
-        
-        if (profilesData) {
-          profile = profilesData.find(p => p.id === member.user_id) || null
-          
-          // If we got email data from auth.users, format it properly
-          if (profile && profile.email && !profile.first_name) {
-            profile = {
-              id: member.user_id,
-              first_name: profile.email.split('@')[0],
-              last_name: '',
+      if (!membersData || membersData.length === 0) {
+        console.log('No members found, creating fallback owner entry')
+        if (community?.created_by) {
+          const fallbackOwner = {
+            id: 'fallback-owner',
+            user_id: community.created_by,
+            role: 'owner',
+            joined_at: community.created_at,
+            user: {
+              id: community.created_by,
+              first_name: 'Community',
+              last_name: 'Owner',
               avatar_url: null,
               bio: null,
               location: null,
               company: null,
-              job_title: null
+              job_title: null,
+              email: null
             }
           }
-          
-          // If we have partial profile data, fill in missing fields
-          if (profile) {
-            profile = {
-              id: member.user_id,
+          setMembers([fallbackOwner])
+        } else {
+          setMembers([])
+        }
+        return
+      }
+
+      // Then get profiles for each member
+      const userIds = membersData.map(member => member.user_id)
+      console.log('Fetching profiles for user IDs:', userIds)
+      
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, avatar_url, bio, location, company, job_title, email')
+        .in('id', userIds)
+
+      if (profilesError) {
+        console.log('Profiles query error:', profilesError)
+        console.log('Error details:', JSON.stringify(profilesError, null, 2))
+        // Continue with basic member data if profiles fail
+      }
+
+      console.log('Profiles data:', profilesData)
+
+      // Transform the data to match our interface
+      const transformedMembers = membersData.map(member => {
+        const profile = profilesData?.find(p => p.id === member.user_id) || null
+        
+        if (profile) {
+          // Use real profile data
+          return {
+            id: member.id,
+            user_id: member.user_id,
+            role: member.role,
+            joined_at: member.joined_at,
+            user: {
+              id: profile.id,
               first_name: profile.first_name || 'User',
               last_name: profile.last_name || '',
               avatar_url: profile.avatar_url || null,
               bio: profile.bio || null,
               location: profile.location || null,
               company: profile.company || null,
-              job_title: profile.job_title || null
+              job_title: profile.job_title || null,
+              email: profile.email || null
             }
           }
-        }
-        
-        // If no profile data, create a basic one
-        if (!profile) {
-          // Try to create a more user-friendly name from the user ID
+        } else {
+          // Fallback for members without profiles
           const userId = member.user_id
           const firstName = `User_${userId.slice(0, 4)}`
           const lastName = userId.slice(4, 8)
           
-          profile = {
-            id: member.user_id,
-            first_name: firstName,
-            last_name: lastName,
+          return {
+            id: member.id,
+            user_id: member.user_id,
+            role: member.role,
+            joined_at: member.joined_at,
+            user: {
+              id: member.user_id,
+              first_name: firstName,
+              last_name: lastName,
+              avatar_url: null,
+              bio: null,
+              location: null,
+              company: null,
+              job_title: null,
+              email: null
+            }
+          }
+        }
+      })
+
+      console.log('Transformed members data:', transformedMembers)
+      setMembers(transformedMembers)
+    } catch (error) {
+      console.error('Error fetching members:', error)
+      console.error('Error details:', JSON.stringify(error, null, 2))
+      toast.error('Failed to load community members')
+      
+      // Create fallback data even on error
+      if (community?.created_by) {
+        const fallbackOwner = {
+          id: 'error-fallback-owner',
+          user_id: community.created_by,
+          role: 'owner',
+          joined_at: community.created_at,
+          user: {
+            id: community.created_by,
+            first_name: 'Community',
+            last_name: 'Owner',
             avatar_url: null,
             bio: null,
             location: null,
             company: null,
-            job_title: null
+            job_title: null,
+            email: null
           }
         }
-        
-        return {
-          ...member,
-          user: profile
-        }
-      })
-
-      console.log('Members data received:', combinedMembers)
-      setMembers(combinedMembers)
-    } catch (error) {
-      console.error('Error fetching members:', error)
-      toast.error('Failed to load community members')
+        setMembers([fallbackOwner])
+      }
     } finally {
       setLoading(false)
     }
@@ -390,6 +285,25 @@ export default function CommunityMembersPage() {
     })
   }
 
+  const handleViewProfile = (member: CommunityMember) => {
+    // Navigate to user profile page
+    router.push(`/profile/${member.user_id}`)
+  }
+
+  const handleAddFriend = async (member: CommunityMember) => {
+    try {
+      // Add friend logic here
+      toast.success(`Friend request sent to ${getDisplayName(member)}`)
+    } catch (error) {
+      toast.error('Failed to send friend request')
+    }
+  }
+
+  const handleSendMessage = (member: CommunityMember) => {
+    // Navigate to messages page with user pre-selected
+    router.push(`/messages?user=${member.user_id}`)
+  }
+
   const filteredMembers = members.filter(member => {
     if (!searchQuery) return true
     
@@ -442,10 +356,8 @@ export default function CommunityMembersPage() {
             {community ? `${community.name} - Members` : 'Loading...'}
           </h1>
           <p className="text-muted-foreground text-lg">
-            {community ? `Connect with the ${community.member_count} members of this community` : 'Loading community...'}
+            {community ? `Connect with the ${members.length} members of this community` : 'Loading community...'}
           </p>
-          
-
         </div>
 
         {/* Search */}
@@ -468,93 +380,62 @@ export default function CommunityMembersPage() {
           {filteredMembers.map((member) => {
             const isOwner = member.user_id === community.created_by
             return (
-              <Dialog key={member.id}>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="h-auto p-4 flex flex-col items-start gap-3 hover:bg-muted/50 transition-colors cursor-pointer w-full"
-                    onClick={() => setSelectedMember(member)}
-                  >
-                    <div className="flex items-center gap-3 w-full">
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={member.user?.avatar_url} />
-                        <AvatarFallback className="text-lg">
-                          {getDisplayName(member).charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 text-left min-w-0">
-                        <p className="font-medium truncate">{getDisplayName(member)}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          {getRoleBadge(member.role, isOwner)}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Joined {formatDate(member.joined_at)}
-                        </p>
-                      </div>
-                    </div>
-                  </Button>
-                </DialogTrigger>
-                
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                      <User className="h-5 w-5" />
-                      Member Profile
-                    </DialogTitle>
-                  </DialogHeader>
-                  
-                  {selectedMember && (
-                    <div className="space-y-4">
-                      <div className="text-center">
-                        <Avatar className="h-20 w-20 mx-auto mb-3">
-                          <AvatarImage src={selectedMember.user?.avatar_url} />
-                          <AvatarFallback className="text-2xl">
-                            {getDisplayName(selectedMember).charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <h3 className="text-xl font-semibold">{getDisplayName(selectedMember)}</h3>
-                        <div className="flex justify-center mt-2">
-                          {getRoleBadge(selectedMember.role, selectedMember.user_id === community.created_by)}
-                        </div>
+              <Card key={member.id} className="hover:shadow-lg transition-all duration-200">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <Avatar className="h-16 w-16">
+                      <AvatarImage src={member.user?.avatar_url} />
+                      <AvatarFallback className="text-xl">
+                        {getDisplayName(member).charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-semibold text-lg truncate">{getDisplayName(member)}</h3>
+                        {getRoleBadge(member.role, isOwner)}
                       </div>
                       
-                      <div className="space-y-3">
-                        {selectedMember.user?.location && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <MapPin className="h-4 w-4 text-muted-foreground" />
-                            <span>{selectedMember.user.location}</span>
-                          </div>
-                        )}
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Joined {formatDate(member.joined_at)}
+                      </p>
+                      
+                      {/* Action Buttons */}
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewProfile(member)}
+                          className="text-xs"
+                        >
+                          <User className="h-3 w-3 mr-1" />
+                          View Profile
+                        </Button>
                         
-                        {selectedMember.user?.company && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Building2 className="h-4 w-4 text-muted-foreground" />
-                            <span>{selectedMember.user.company}</span>
-                            {selectedMember.user?.job_title && (
-                              <span className="text-muted-foreground">• {selectedMember.user.job_title}</span>
-                            )}
-                          </div>
-                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleAddFriend(member)}
+                          className="text-xs"
+                        >
+                          <Users className="h-3 w-3 mr-1" />
+                          Add Friend
+                        </Button>
                         
-                        <div className="flex items-center gap-2 text-sm">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-muted-foreground">
-                            Member since {formatDate(selectedMember.joined_at)}
-                          </span>
-                        </div>
-                        
-                        {selectedMember.user?.bio && (
-                          <div className="pt-2">
-                            <p className="text-sm text-muted-foreground leading-relaxed">
-                              {selectedMember.user.bio}
-                            </p>
-                          </div>
-                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSendMessage(member)}
+                          className="text-xs"
+                        >
+                          <Mail className="h-3 w-3 mr-1" />
+                          Message
+                        </Button>
                       </div>
                     </div>
-                  )}
-                </DialogContent>
-              </Dialog>
+                  </div>
+                </CardContent>
+              </Card>
             )
           })}
         </div>

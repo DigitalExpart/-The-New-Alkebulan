@@ -1,13 +1,41 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Search, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import type { Conversation } from "@/types/message"
-import { sampleConversations } from "@/data/messages-data"
+import { getSupabaseClient } from "@/lib/supabase"
+import { toast } from "sonner"
+
+interface User {
+  id: string
+  first_name: string
+  last_name: string
+  avatar_url?: string
+  isOnline?: boolean
+  lastSeen?: Date
+}
+
+interface Message {
+  id: string
+  sender_id: string
+  content: string
+  timestamp: Date
+  is_read: boolean
+  type: string
+}
+
+interface Conversation {
+  id: string
+  participants: User[]
+  lastMessage: Message
+  unreadCount: number
+  updatedAt: Date
+  isTyping: boolean
+}
 
 interface ConversationListProps {
   selectedConversationId?: string
@@ -23,12 +51,190 @@ export function ConversationList({
   onClose,
 }: ConversationListProps) {
   const [searchQuery, setSearchQuery] = useState("")
-  const [conversations] = useState<Conversation[]>(sampleConversations)
+  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [loading, setLoading] = useState(true)
+  const searchParams = useSearchParams()
+  const selectedUserId = searchParams.get('user')
+
+  useEffect(() => {
+    fetchConversations()
+  }, [])
+
+  const fetchConversations = async () => {
+    try {
+      setLoading(true)
+      const supabase = getSupabaseClient()
+      
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        toast.error("Please sign in to view messages")
+        return
+      }
+
+      // Get all conversations where current user is a participant
+      const { data: conversationsData, error: conversationsError } = await supabase
+        .from('conversations')
+        .select(`
+          id,
+          created_at,
+          updated_at,
+          conversation_participants!inner(
+            user_id,
+            profiles(
+              id,
+              first_name,
+              last_name,
+              avatar_url
+            )
+          ),
+          messages(
+            id,
+            sender_id,
+            content,
+            timestamp,
+            is_read
+          )
+        `)
+        .eq('conversation_participants.user_id', user.id)
+
+      if (conversationsError) {
+        console.error('Error fetching conversations:', conversationsError)
+        toast.error('Failed to load conversations')
+        return
+      }
+
+      // Transform the data
+      const transformedConversations: Conversation[] = conversationsData.map(conv => {
+        const participants = conv.conversation_participants
+          .filter(p => p.user_id !== user.id)
+          .map(p => ({
+            id: p.user_id,
+            first_name: p.profiles?.first_name || 'User',
+            last_name: p.profiles?.last_name || '',
+            avatar_url: p.profiles?.avatar_url || null,
+            isOnline: Math.random() > 0.5, // TODO: Implement real online status
+            lastSeen: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000)
+          }))
+
+        const messages = conv.messages || []
+        const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null
+        
+        // Calculate unread count
+        const unreadCount = messages.filter(m => 
+          m.sender_id !== user.id && !m.is_read
+        ).length
+
+        return {
+          id: conv.id,
+          participants,
+          lastMessage: lastMessage ? {
+            id: lastMessage.id,
+            sender_id: lastMessage.sender_id,
+            content: lastMessage.content,
+            timestamp: new Date(lastMessage.timestamp),
+            is_read: lastMessage.is_read,
+            type: lastMessage.type || 'text'
+          } : {
+            id: 'no-message',
+            sender_id: user.id,
+            content: 'No messages yet',
+            timestamp: new Date(conv.created_at),
+            is_read: true,
+            type: 'text'
+          },
+          unreadCount,
+          updatedAt: new Date(conv.updated_at || conv.created_at),
+          isTyping: false
+        }
+      })
+
+      setConversations(transformedConversations)
+
+      // If a user is selected from URL, find or create conversation
+      if (selectedUserId && selectedUserId !== user.id) {
+        const existingConversation = transformedConversations.find(conv => 
+          conv.participants.some(p => p.id === selectedUserId)
+        )
+
+        if (existingConversation) {
+          onSelectConversation(existingConversation.id)
+        } else {
+          // Create new conversation
+          await createConversation(selectedUserId)
+        }
+      }
+
+    } catch (error) {
+      console.error('Error fetching conversations:', error)
+      
+      // Provide more specific error messages
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          message: error.message,
+          name: error.name,
+          stack: error.stack
+        })
+        
+        if (error.message.includes('relation "conversations" does not exist')) {
+          toast.error('Messaging system not set up. Please contact support.')
+        } else if (error.message.includes('permission denied')) {
+          toast.error('Access denied. Please sign in again.')
+        } else {
+          toast.error(`Failed to load conversations: ${error.message}`)
+        }
+      } else {
+        console.error('Unknown error type:', typeof error, error)
+        toast.error('Failed to load conversations')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const createConversation = async (otherUserId: string) => {
+    try {
+      const supabase = getSupabaseClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) return
+
+      // Create new conversation
+      const { data: conversation, error: convError } = await supabase
+        .from('conversations')
+        .insert({
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single()
+
+      if (convError) throw convError
+
+      // Add participants
+      const { error: participantError } = await supabase
+        .from('conversation_participants')
+        .insert([
+          { conversation_id: conversation.id, user_id: user.id },
+          { conversation_id: conversation.id, user_id: otherUserId }
+        ])
+
+      if (participantError) throw participantError
+
+      // Refresh conversations
+      await fetchConversations()
+
+    } catch (error) {
+      console.error('Error creating conversation:', error)
+      toast.error('Failed to create conversation')
+    }
+  }
 
   const filteredConversations = conversations.filter((conversation) =>
     conversation.participants.some(
       (participant) =>
-        participant.id !== "current-user" && participant.name.toLowerCase().includes(searchQuery.toLowerCase()),
+        participant.id !== "current-user" && 
+        `${participant.first_name} ${participant.last_name}`.toLowerCase().includes(searchQuery.toLowerCase()),
     ),
   )
 
@@ -58,6 +264,17 @@ export function ConversationList({
       <span className="text-xs text-primary ml-1">typing</span>
     </div>
   )
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+          <p className="text-sm text-muted-foreground">Loading conversations...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -102,8 +319,10 @@ export function ConversationList({
             </div>
           ) : (
             filteredConversations.map((conversation) => {
-              const otherParticipant = conversation.participants.find((p) => p.id !== "current-user")
+              const otherParticipant = conversation.participants[0] // Get first participant (other than current user)
               if (!otherParticipant) return null
+
+              const displayName = `${otherParticipant.first_name} ${otherParticipant.last_name}`.trim() || 'User'
 
               return (
                 <div
@@ -121,9 +340,9 @@ export function ConversationList({
                   <div className="flex items-start space-x-3">
                     <div className="relative flex-shrink-0">
                       <Avatar className="h-12 w-12">
-                        <AvatarImage src={otherParticipant.avatar || "/placeholder.svg"} alt={otherParticipant.name} />
+                        <AvatarImage src={otherParticipant.avatar_url || undefined} alt={displayName} />
                         <AvatarFallback className="bg-primary text-primary-foreground">
-                          {otherParticipant.name
+                          {displayName
                             .split(" ")
                             .map((n) => n[0])
                             .join("")}
@@ -136,7 +355,7 @@ export function ConversationList({
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <h3 className="font-medium truncate">{otherParticipant.name}</h3>
+                        <h3 className="font-medium truncate">{displayName}</h3>
                         <span className="text-xs text-muted-foreground flex-shrink-0">
                           {formatTime(conversation.lastMessage.timestamp)}
                         </span>
@@ -148,7 +367,7 @@ export function ConversationList({
                             <TypingIndicator />
                           ) : (
                             <p className="text-sm text-muted-foreground truncate">
-                              {conversation.lastMessage.senderId === "current-user" ? "You: " : ""}
+                              {conversation.lastMessage.sender_id === "current-user" ? "You: " : ""}
                               {conversation.lastMessage.content}
                             </p>
                           )}

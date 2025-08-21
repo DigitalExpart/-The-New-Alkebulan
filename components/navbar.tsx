@@ -393,12 +393,54 @@ export function Navbar() {
 
             {/* Navigation Links */}
             <div className="hidden md:flex items-center space-x-6">
-              <Link
-                href="/communities"
-                className="text-foreground hover:text-primary transition-colors duration-200 font-medium"
-              >
-                Communities
-              </Link>
+              {/* Community Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors duration-200 font-medium">
+                    <span>Community</span>
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuItem asChild>
+                    <Link href="/community" className="cursor-pointer flex items-center gap-2">
+                      <Users className="w-4 h-4" />
+                      Social Feed
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/community/my-friends" className="cursor-pointer flex items-center gap-2">
+                      <UserPlus className="w-4 h-4" />
+                      My Friends
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/community/my-communities" className="cursor-pointer flex items-center gap-2">
+                      <Building2 className="w-4 h-4" />
+                      My Communities
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/community/my-alkebulan" className="cursor-pointer flex items-center gap-2">
+                      <Globe className="w-4 h-4" />
+                      My Alkebulan
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/messages" className="cursor-pointer flex items-center gap-2">
+                      <MessageCircle className="w-4 h-4" />
+                      Messenger
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/community/events" className="cursor-pointer flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      Events
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Link
                 href="/marketplace"
                 className="text-foreground hover:text-primary transition-colors duration-200 font-medium"
@@ -576,12 +618,55 @@ export function Navbar() {
         {isOpen && (
           <div className="md:hidden pb-4 border-t border-border">
             <div className="flex flex-col space-y-2 pt-4">
-              <Link
-                href="/communities"
-                className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent"
-              >
-                Communities
-              </Link>
+              {/* Community Section */}
+              <div className="px-2 py-2">
+                <div className="text-sm font-semibold text-muted-foreground mb-2">Community</div>
+                <div className="flex flex-col space-y-1 ml-4">
+                  <Link
+                    href="/community"
+                    className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent flex items-center gap-2"
+                  >
+                    <Users className="w-4 h-4" />
+                    Social Feed
+                  </Link>
+                  <Link
+                    href="/community/my-friends"
+                    className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent flex items-center gap-2"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    My Friends
+                  </Link>
+                  <Link
+                    href="/community/my-communities"
+                    className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent flex items-center gap-2"
+                  >
+                    <Building2 className="w-4 h-4" />
+                    My Communities
+                  </Link>
+                  <Link
+                    href="/community/my-alkebulan"
+                    className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent flex items-center gap-2"
+                  >
+                    <Globe className="w-4 h-4" />
+                    My Alkebulan
+                  </Link>
+                  <Link
+                    href="/messages"
+                    className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent flex items-center gap-2"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    Messenger
+                  </Link>
+                  <Link
+                    href="/community/events"
+                    className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent flex items-center gap-2"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    Events
+                  </Link>
+                </div>
+              </div>
+              
               <Link
                 href="/marketplace"
                 className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent"

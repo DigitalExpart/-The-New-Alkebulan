@@ -88,12 +88,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           // Profile doesn't exist, create one based on user's intended roles
           const defaultProfile = {
+            id: userId,
             user_id: userId,
             business_enabled: selectedRoles.includes('business'),
             investor_enabled: selectedRoles.includes('investor'),
             mentor_enabled: selectedRoles.includes('mentor'),
             creator_enabled: selectedRoles.includes('creator'),
             selected_roles: selectedRoles,
+            account_type: selectedRoles.includes('business') ? 'business' : 'buyer',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           }

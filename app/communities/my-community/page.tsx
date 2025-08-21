@@ -22,7 +22,9 @@ import {
   MapPin,
   Tag,
   Clock,
-  Crown
+  Crown,
+  Share2,
+  Heart
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -64,6 +66,23 @@ interface CommunityPost {
   }
 }
 
+interface CommunityActivity {
+  id: string
+  type: 'post' | 'comment' | 'like' | 'join' | 'create' | 'share'
+  created_at: string
+  user_id: string
+  profile: {
+    first_name: string
+    last_name: string
+    avatar_url: string | null
+  }
+  content?: string
+  community_name?: string
+  post_content?: string
+  target_user_name?: string
+  metadata?: any
+}
+
 export default function MyCommunityPage() {
   const router = useRouter()
   const { user, profile } = useAuth()
@@ -82,6 +101,7 @@ export default function MyCommunityPage() {
     communitiesCreated: 0
   })
   const [recentPosts, setRecentPosts] = useState<CommunityPost[]>([])
+  const [userActivities, setUserActivities] = useState<CommunityActivity[]>([])
 
   // Fetch user's communities and stats on component mount
   useEffect(() => {
@@ -89,6 +109,7 @@ export default function MyCommunityPage() {
       fetchUserCommunities()
       fetchCommunityStats()
       fetchRecentPosts()
+      fetchUserActivities()
       fetchDiscoverCommunities()
       
       // Add a timeout to prevent infinite loading
@@ -211,6 +232,200 @@ export default function MyCommunityPage() {
       }
     } catch (error) {
       console.error('Error fetching posts:', error)
+    }
+  }
+
+  const fetchUserActivities = async () => {
+    if (!user) return
+
+    try {
+      const supabase = getSupabaseClient()
+      const activities: CommunityActivity[] = []
+
+      // Fetch user's posts
+      if (userCommunities.length > 0) {
+        const { data: posts, error: postsError } = await supabase
+          .from('community_posts')
+          .select(`
+            id,
+            content,
+            created_at,
+            user_id,
+            profiles!community_posts_user_id_fkey (
+              first_name,
+              last_name,
+              avatar_url
+            )
+          `)
+          .in('community_id', userCommunities.map(c => c.id))
+          .order('created_at', { ascending: false })
+          .limit(10)
+
+        if (!postsError && posts) {
+          posts.forEach(post => {
+            activities.push({
+              id: post.id,
+              type: 'post',
+              created_at: post.created_at,
+              user_id: post.user_id,
+              profile: post.profile,
+              content: post.content,
+              post_content: post.content
+            })
+          })
+        }
+      }
+
+      // Fetch user's comments
+      try {
+        const { data: comments, error: commentsError } = await supabase
+          .from('post_comments')
+          .select(`
+            id,
+            content,
+            created_at,
+            user_id,
+            profiles!post_comments_user_id_fkey (
+              first_name,
+              last_name,
+              avatar_url
+            )
+          `)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(10)
+
+        if (!commentsError && comments) {
+          comments.forEach(comment => {
+            activities.push({
+              id: comment.id,
+              type: 'comment',
+              created_at: comment.created_at,
+              user_id: comment.user_id,
+              profile: comment.profile,
+              content: comment.content
+            })
+          })
+        }
+      } catch (error) {
+        console.log('Comments table not available yet')
+      }
+
+      // Fetch user's likes
+      try {
+        const { data: likes, error: likesError } = await supabase
+          .from('post_likes')
+          .select(`
+            id,
+            created_at,
+            user_id,
+            profiles!post_likes_user_id_fkey (
+              first_name,
+              last_name,
+              avatar_url
+            )
+          `)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(10)
+
+        if (!likesError && likes) {
+          likes.forEach(like => {
+            activities.push({
+              id: like.id,
+              type: 'like',
+              created_at: like.created_at,
+              user_id: like.user_id,
+              profile: like.profile,
+              content: 'liked a post'
+            })
+          })
+        }
+      } catch (error) {
+        console.log('Likes table not available yet')
+      }
+
+      // Fetch user's community joins
+      try {
+        const { data: joins, error: joinsError } = await supabase
+          .from('community_members')
+          .select(`
+            id,
+            joined_at,
+            user_id,
+            communities (
+              name
+            ),
+            profiles!community_members_user_id_fkey (
+              first_name,
+              last_name,
+              avatar_url
+            )
+          `)
+          .eq('user_id', user.id)
+          .order('joined_at', { ascending: false })
+          .limit(10)
+
+        if (!joinsError && joins) {
+          joins.forEach(join => {
+            activities.push({
+              id: join.id,
+              type: 'join',
+              created_at: join.joined_at,
+              user_id: join.user_id,
+              profile: join.profile,
+              community_name: join.communities?.name,
+              content: `joined ${join.communities?.name || 'a community'}`
+            })
+          })
+        }
+      } catch (error) {
+        console.log('Community members table not available yet')
+      }
+
+      // Fetch communities created by user
+      try {
+        const { data: createdCommunities, error: createdError } = await supabase
+          .from('communities')
+          .select(`
+            id,
+            name,
+            created_at,
+            profiles!communities_created_by_fkey (
+              first_name,
+              last_name,
+              avatar_url
+            )
+          `)
+          .eq('created_by', user.id)
+          .order('created_at', { ascending: false })
+          .limit(5)
+
+        if (!createdError && createdCommunities) {
+          createdCommunities.forEach(community => {
+            activities.push({
+              id: community.id,
+              type: 'create',
+              created_at: community.created_at,
+              user_id: user.id,
+              profile: community.profile,
+              community_name: community.name,
+              content: `created community "${community.name}"`
+            })
+          })
+        }
+      } catch (error) {
+        console.log('Communities table not available yet')
+      }
+
+      // Sort all activities by date and take the most recent
+      const sortedActivities = activities
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 20)
+
+      setUserActivities(sortedActivities)
+    } catch (error) {
+      console.error('Error fetching user activities:', error)
     }
   }
 
@@ -402,6 +617,44 @@ export default function MyCommunityPage() {
       return <Badge variant="default" className="bg-yellow-600">Owner</Badge>
     }
     return <Badge variant="secondary">Member</Badge>
+  }
+
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'post':
+        return <MessageSquare className="h-4 w-4 text-blue-500" />
+      case 'comment':
+        return <MessageSquare className="h-4 w-4 text-green-500" />
+      case 'like':
+        return <Heart className="h-4 w-4 text-red-500" />
+      case 'join':
+        return <Users className="h-4 w-4 text-purple-500" />
+      case 'create':
+        return <Plus className="h-4 w-4 text-orange-500" />
+      case 'share':
+        return <Share2 className="h-4 w-4 text-indigo-500" />
+      default:
+        return <Activity className="h-4 w-4 text-gray-500" />
+    }
+  }
+
+  const getActivityBadge = (type: string) => {
+    switch (type) {
+      case 'post':
+        return <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">Posted</Badge>
+      case 'comment':
+        return <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">Commented</Badge>
+      case 'like':
+        return <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400">Liked</Badge>
+      case 'join':
+        return <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400">Joined</Badge>
+      case 'create':
+        return <Badge variant="secondary" className="bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400">Created</Badge>
+      case 'share':
+        return <Badge variant="secondary" className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-400">Shared</Badge>
+      default:
+        return <Badge variant="secondary">Activity</Badge>
+    }
   }
 
   const formatDate = (dateString: string) => {
@@ -973,50 +1226,124 @@ export default function MyCommunityPage() {
           <TabsContent value="activity" className="space-y-6">
             <div>
               <h2 className="text-2xl font-bold mb-2">Community Activity</h2>
-              <p className="text-muted-foreground">Your recent community interactions</p>
+              <p className="text-muted-foreground">Your recent community interactions and engagement</p>
             </div>
 
-            {recentPosts.length > 0 ? (
-              <Card>
-                <CardContent className="p-6">
-                  <div className="space-y-6">
-                    {recentPosts.map((post) => (
-                      <div
-                        key={post.id}
-                        className="flex items-start gap-4 p-4 rounded-lg hover:bg-muted/50 transition-colors"
-                      >
-                        <Avatar className="w-10 h-10">
-                          <AvatarImage src={post.profile?.avatar_url || ""} />
-                          <AvatarFallback>
-                            {post.profile?.first_name?.charAt(0) || "U"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <p className="font-medium">
-                              {post.profile?.first_name} {post.profile?.last_name}
-                            </p>
-                            <Badge variant="secondary" className="text-xs">
-                              Posted
-                            </Badge>
+            {userActivities.length > 0 ? (
+              <div className="space-y-4">
+                {userActivities.map((activity) => (
+                  <Card key={activity.id} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex items-start gap-4">
+                        {/* Activity Icon */}
+                        <div className="w-10 h-10 rounded-full bg-muted/50 flex items-center justify-center">
+                          {getActivityIcon(activity.type)}
+                        </div>
+                        
+                        {/* Activity Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="flex items-center gap-2">
+                              <Avatar className="w-6 h-6">
+                                <AvatarImage src={activity.profile?.avatar_url || ""} />
+                                <AvatarFallback className="text-xs">
+                                  {activity.profile?.first_name?.charAt(0) || "U"}
+                                </AvatarFallback>
+                              </Avatar>
+                              <p className="font-medium text-sm">
+                                {activity.profile?.first_name} {activity.profile?.last_name}
+                              </p>
+                            </div>
+                            {getActivityBadge(activity.type)}
+                            <span className="text-xs text-muted-foreground">
+                              {formatDate(activity.created_at)}
+                            </span>
                           </div>
-                          <p className="text-muted-foreground mb-2">{post.content}</p>
-                          <p className="text-sm text-muted-foreground">{formatDate(post.created_at)}</p>
+                          
+                          {/* Activity Description */}
+                          <div className="space-y-2">
+                            {activity.type === 'post' && (
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-2">Posted in community</p>
+                                <p className="text-foreground bg-muted/30 p-3 rounded-lg">
+                                  {activity.content}
+                                </p>
+                              </div>
+                            )}
+                            
+                            {activity.type === 'comment' && (
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-2">Commented on a post</p>
+                                <p className="text-foreground bg-muted/30 p-3 rounded-lg">
+                                  {activity.content}
+                                </p>
+                              </div>
+                            )}
+                            
+                            {activity.type === 'like' && (
+                              <p className="text-foreground">
+                                {activity.content}
+                              </p>
+                            )}
+                            
+                            {activity.type === 'join' && (
+                              <p className="text-foreground">
+                                {activity.content}
+                              </p>
+                            )}
+                            
+                            {activity.type === 'create' && (
+                              <div>
+                                <p className="text-foreground">
+                                  {activity.content}
+                                </p>
+                                {activity.community_name && (
+                                  <Badge variant="outline" className="mt-2">
+                                    {activity.community_name}
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+                            
+                            {activity.type === 'share' && (
+                              <p className="text-foreground">
+                                {activity.content}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    ))}
+                    </CardContent>
+                  </Card>
+                ))}
+                
+                {/* Load More Button */}
+                {userActivities.length >= 20 && (
+                  <div className="text-center pt-4">
+                    <Button variant="outline" onClick={() => fetchUserActivities()}>
+                      Load More Activities
+                    </Button>
                   </div>
-                </CardContent>
-              </Card>
+                )}
+              </div>
             ) : (
               <Card className="text-center py-12">
                 <Activity className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-xl font-semibold mb-2">No Activity Yet</h3>
-                <p className="text-muted-foreground mb-6">Start engaging with your communities to see activity here</p>
-                <Button onClick={() => setActiveTab("communities")}>
-                  <Globe className="mr-2 h-4 w-4" />
-                  View My Communities
-                </Button>
+                <p className="text-muted-foreground mb-6">
+                  Start engaging with your communities to see your activity here. 
+                  Try posting, commenting, liking, or joining communities!
+                </p>
+                <div className="flex gap-3 justify-center">
+                  <Button onClick={() => setActiveTab("communities")}>
+                    <Globe className="mr-2 h-4 w-4" />
+                    View My Communities
+                  </Button>
+                  <Button variant="outline" onClick={() => router.push('/community')}>
+                    <MessageSquare className="mr-2 h-4 w-4" />
+                    Go to Community Feed
+                  </Button>
+                </div>
               </Card>
             )}
           </TabsContent>

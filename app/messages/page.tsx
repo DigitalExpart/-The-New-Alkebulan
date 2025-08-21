@@ -6,6 +6,15 @@ import { ChatWindow } from "@/components/messages/chat-window"
 
 export default function MessagesPage() {
   const [selectedConversationId, setSelectedConversationId] = useState<string>()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const handleOpenSidebar = () => {
+    setSidebarOpen(true)
+  }
+
+  const handleCloseSidebar = () => {
+    setSidebarOpen(false)
+  }
 
   return (
     <div className="min-h-screen bg-[#142b20]">
@@ -13,10 +22,15 @@ export default function MessagesPage() {
         <ConversationList
           selectedConversationId={selectedConversationId}
           onSelectConversation={setSelectedConversationId}
+          isOpen={sidebarOpen}
+          onClose={handleCloseSidebar}
         />
 
         {selectedConversationId ? (
-          <ChatWindow conversationId={selectedConversationId} />
+          <ChatWindow 
+            conversationId={selectedConversationId} 
+            onOpenSidebar={handleOpenSidebar}
+          />
         ) : (
           <div className="flex-1 flex items-center justify-center bg-[#142b20]">
             <div className="text-center">
