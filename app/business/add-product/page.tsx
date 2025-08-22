@@ -599,7 +599,7 @@ export default function AddProductPage() {
                       {formData.variants.colors.length > 0 && (
                         <div className="flex flex-wrap gap-2">
                           {formData.variants.colors.map((color, index) => (
-                            <div key={index} className="flex items-center gap-2 bg-white px-3 py-1 rounded-full border">
+                            <div key={index} className="flex items-center gap-2 bg-white px-3 py-1 rounded-full border dark:text-dark-bg">
                               <span className="text-sm">{color}</span>
                               <button
                                 type="button"
@@ -645,7 +645,7 @@ export default function AddProductPage() {
                       {formData.variants.sizes.length > 0 && (
                         <div className="flex flex-wrap gap-2">
                           {formData.variants.sizes.map((size, index) => (
-                            <div key={index} className="flex items-center gap-2 bg-white px-3 py-1 rounded-full border">
+                            <div key={index} className="flex items-center gap-2 bg-white px-3 py-1 rounded-full border dark:text-dark-bg">
                               <span className="text-sm">{size}</span>
                               <button
                                 type="button"
@@ -691,7 +691,7 @@ export default function AddProductPage() {
                       {formData.variants.numbers.length > 0 && (
                         <div className="flex flex-wrap gap-2">
                           {formData.variants.numbers.map((number, index) => (
-                            <div key={index} className="flex items-center gap-2 bg-white px-3 py-1 rounded-full border">
+                            <div key={index} className="flex items-center gap-2 bg-white px-3 py-1 rounded-full border dark:text-dark-bg">
                               <span className="text-sm">{number}</span>
                               <button
                                 type="button"
@@ -746,7 +746,7 @@ export default function AddProductPage() {
                       {formData.variants.weights.length > 0 && (
                         <div className="flex flex-wrap gap-2">
                           {formData.variants.weights.map((weight, index) => (
-                            <div key={index} className="flex items-center gap-2 bg-white px-3 py-1 rounded-full border">
+                            <div key={index} className="flex items-center gap-2 bg-white px-3 py-1 rounded-full border dark:text-dark-bg">
                               <span className="text-sm">{weight} kg</span>
                               <button
                                 type="button"
