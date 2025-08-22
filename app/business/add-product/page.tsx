@@ -15,11 +15,23 @@ import { toast } from "sonner"
 
 interface ProductFormData {
   name: string
+  sku: string
   category: string
   subcategory: string
-  price: number
+  actualPrice: number
+  salesPrice: number
   description: string
+  additionalDescription: string
   status: string
+  hasVariants: boolean
+  variants: {
+    color?: string
+    size?: string
+    number?: string
+    weight?: number
+  }
+  images: File[]
+  videos: File[]
 }
 
 const productCategories = [
@@ -69,14 +81,26 @@ export default function AddProductPage() {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState<ProductFormData>({
     name: "",
+    sku: "",
     category: "",
     subcategory: "",
-    price: 0,
+    actualPrice: 0,
+    salesPrice: 0,
     description: "",
+    additionalDescription: "",
     status: "draft",
+    hasVariants: false,
+    variants: {
+      color: "",
+      size: "",
+      number: "",
+      weight: 0,
+    },
+    images: [],
+    videos: [],
   })
 
-  const handleInputChange = (field: keyof ProductFormData, value: string | number) => {
+  const handleInputChange = (field: keyof ProductFormData, value: string | number | boolean) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -101,6 +125,40 @@ export default function AddProductPage() {
     return []
   }
 
+  const handleFileUpload = (field: 'images' | 'videos', files: FileList | null) => {
+    if (files) {
+      const fileArray = Array.from(files)
+      setFormData(prev => ({
+        ...prev,
+        [field]: [...prev[field], ...fileArray]
+      }))
+    }
+  }
+
+  const removeFile = (field: 'images' | 'videos', index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: prev[field].filter((_, i) => i !== index)
+    }))
+  }
+
+  const handleVariantChange = (field: keyof typeof formData.variants, value: string | number) => {
+    setFormData(prev => ({
+      ...prev,
+      variants: {
+        ...prev.variants,
+        [field]: value
+      }
+    }))
+  }
+
+  const toggleVariants = () => {
+    setFormData(prev => ({
+      ...prev,
+      hasVariants: !prev.hasVariants
+    }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -109,13 +167,18 @@ export default function AddProductPage() {
       return
     }
 
-    if (!formData.name || !formData.category || !formData.subcategory || !formData.description) {
+    if (!formData.name || !formData.sku || !formData.category || !formData.subcategory || !formData.description) {
       toast.error("Please fill in all required fields")
       return
     }
 
-    if (formData.price < 0) {
-      toast.error("Price cannot be negative")
+    if (formData.actualPrice < 0 || formData.salesPrice < 0) {
+      toast.error("Prices cannot be negative")
+      return
+    }
+
+    if (formData.salesPrice > formData.actualPrice) {
+      toast.error("Sales price cannot be higher than actual price")
       return
     }
 
@@ -197,6 +260,17 @@ export default function AddProductPage() {
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="sku">SKU *</Label>
+                  <Input
+                    id="sku"
+                    placeholder="Enter product SKU"
+                    value={formData.sku}
+                    onChange={(e) => handleInputChange('sku', e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="category">Product Type *</Label>
                   <Select 
                     value={formData.category} 
@@ -236,16 +310,37 @@ export default function AddProductPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="price">Price</Label>
+                  <Label htmlFor="actualPrice">Actual Price *</Label>
                   <Input
-                    id="price"
+                    id="actualPrice"
                     type="number"
                     placeholder="0.00"
-                    value={formData.price || ''}
-                    onChange={(e) => handleInputChange('price', parseFloat(e.target.value) || 0)}
+                    value={formData.actualPrice || ''}
+                    onChange={(e) => handleInputChange('actualPrice', parseFloat(e.target.value) || 0)}
                     min="0"
                     step="0.01"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="salesPrice">Sales Price</Label>
+                  <Input
+                    id="salesPrice"
+                    type="number"
+                    placeholder="0.00"
+                    value={formData.salesPrice || ''}
+                    onChange={(e) => handleInputChange('salesPrice', parseFloat(e.target.value) || 0)}
+                    min="0"
+                    step="0.01"
+                  />
+                  {formData.salesPrice > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {formData.actualPrice > 0 ? 
+                        `Save ${((formData.actualPrice - formData.salesPrice) / formData.actualPrice * 100).toFixed(0)}%` : 
+                        'Enter actual price first'
+                      }
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -282,6 +377,186 @@ export default function AddProductPage() {
                 <p className="text-xs text-muted-foreground">
                   Provide a clear and detailed description to help customers understand your offering.
                 </p>
+              </div>
+
+              {/* Additional Description */}
+              <div className="space-y-2">
+                <Label htmlFor="additionalDescription">Additional Description</Label>
+                <Textarea
+                  id="additionalDescription"
+                  placeholder="Add any additional details, specifications, or features..."
+                  value={formData.additionalDescription}
+                  onChange={(e) => handleInputChange('additionalDescription', e.target.value)}
+                  rows={3}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Optional: Include technical specs, care instructions, or other relevant details.
+                </p>
+              </div>
+
+              {/* Product Variants */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="hasVariants"
+                    checked={formData.hasVariants}
+                    onChange={toggleVariants}
+                    className="rounded border-gray-300"
+                  />
+                  <Label htmlFor="hasVariants" className="font-medium">
+                    This product has variants (color, size, etc.)
+                  </Label>
+                </div>
+
+                {formData.hasVariants && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
+                    <div className="space-y-2">
+                      <Label htmlFor="color">Color</Label>
+                      <Input
+                        id="color"
+                        placeholder="e.g., Red, Blue, Black"
+                        value={formData.variants.color}
+                        onChange={(e) => handleVariantChange('color', e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="size">Size</Label>
+                      <Input
+                        id="size"
+                        placeholder="e.g., S, M, L, XL"
+                        value={formData.variants.size}
+                        onChange={(e) => handleVariantChange('size', e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="number">Number/Model</Label>
+                      <Input
+                        id="number"
+                        placeholder="e.g., Model #123, Version 2.0"
+                        value={formData.variants.number}
+                        onChange={(e) => handleVariantChange('number', e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="weight">Weight (kg)</Label>
+                      <Input
+                        id="weight"
+                        type="number"
+                        placeholder="0.00"
+                        value={formData.variants.weight || ''}
+                        onChange={(e) => handleVariantChange('weight', parseFloat(e.target.value) || 0)}
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Media Uploads */}
+              <div className="space-y-6">
+                {/* Image Upload */}
+                <div className="space-y-3">
+                  <Label className="text-base font-medium">Product Images</Label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={(e) => handleFileUpload('images', e.target.files)}
+                      className="hidden"
+                      id="image-upload"
+                    />
+                    <label htmlFor="image-upload" className="cursor-pointer">
+                      <div className="space-y-2">
+                        <div className="mx-auto w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+                          <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Upload Images</p>
+                          <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB each</p>
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                  
+                  {formData.images.length > 0 && (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {formData.images.map((file, index) => (
+                        <div key={index} className="relative group">
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt={`Preview ${index + 1}`}
+                            className="w-full h-24 object-cover rounded-lg"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeFile('images', index)}
+                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Video Upload */}
+                <div className="space-y-3">
+                  <Label className="text-base font-medium">Product Videos</Label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                    <input
+                      type="file"
+                      multiple
+                      accept="video/*"
+                      onChange={(e) => handleFileUpload('videos', e.target.files)}
+                      className="hidden"
+                      id="video-upload"
+                    />
+                    <label htmlFor="video-upload" className="cursor-pointer">
+                      <div className="space-y-2">
+                        <div className="mx-auto w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+                          <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Upload Videos</p>
+                          <p className="text-xs text-gray-500">MP4, MOV up to 100MB each</p>
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                  
+                  {formData.videos.length > 0 && (
+                    <div className="space-y-2">
+                      {formData.videos.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                            <span className="text-sm font-medium">{file.name}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeFile('videos', index)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Action Buttons */}

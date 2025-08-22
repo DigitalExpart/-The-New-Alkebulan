@@ -124,7 +124,7 @@ export function Navbar() {
 
       // Refresh profile data
       await forceRefreshProfile()
-    } catch (error) {
+      } catch (error) {
       console.error('Error in handleAccountTypeSwitch:', error)
     }
   }
@@ -174,7 +174,7 @@ export function Navbar() {
   }
 
   const handleSearchResultClick = (result: any) => {
-    setShowSearchResults(false)
+        setShowSearchResults(false)
     setSearchQuery('')
     
     // Navigate based on result type
@@ -300,12 +300,12 @@ export function Navbar() {
                   </div>
                 </CollapsibleContent>
               </Collapsible>
-            </div>
+              </div>
           </div>
 
           {/* Right Side - Search, User Menu, Notifications */}
           <div className="flex items-center space-x-4">
-            {/* Search Bar */}
+          {/* Search Bar */}
             <div className="relative hidden md:block">
               <form onSubmit={handleSearchSubmit}>
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -353,7 +353,7 @@ export function Navbar() {
                   ))}
                 </div>
               )}
-            </div>
+          </div>
 
             {/* Search Button for Mobile */}
             <button
@@ -567,13 +567,13 @@ export function Navbar() {
                   </Link>
                   <Link href="/communities/my-community" className="block p-2 text-sm text-foreground hover:bg-accent rounded">
                     My Alkebulan
-                  </Link>
+              </Link>
                   <Link href="/messages" className="block p-2 text-sm text-foreground hover:bg-accent rounded">
                     Messenger
-                  </Link>
+              </Link>
                   <Link href="/growth" className="block p-2 text-sm text-foreground hover:bg-accent rounded">
-                    Events
-                  </Link>
+                Events
+              </Link>
                 </CollapsibleContent>
               </Collapsible>
 
@@ -624,12 +624,12 @@ export function Navbar() {
                   </Link>
                   <Link href="/investing/more-projects" className="block p-2 text-sm text-foreground hover:bg-accent rounded">
                     More Projects
-                  </Link>
+              </Link>
                 </CollapsibleContent>
               </Collapsible>
             </CollapsibleContent>
           </Collapsible>
-        </div>
+            </div>
       </div>
     </nav>
   )
