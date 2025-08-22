@@ -25,11 +25,12 @@ interface ProductFormData {
   status: string
   hasVariants: boolean
   variants: {
-    color?: string
-    size?: string
-    number?: string
-    weight?: number
+    colors: string[]
+    sizes: string[]
+    numbers: string[]
+    weights: number[]
   }
+  inventory: number
   images: File[]
   videos: File[]
 }
@@ -91,11 +92,12 @@ export default function AddProductPage() {
     status: "draft",
     hasVariants: false,
     variants: {
-      color: "",
-      size: "",
-      number: "",
-      weight: 0,
+      colors: [],
+      sizes: [],
+      numbers: [],
+      weights: [],
     },
+    inventory: 1,
     images: [],
     videos: [],
   })
@@ -159,6 +161,35 @@ export default function AddProductPage() {
     }))
   }
 
+  const addVariantOption = (type: keyof typeof formData.variants, value: string | number) => {
+    if (value && value.toString().trim()) {
+      setFormData(prev => ({
+        ...prev,
+        variants: {
+          ...prev.variants,
+          [type]: [...prev.variants[type], value]
+        }
+      }))
+    }
+  }
+
+  const removeVariantOption = (type: keyof typeof formData.variants, index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      variants: {
+        ...prev.variants,
+        [type]: prev.variants[type].filter((_, i) => i !== index)
+      }
+    }))
+  }
+
+  const [newVariantInputs, setNewVariantInputs] = useState({
+    color: "",
+    size: "",
+    number: "",
+    weight: ""
+  })
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -167,8 +198,13 @@ export default function AddProductPage() {
       return
     }
 
-    if (!formData.name || !formData.sku || !formData.category || !formData.subcategory || !formData.description) {
+    if (!formData.name || !formData.category || !formData.subcategory || !formData.description) {
       toast.error("Please fill in all required fields")
+      return
+    }
+
+    if (formData.inventory < 0) {
+      toast.error("Inventory cannot be negative")
       return
     }
 
@@ -260,14 +296,16 @@ export default function AddProductPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="sku">SKU *</Label>
+                  <Label htmlFor="sku">SKU (Optional)</Label>
                   <Input
                     id="sku"
-                    placeholder="Enter product SKU"
+                    placeholder="Enter product SKU (optional)"
                     value={formData.sku}
                     onChange={(e) => handleInputChange('sku', e.target.value)}
-                    required
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Stock Keeping Unit for inventory management
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -361,6 +399,22 @@ export default function AddProductPage() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="inventory">Available Quantity *</Label>
+                  <Input
+                    id="inventory"
+                    type="number"
+                    placeholder="1"
+                    value={formData.inventory || ''}
+                    onChange={(e) => handleInputChange('inventory', parseInt(e.target.value) || 1)}
+                    min="1"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Number of products available for purchase
+                  </p>
+                </div>
               </div>
 
               {/* Description */}
@@ -410,49 +464,213 @@ export default function AddProductPage() {
                 </div>
 
                 {formData.hasVariants && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
-                    <div className="space-y-2">
-                      <Label htmlFor="color">Color</Label>
-                      <Input
-                        id="color"
-                        placeholder="e.g., Red, Blue, Black"
-                        value={formData.variants.color}
-                        onChange={(e) => handleVariantChange('color', e.target.value)}
-                      />
+                  <div className="space-y-6 p-4 bg-muted rounded-lg">
+                    {/* Colors */}
+                    <div className="space-y-3">
+                      <Label className="text-base font-medium">Colors</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Add a color (e.g., Red)"
+                          value={newVariantInputs.color}
+                          onChange={(e) => setNewVariantInputs(prev => ({ ...prev, color: e.target.value }))}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              addVariantOption('colors', newVariantInputs.color)
+                              setNewVariantInputs(prev => ({ ...prev, color: '' }))
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            addVariantOption('colors', newVariantInputs.color)
+                            setNewVariantInputs(prev => ({ ...prev, color: '' }))
+                          }}
+                          disabled={!newVariantInputs.color.trim()}
+                        >
+                          Add
+                        </Button>
+                      </div>
+                      
+                      {formData.variants.colors.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {formData.variants.colors.map((color, index) => (
+                            <div key={index} className="flex items-center gap-2 bg-white px-3 py-1 rounded-full border">
+                              <span className="text-sm">{color}</span>
+                              <button
+                                type="button"
+                                onClick={() => removeVariantOption('colors', index)}
+                                className="text-red-500 hover:text-red-700 text-xs"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="size">Size</Label>
-                      <Input
-                        id="size"
-                        placeholder="e.g., S, M, L, XL"
-                        value={formData.variants.size}
-                        onChange={(e) => handleVariantChange('size', e.target.value)}
-                      />
+                    {/* Sizes */}
+                    <div className="space-y-3">
+                      <Label className="text-base font-medium">Sizes</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Add a size (e.g., S, M, L)"
+                          value={newVariantInputs.size}
+                          onChange={(e) => setNewVariantInputs(prev => ({ ...prev, size: e.target.value }))}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              addVariantOption('sizes', newVariantInputs.size)
+                              setNewVariantInputs(prev => ({ ...prev, size: '' }))
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            addVariantOption('sizes', newVariantInputs.size)
+                            setNewVariantInputs(prev => ({ ...prev, size: '' }))
+                          }}
+                          disabled={!newVariantInputs.size.trim()}
+                        >
+                          Add
+                        </Button>
+                      </div>
+                      
+                      {formData.variants.sizes.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {formData.variants.sizes.map((size, index) => (
+                            <div key={index} className="flex items-center gap-2 bg-white px-3 py-1 rounded-full border">
+                              <span className="text-sm">{size}</span>
+                              <button
+                                type="button"
+                                onClick={() => removeVariantOption('sizes', index)}
+                                className="text-red-500 hover:text-red-700 text-xs"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="number">Number/Model</Label>
-                      <Input
-                        id="number"
-                        placeholder="e.g., Model #123, Version 2.0"
-                        value={formData.variants.number}
-                        onChange={(e) => handleVariantChange('number', e.target.value)}
-                      />
+                    {/* Numbers/Models */}
+                    <div className="space-y-3">
+                      <Label className="text-base font-medium">Numbers/Models</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Add a model number (e.g., Model #123)"
+                          value={newVariantInputs.number}
+                          onChange={(e) => setNewVariantInputs(prev => ({ ...prev, number: e.target.value }))}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              addVariantOption('numbers', newVariantInputs.number)
+                              setNewVariantInputs(prev => ({ ...prev, number: '' }))
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            addVariantOption('numbers', newVariantInputs.number)
+                            setNewVariantInputs(prev => ({ ...prev, number: '' }))
+                          }}
+                          disabled={!newVariantInputs.number.trim()}
+                        >
+                          Add
+                        </Button>
+                      </div>
+                      
+                      {formData.variants.numbers.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {formData.variants.numbers.map((number, index) => (
+                            <div key={index} className="flex items-center gap-2 bg-white px-3 py-1 rounded-full border">
+                              <span className="text-sm">{number}</span>
+                              <button
+                                type="button"
+                                onClick={() => removeVariantOption('numbers', index)}
+                                className="text-red-500 hover:text-red-700 text-xs"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="weight">Weight (kg)</Label>
-                      <Input
-                        id="weight"
-                        type="number"
-                        placeholder="0.00"
-                        value={formData.variants.weight || ''}
-                        onChange={(e) => handleVariantChange('weight', parseFloat(e.target.value) || 0)}
-                        min="0"
-                        step="0.01"
-                      />
+                    {/* Weights */}
+                    <div className="space-y-3">
+                      <Label className="text-base font-medium">Weights (kg)</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          type="number"
+                          placeholder="Add a weight (e.g., 0.5)"
+                          value={newVariantInputs.weight}
+                          onChange={(e) => setNewVariantInputs(prev => ({ ...prev, weight: e.target.value }))}
+                          min="0"
+                          step="0.01"
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              const weight = parseFloat(newVariantInputs.weight)
+                              if (weight > 0) {
+                                addVariantOption('weights', weight)
+                                setNewVariantInputs(prev => ({ ...prev, weight: '' }))
+                              }
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            const weight = parseFloat(newVariantInputs.weight)
+                            if (weight > 0) {
+                              addVariantOption('weights', weight)
+                              setNewVariantInputs(prev => ({ ...prev, weight: '' }))
+                            }
+                          }}
+                          disabled={!newVariantInputs.weight || parseFloat(newVariantInputs.weight) <= 0}
+                        >
+                          Add
+                        </Button>
+                      </div>
+                      
+                      {formData.variants.weights.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {formData.variants.weights.map((weight, index) => (
+                            <div key={index} className="flex items-center gap-2 bg-white px-3 py-1 rounded-full border">
+                              <span className="text-sm">{weight} kg</span>
+                              <button
+                                type="button"
+                                onClick={() => removeVariantOption('weights', index)}
+                                className="text-red-500 hover:text-red-700 text-xs"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
+
+                    {/* Variant Summary */}
+                    {Object.values(formData.variants).some(arr => arr.length > 0) && (
+                      <div className="pt-4 border-t">
+                        <p className="text-sm text-muted-foreground">
+                          Total variant combinations: {
+                            (formData.variants.colors.length || 1) *
+                            (formData.variants.sizes.length || 1) *
+                            (formData.variants.numbers.length || 1) *
+                            (formData.variants.weights.length || 1)
+                          }
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
