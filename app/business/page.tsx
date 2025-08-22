@@ -1,7 +1,8 @@
 "use client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { TrendingUp, Users, DollarSign, Target, ArrowRight, Building2, BarChart3 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { TrendingUp, Users, DollarSign, Target, ArrowRight, Building2, BarChart3, Plus } from "lucide-react"
 import Link from "next/link"
 
 export default function BusinessPage() {
@@ -99,6 +100,42 @@ export default function BusinessPage() {
           </div>
         </div>
 
+        {/* Sell Product Section */}
+        <Card className="bg-card border-border mb-8">
+          <CardHeader>
+            <CardTitle className="text-foreground flex items-center gap-2">
+              <Plus className="h-6 w-6 text-primary" />
+              Sell Your Products
+            </CardTitle>
+            <p className="text-muted-foreground">
+              Reach customers worldwide by listing your products on our marketplace
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col md:flex-row gap-4 items-center">
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-foreground mb-2">Start Selling Today</h3>
+                <p className="text-muted-foreground mb-4">
+                  Upload digital goods, physical products, services, and more to reach the diaspora community.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="secondary" className="text-xs">Digital Products</Badge>
+                  <Badge variant="secondary" className="text-xs">Physical Goods</Badge>
+                  <Badge variant="secondary" className="text-xs">Services</Badge>
+                  <Badge variant="secondary" className="text-xs">Art & Crafts</Badge>
+                  <Badge variant="secondary" className="text-xs">Food & Beverages</Badge>
+                </div>
+              </div>
+              <Link href="/marketplace/upload">
+                <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg">
+                  <Plus className="mr-3 h-6 w-6" />
+                  Sell Product
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Quick Actions */}
         <Card className="bg-card border-border">
           <CardHeader>
@@ -106,9 +143,13 @@ export default function BusinessPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Link href="/marketplace/upload">
-                <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-                  List a Product
+              <Link href="/business/dashboard">
+                <Button
+                  variant="outline"
+                  className="w-full border-border text-foreground hover:bg-muted bg-transparent"
+                >
+                  <BarChart3 className="mr-2 h-4 w-4" />
+                  Business Dashboard
                 </Button>
               </Link>
               <Link href="/projects">
