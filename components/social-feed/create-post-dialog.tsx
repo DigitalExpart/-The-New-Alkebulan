@@ -250,14 +250,14 @@ export function CreatePostDialog({ children, onPostCreated }: CreatePostDialogPr
         }
 
       toast.success('Post created successfully!')
-      
-      // Reset form
-      setContent("")
-      setSelectedCommunity("")
-      setLocation("")
-      setTags([])
+
+    // Reset form
+    setContent("")
+    setSelectedCommunity("")
+    setLocation("")
+    setTags([])
       setMediaFiles([])
-      setOpen(false)
+    setOpen(false)
 
       // Notify parent component
       if (onPostCreated) {
@@ -425,8 +425,8 @@ export function CreatePostDialog({ children, onPostCreated }: CreatePostDialogPr
             )}
 
             {/* Media Upload Buttons */}
-            <div className="flex items-center gap-4 p-4 border rounded-lg">
-              <span className="text-sm font-medium">Add to your post:</span>
+          <div className="flex items-center gap-4 p-4 border rounded-lg">
+            <span className="text-sm font-medium">Add to your post:</span>
               
               {/* Photo Upload */}
               <div className="relative">
@@ -442,10 +442,10 @@ export function CreatePostDialog({ children, onPostCreated }: CreatePostDialogPr
                   {uploadingMedia ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <ImageIcon className="w-4 h-4" />
+              <ImageIcon className="w-4 h-4" />
                   )}
-                  Photo
-                </Button>
+              Photo
+            </Button>
               </div>
 
               {/* Video Upload */}
@@ -462,17 +462,17 @@ export function CreatePostDialog({ children, onPostCreated }: CreatePostDialogPr
                   {uploadingMedia ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <Video className="w-4 h-4" />
+              <Video className="w-4 h-4" />
                   )}
-                  Video
-                </Button>
+              Video
+            </Button>
               </div>
 
               {/* Link */}
-              <Button variant="ghost" size="sm" className="flex items-center gap-2">
-                <Link className="w-4 h-4" />
-                Link
-              </Button>
+            <Button variant="ghost" size="sm" className="flex items-center gap-2">
+              <Link className="w-4 h-4" />
+              Link
+            </Button>
             </div>
           </div>
 
