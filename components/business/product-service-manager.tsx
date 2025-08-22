@@ -1,79 +1,224 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Search, Edit, Trash2, Eye } from "lucide-react"
+import { Plus, Search, Edit, Trash2, Eye, Loader2, RefreshCw, Package } from "lucide-react"
+import { useAuth } from "@/hooks/use-auth"
+import { getSupabaseClient } from "@/lib/supabase"
+import { toast } from "sonner"
 
 interface Product {
   id: string
   name: string
   category: string
-  price: number
+  subcategory: string
+  actual_price: number
+  sales_price?: number
   status: string
-  sales: number
   description?: string
+  additional_description?: string
+  inventory: number
+  has_variants: boolean
+  created_at: string
+  updated_at: string
 }
-
-const mockProducts: Product[] = [
-  {
-    id: "1",
-    name: "Handcrafted Jewelry Set",
-    category: "Accessories",
-    price: 89.99,
-    status: "active",
-    sales: 24,
-    description: "Beautiful handcrafted jewelry from traditional artisans",
-  },
-  {
-    id: "2",
-    name: "Digital Marketing Course",
-    category: "Education",
-    price: 199.99,
-    status: "active",
-    sales: 156,
-    description: "Complete digital marketing course for entrepreneurs",
-  },
-  {
-    id: "3",
-    name: "Organic Spice Blend",
-    category: "Food",
-    price: 24.99,
-    status: "draft",
-    sales: 0,
-    description: "Premium organic spice blend from traditional recipes",
-  },
-]
 
 export function ProductServiceManager() {
   const router = useRouter()
-  const [products, setProducts] = useState<Product[]>(mockProducts)
+  const { user } = useAuth()
+  const [products, setProducts] = useState<Product[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [categoryFilter, setCategoryFilter] = useState("all")
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [categories, setCategories] = useState<string[]>([])
+  const [subcategories, setSubcategories] = useState<string[]>([])
+
+  // Fetch products from backend
+  useEffect(() => {
+    if (user?.id) {
+      fetchProducts()
+      fetchCategories()
+    }
+  }, [user?.id])
+
+  const fetchProducts = async () => {
+    if (!user?.id) return
+    
+    try {
+      setLoading(true)
+      const supabase = getSupabaseClient()
+      
+      // Fetch user's products
+      const { data: productsData, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching products:', error)
+        toast.error('Failed to fetch products')
+        return
+      }
+
+      setProducts(productsData || [])
+    } catch (err) {
+      console.error('Error fetching products:', err)
+      toast.error('Failed to load products')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchCategories = async () => {
+    try {
+      const supabase = getSupabaseClient()
+      
+      // Fetch categories and subcategories for filtering
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from('product_categories')
+        .select('name')
+        .order('name')
+
+      const { data: subcategoriesData, error: subcategoriesError } = await supabase
+        .from('product_subcategories')
+        .select('name')
+        .order('name')
+
+      if (!categoriesError && categoriesData) {
+        setCategories(categoriesData.map(cat => cat.name))
+      }
+
+      if (!subcategoriesError && subcategoriesData) {
+        setSubcategories(subcategoriesData.map(sub => sub.name))
+      }
+    } catch (err) {
+      console.error('Error fetching categories:', err)
+    }
+  }
+
+  const refreshProducts = async () => {
+    setRefreshing(true)
+    await fetchProducts()
+    setRefreshing(false)
+    toast.success('Products refreshed')
+  }
+
+  const deleteProduct = async (productId: string) => {
+    if (!confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      const supabase = getSupabaseClient()
+      
+      // Delete product variants first
+      await supabase
+        .from('product_variants')
+        .delete()
+        .eq('product_id', productId)
+
+      // Delete product images
+      await supabase
+        .from('product_images')
+        .delete()
+        .eq('product_id', productId)
+
+      // Delete product videos
+      await supabase
+        .from('product_videos')
+        .delete()
+        .eq('product_id', productId)
+
+      // Delete product inventory
+      await supabase
+        .from('product_inventory')
+        .delete()
+        .eq('product_id', productId)
+
+      // Delete the product
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productId)
+
+      if (error) {
+        console.error('Error deleting product:', error)
+        toast.error('Failed to delete product')
+        return
+      }
+
+      toast.success('Product deleted successfully')
+      fetchProducts() // Refresh the list
+    } catch (err) {
+      console.error('Error deleting product:', err)
+      toast.error('Failed to delete product')
+    }
+  }
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name?.toLowerCase().includes(searchTerm.toLowerCase()) || false
     const matchesStatus = statusFilter === "all" || product.status === statusFilter
-    const matchesCategory = categoryFilter === "all" || product.category === categoryFilter
+    const matchesCategory = categoryFilter === "all" || 
+                           product.category === categoryFilter || 
+                           product.subcategory === categoryFilter
     return matchesSearch && matchesStatus && matchesCategory
   })
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
       case "draft":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400"
       case "inactive":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400"
     }
+  }
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount)
+  }
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
+    
+    if (diffInMinutes < 1) return 'Just now'
+    if (diffInMinutes < 60) return `${diffInMinutes} minutes ago`
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} hours ago`
+    return `${Math.floor(diffInMinutes / 1440)} days ago`
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-2xl font-bold">Products & Services</h2>
+            <p className="text-muted-foreground">Manage your marketplace offerings</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -81,13 +226,30 @@ export function ProductServiceManager() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold">Products & Services</h2>
-          <p className="text-muted-foreground">Manage your marketplace offerings</p>
+          <p className="text-muted-foreground">
+            Manage your marketplace offerings ({products.length} products)
+          </p>
         </div>
 
-        <Button onClick={() => router.push('/business/add-product')}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Product
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={refreshProducts}
+            disabled={refreshing}
+          >
+            {refreshing ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            ) : (
+              <RefreshCw className="w-4 h-4 mr-2" />
+            )}
+            Refresh
+          </Button>
+          <Button onClick={() => router.push('/business/add-product')}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Product
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -120,54 +282,122 @@ export function ProductServiceManager() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
-            <SelectItem value="Accessories">Accessories</SelectItem>
-            <SelectItem value="Education">Education</SelectItem>
-            <SelectItem value="Food">Food</SelectItem>
-            <SelectItem value="Services">Services</SelectItem>
+            {categories.map((category) => (
+              <SelectItem key={category} value={category}>
+                {category}
+              </SelectItem>
+            ))}
+            {subcategories.map((subcategory) => (
+              <SelectItem key={subcategory} value={subcategory}>
+                {subcategory}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
 
       {/* Products Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filteredProducts.map((product) => (
-          <Card key={product.id}>
-            <CardHeader className="pb-3">
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-lg">{product.name}</CardTitle>
-                <Badge className={getStatusColor(product.status)}>{product.status}</Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">{product.description}</p>
-                <div className="flex justify-between items-center">
-                  <span className="font-semibold">${product.price}</span>
-                  <span className="text-sm text-muted-foreground">{product.sales} sales</span>
+      {filteredProducts.length > 0 ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {filteredProducts.map((product) => (
+            <Card key={product.id} className="hover:shadow-lg transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex justify-between items-start">
+                  <CardTitle className="text-lg line-clamp-2">{product.name}</CardTitle>
+                  <Badge className={getStatusColor(product.status)}>{product.status}</Badge>
                 </div>
-                <div className="flex gap-2 pt-2">
-                  <Button variant="outline" size="sm">
-                    <Eye className="w-4 h-4 mr-1" />
-                    View
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Edit className="w-4 h-4 mr-1" />
-                    Edit
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {product.description || 'No description available'}
+                    </p>
+                    {product.additional_description && (
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                        {product.additional_description}
+                      </p>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold">
+                        {product.sales_price ? formatCurrency(product.sales_price) : formatCurrency(product.actual_price)}
+                      </span>
+                      {product.sales_price && product.sales_price < product.actual_price && (
+                        <span className="text-xs text-muted-foreground line-through">
+                          {formatCurrency(product.actual_price)}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="flex justify-between items-center text-sm text-muted-foreground">
+                      <span>{product.category} • {product.subcategory}</span>
+                      <span>Stock: {product.inventory}</span>
+                    </div>
 
-      {filteredProducts.length === 0 && (
-        <div className="text-center py-8">
-          <p className="text-muted-foreground">No products found matching your criteria.</p>
+                    {product.has_variants && (
+                      <Badge variant="secondary" className="text-xs">
+                        Has Variants
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button variant="outline" size="sm" className="flex-1">
+                      <Eye className="w-4 h-4 mr-1" />
+                      View
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => router.push(`/business/edit-product/${product.id}`)}
+                    >
+                      <Edit className="w-4 h-4 mr-1" />
+                      Edit
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => deleteProduct(product.id)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+
+                  <div className="text-xs text-muted-foreground pt-2 border-t">
+                    Created: {formatTimeAgo(product.created_at)}
+                    {product.updated_at !== product.created_at && (
+                      <span className="block">Updated: {formatTimeAgo(product.updated_at)}</span>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12">
+          <div className="max-w-md mx-auto">
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <Package className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">No products found</h3>
+            <p className="text-muted-foreground mb-4">
+              {searchTerm || statusFilter !== 'all' || categoryFilter !== 'all'
+                ? 'No products match your current filters. Try adjusting your search criteria.'
+                : 'You haven\'t added any products yet. Start building your marketplace presence!'}
+            </p>
+            {!searchTerm && statusFilter === 'all' && categoryFilter === 'all' && (
+              <Button onClick={() => router.push('/business/add-product')}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Your First Product
+              </Button>
+            )}
+          </div>
         </div>
       )}
     </div>

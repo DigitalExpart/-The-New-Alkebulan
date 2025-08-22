@@ -91,17 +91,17 @@ export default function BusinessDashboardPage() {
       
       const supabase = getSupabaseClient()
       
-      // Fetch user's products
+      // Fetch user's products from the new products table
       const { data: products, error: productsError } = await supabase
-        .from('posts')
+        .from('products')
         .select('*')
         .eq('user_id', user.id)
-        .eq('type', 'product')
+        .eq('status', 'active')
 
       if (productsError) {
         console.error('Error fetching products:', productsError)
-        toast.error('Failed to fetch product data')
-        return
+        // Don't show error toast for products, just log it
+        console.log('Products table might not exist yet, continuing with other data...')
       }
 
       // Fetch orders (if you have an orders table)
@@ -123,6 +123,12 @@ export default function BusinessDashboardPage() {
       const totalOrders = ordersData?.length || 0
       const totalRevenue = ordersData?.reduce((sum, order) => sum + (order.total_amount || 0), 0) || 0
       const profileVisits = analytics?.reduce((sum, visit) => sum + (visit.visit_count || 0), 0) || 0
+      
+      // Calculate total product value
+      const totalProductValue = products?.reduce((sum, product) => {
+        const price = product.sales_price || product.actual_price || 0
+        return sum + price
+      }, 0) || 0
       
       // Calculate changes (mock for now - replace with real calculations)
       const revenueChange = 12.4
