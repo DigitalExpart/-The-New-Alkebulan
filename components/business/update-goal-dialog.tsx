@@ -34,6 +34,17 @@ export function UpdateGoalDialog({ goal, onGoalUpdated, trigger }: UpdateGoalDia
     status: goal.status,
   })
 
+  // Add timeout to prevent infinite loading
+  const resetLoadingState = () => {
+    setTimeout(() => {
+      if (loading) {
+        console.warn('Loading state timeout - resetting')
+        setLoading(false)
+        toast.error('Update timed out. Please try again.')
+      }
+    }, 10000) // 10 second timeout
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -49,9 +60,34 @@ export function UpdateGoalDialog({ goal, onGoalUpdated, trigger }: UpdateGoalDia
 
     try {
       setLoading(true)
+      resetLoadingState() // Start timeout
+      console.log('Updating goal:', { goalId: goal.id, current: formData.current, status: formData.status })
       
       const supabase = getSupabaseClient()
       
+      // First, let's check if the goal exists and we have access to it
+      const { data: checkData, error: checkError } = await supabase
+        .from('business_goals')
+        .select('id, user_id')
+        .eq('id', goal.id)
+        .eq('user_id', user.id)
+        .single()
+
+      if (checkError) {
+        console.error('Error checking goal access:', checkError)
+        toast.error('Goal not found or access denied')
+        setLoading(false)
+        return
+      }
+
+      if (!checkData) {
+        console.error('Goal not found or access denied')
+        toast.error('Goal not found or access denied')
+        setLoading(false)
+        return
+      }
+
+      // Now update the goal
       const { data, error } = await supabase
         .from('business_goals')
         .update({
@@ -66,17 +102,19 @@ export function UpdateGoalDialog({ goal, onGoalUpdated, trigger }: UpdateGoalDia
 
       if (error) {
         console.error('Error updating goal:', error)
-        toast.error('Failed to update goal')
+        toast.error(`Failed to update goal: ${error.message}`)
+        setLoading(false)
         return
       }
 
+      console.log('Goal updated successfully:', data)
       toast.success('Goal updated successfully!')
       setOpen(false)
       onGoalUpdated()
       
     } catch (err) {
       console.error('Error updating goal:', err)
-      toast.error('Failed to update goal')
+      toast.error(`Failed to update goal: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
       setLoading(false)
     }
@@ -276,25 +314,37 @@ export function UpdateGoalDialog({ goal, onGoalUpdated, trigger }: UpdateGoalDia
               </AlertDialogContent>
             </AlertDialog>
 
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                <X className="h-4 w-4 mr-2" />
-                Cancel
-              </Button>
-              <Button type="submit" disabled={loading}>
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Updating...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Update Goal
-                  </>
-                )}
-              </Button>
-            </div>
+                         <div className="flex gap-2">
+               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                 <X className="h-4 w-4 mr-2" />
+                 Cancel
+               </Button>
+               {loading && (
+                 <Button 
+                   type="button" 
+                   variant="outline" 
+                   onClick={() => {
+                     setLoading(false)
+                     toast.info('Update cancelled. Please try again.')
+                   }}
+                 >
+                   Cancel Update
+                 </Button>
+               )}
+               <Button type="submit" disabled={loading}>
+                 {loading ? (
+                   <>
+                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                     Updating...
+                   </>
+                 ) : (
+                   <>
+                     <Save className="h-4 w-4 mr-2" />
+                     Update Goal
+                   </>
+                 )}
+               </Button>
+             </div>
           </DialogFooter>
         </form>
       </DialogContent>
