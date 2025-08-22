@@ -209,7 +209,7 @@ export function Navbar() {
     if (query.trim()) {
       // Debounce search by 300ms
       (window as any).searchTimeout = setTimeout(() => {
-        handleSearch(query)
+      handleSearch(query)
       }, 300)
     } else {
       setSearchResults([])
@@ -543,55 +543,55 @@ export function Navbar() {
           <div className="flex items-center space-x-4">
             {/* Search Bar - Moved to right side and made shorter */}
             <div className="hidden md:block search-container">
-              <div className="relative">
-                <form onSubmit={handleSearchSubmit}>
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <input
-                    type="text"
+            <div className="relative">
+              <form onSubmit={handleSearchSubmit}>
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
                     placeholder="Search..."
-                    value={searchQuery}
-                    onChange={handleSearchInputChange}
+                  value={searchQuery}
+                  onChange={handleSearchInputChange}
                     className="w-64 pl-10 pr-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
-                  />
-                </form>
-                
-                {/* Search Results Dropdown */}
-                {showSearchResults && searchResults.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
-                    {searchResults.map((result, index) => (
-                      <div
-                        key={`${result.type}-${result.id}`}
-                        onClick={() => handleSearchResultClick(result)}
-                        className="p-3 hover:bg-accent cursor-pointer border-b border-border last:border-b-0"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                            {result.type === 'community' && <Users className="h-4 w-4 text-primary" />}
-                            {result.type === 'project' && <FolderOpen className="h-4 w-4 text-primary" />}
-                            {result.type === 'event' && <Calendar className="h-4 w-4 text-primary" />}
+                />
+              </form>
+              
+              {/* Search Results Dropdown */}
+              {showSearchResults && searchResults.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                  {searchResults.map((result, index) => (
+                    <div
+                      key={`${result.type}-${result.id}`}
+                      onClick={() => handleSearchResultClick(result)}
+                      className="p-3 hover:bg-accent cursor-pointer border-b border-border last:border-b-0"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                          {result.type === 'community' && <Users className="h-4 w-4 text-primary" />}
+                          {result.type === 'project' && <FolderOpen className="h-4 w-4 text-primary" />}
+                          {result.type === 'event' && <Calendar className="h-4 w-4 text-primary" />}
                             {result.type === 'user' && <UserCheck className="h-4 w-4 text-primary" />}
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-medium text-foreground">{result.name}</p>
-                            <p className="text-sm text-muted-foreground">{result.description}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full capitalize">
-                                {result.type}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-foreground">{result.name}</p>
+                          <p className="text-sm text-muted-foreground">{result.description}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full capitalize">
+                              {result.type}
+                            </span>
+                            {result.category && (
+                              <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full">
+                                {result.category}
                               </span>
-                              {result.category && (
-                                <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full">
-                                  {result.category}
-                                </span>
-                              )}
-                            </div>
+                            )}
                           </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+          </div>
 
             {/* Search Button for Mobile */}
             <button
@@ -761,7 +761,7 @@ export function Navbar() {
             <div className="flex flex-col space-y-2 pt-4">
               <Collapsible open={isCommunityOpen} onOpenChange={setIsCommunityOpen} className="w-full">
                 <CollapsibleTrigger className="flex items-center justify-between w-full px-2 py-2 rounded-lg text-foreground hover:bg-accent font-medium">
-                  Communities
+                Communities
                   <ChevronDown className={`h-4 w-4 transition-transform ${isCommunityOpen ? 'rotate-180' : 'rotate-0'}`} />
                 </CollapsibleTrigger>
                 <CollapsibleContent className="space-y-2 pl-4 pt-2">
@@ -782,12 +782,12 @@ export function Navbar() {
                   </Link>
                   <Link href="/community/events" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
                     <Calendar className="h-4 w-4" /> Events
-                  </Link>
+              </Link>
                 </CollapsibleContent>
               </Collapsible>
               <Collapsible open={isMarketplaceOpen} onOpenChange={setIsMarketplaceOpen} className="w-full">
                 <CollapsibleTrigger className="flex items-center justify-between w-full px-2 py-2 rounded-lg text-foreground hover:bg-accent font-medium">
-                  Marketplace
+                Marketplace
                   <ChevronDown className={`h-4 w-4 transition-transform ${isMarketplaceOpen ? 'rotate-180' : 'rotate-0'}`} />
                 </CollapsibleTrigger>
                 <CollapsibleContent className="space-y-2 pl-4 pt-2">
@@ -810,13 +810,13 @@ export function Navbar() {
                 <CollapsibleContent className="space-y-2 pl-4 pt-2">
                   <Link href="/investing/alkebulan" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
                     <TrendingUp className="h-4 w-4" /> Investing Alkebulan
-                  </Link>
+              </Link>
                   <Link href="/investing/my-investments" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
                     <BarChart3 className="h-4 w-4" /> My Investments
-                  </Link>
+              </Link>
                   <Link href="/investing/projects" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
                     <FolderOpen className="h-4 w-4" /> More Projects
-                  </Link>
+              </Link>
                 </CollapsibleContent>
               </Collapsible>
             </div>

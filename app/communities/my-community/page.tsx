@@ -1233,7 +1233,7 @@ export default function MyCommunityPage() {
               <div className="space-y-4">
                 {userActivities.map((activity) => (
                   <Card key={activity.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-6">
+                <CardContent className="p-6">
                       <div className="flex items-start gap-4">
                         {/* Activity Icon */}
                         <div className="w-10 h-10 rounded-full bg-muted/50 flex items-center justify-center">
@@ -1248,8 +1248,8 @@ export default function MyCommunityPage() {
                                 <AvatarImage src={activity.profile?.avatar_url || ""} />
                                 <AvatarFallback className="text-xs">
                                   {activity.profile?.first_name?.charAt(0) || "U"}
-                                </AvatarFallback>
-                              </Avatar>
+                          </AvatarFallback>
+                        </Avatar>
                               <p className="font-medium text-sm">
                                 {activity.profile?.first_name} {activity.profile?.last_name}
                               </p>
@@ -1300,9 +1300,9 @@ export default function MyCommunityPage() {
                                 {activity.community_name && (
                                   <Badge variant="outline" className="mt-2">
                                     {activity.community_name}
-                                  </Badge>
+                            </Badge>
                                 )}
-                              </div>
+                          </div>
                             )}
                             
                             {activity.type === 'share' && (
@@ -1310,11 +1310,11 @@ export default function MyCommunityPage() {
                                 {activity.content}
                               </p>
                             )}
-                          </div>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
+                  </div>
+                </CardContent>
+              </Card>
                 ))}
                 
                 {/* Load More Button */}
@@ -1335,10 +1335,10 @@ export default function MyCommunityPage() {
                   Try posting, commenting, liking, or joining communities!
                 </p>
                 <div className="flex gap-3 justify-center">
-                  <Button onClick={() => setActiveTab("communities")}>
-                    <Globe className="mr-2 h-4 w-4" />
-                    View My Communities
-                  </Button>
+                <Button onClick={() => setActiveTab("communities")}>
+                  <Globe className="mr-2 h-4 w-4" />
+                  View My Communities
+                </Button>
                   <Button variant="outline" onClick={() => router.push('/community')}>
                     <MessageSquare className="mr-2 h-4 w-4" />
                     Go to Community Feed

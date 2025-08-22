@@ -91,17 +91,17 @@ export default function BusinessDashboardPage() {
       
       const supabase = getSupabaseClient()
       
-      // Fetch user's products
+      // Fetch user's products from the new products table
       const { data: products, error: productsError } = await supabase
-        .from('posts')
+        .from('products')
         .select('*')
         .eq('user_id', user.id)
-        .eq('type', 'product')
+        .eq('status', 'active')
 
       if (productsError) {
         console.error('Error fetching products:', productsError)
-        toast.error('Failed to fetch product data')
-        return
+        // Don't show error toast for products, just log it
+        console.log('Products table might not exist yet, continuing with other data...')
       }
 
       // Fetch orders (if you have an orders table)
@@ -123,6 +123,12 @@ export default function BusinessDashboardPage() {
       const totalOrders = ordersData?.length || 0
       const totalRevenue = ordersData?.reduce((sum, order) => sum + (order.total_amount || 0), 0) || 0
       const profileVisits = analytics?.reduce((sum, visit) => sum + (visit.visit_count || 0), 0) || 0
+      
+      // Calculate total product value
+      const totalProductValue = products?.reduce((sum, product) => {
+        const price = product.sales_price || product.actual_price || 0
+        return sum + price
+      }, 0) || 0
       
       // Calculate changes (mock for now - replace with real calculations)
       const revenueChange = 12.4
@@ -148,6 +154,21 @@ export default function BusinessDashboardPage() {
       // Process recent activity from orders and other sources
       const activity: RecentActivity[] = []
       
+      // Add new products as activity
+      if (products && products.length > 0) {
+        const recentProducts = products.slice(0, 3) // Show last 3 products
+        recentProducts.forEach((product) => {
+          activity.push({
+            id: `product-${product.id}`,
+            type: 'product',
+            title: 'New product added',
+            description: `${product.name} - ${formatCurrency(product.sales_price || product.actual_price)}`,
+            time: formatTimeAgo(product.created_at),
+            status: product.status === 'active' ? 'positive' : 'pending'
+          })
+        })
+      }
+      
       if (ordersData) {
         ordersData.forEach((order, index) => {
           activity.push({
@@ -161,27 +182,33 @@ export default function BusinessDashboardPage() {
         })
       }
 
-      // Add some mock activity for now (replace with real data)
-      if (activity.length < 4) {
-        activity.push(
-          {
-            id: 'inquiry-1',
-            type: 'inquiry',
-            title: 'Product inquiry',
-            description: 'Question about custom jewelry',
-            time: '15 minutes ago',
-            status: 'new',
-          },
-          {
-            id: 'review-1',
-            type: 'review',
-            title: 'New 5-star review',
-            description: 'Amazing quality and fast shipping!',
-            time: '1 hour ago',
-            status: 'positive',
-          }
-        )
+      // Add profile visits as activity if available
+      if (analytics && analytics.length > 0) {
+        const recentVisits = analytics.slice(0, 2)
+        recentVisits.forEach((visit, index) => {
+          activity.push({
+            id: `visit-${index}`,
+            type: 'visit',
+            title: 'Profile visit',
+            description: `${visit.visit_count || 1} new profile view${visit.visit_count > 1 ? 's' : ''}`,
+            time: formatTimeAgo(visit.created_at || new Date().toISOString()),
+            status: 'new'
+          })
+        })
       }
+
+      // Sort activities by time (most recent first)
+      activity.sort((a, b) => {
+        const timeA = a.time.includes('ago') ? 
+          (a.time.includes('minutes') ? parseInt(a.time) : 
+           a.time.includes('hours') ? parseInt(a.time) * 60 : 
+           a.time.includes('days') ? parseInt(a.time) * 1440 : 0) : 0
+        const timeB = b.time.includes('ago') ? 
+          (b.time.includes('minutes') ? parseInt(b.time) : 
+           b.time.includes('hours') ? parseInt(b.time) * 60 : 
+           b.time.includes('days') ? parseInt(b.time) * 1440 : 0) : 0
+        return timeA - timeB
+      })
 
       setRecentActivity(activity.slice(0, 4))
       setOrders(ordersData || [])
@@ -227,10 +254,14 @@ export default function BusinessDashboardPage() {
     switch (type) {
       case "order":
         return <ShoppingCart className="h-4 w-4" />
+      case "product":
+        return <Package className="h-4 w-4" />
       case "inquiry":
         return <MessageSquare className="h-4 w-4" />
       case "review":
         return <Users className="h-4 w-4" />
+      case "visit":
+        return <Eye className="h-4 w-4" />
       case "payment":
         return <DollarSign className="h-4 w-4" />
       default:
