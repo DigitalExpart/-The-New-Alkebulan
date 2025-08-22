@@ -125,6 +125,8 @@ CREATE OR REPLACE FUNCTION cleanup_orphaned_media()
 RETURNS INTEGER AS $$
 DECLARE
   deleted_count INTEGER := 0;
+  image_count INTEGER := 0;
+  video_count INTEGER := 0;
 BEGIN
   -- Delete orphaned images
   DELETE FROM storage.objects 
@@ -134,7 +136,7 @@ BEGIN
     WHERE pi.image_url LIKE '%' || storage.objects.name || '%'
   );
   
-  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  GET DIAGNOSTICS image_count = ROW_COUNT;
   
   -- Delete orphaned videos
   DELETE FROM storage.objects 
@@ -144,7 +146,9 @@ BEGIN
     WHERE pv.video_url LIKE '%' || storage.objects.name || '%'
   );
   
-  GET DIAGNOSTICS deleted_count = deleted_count + ROW_COUNT;
+  GET DIAGNOSTICS video_count = ROW_COUNT;
+  
+  deleted_count := image_count + video_count;
   
   RETURN deleted_count;
 END;
