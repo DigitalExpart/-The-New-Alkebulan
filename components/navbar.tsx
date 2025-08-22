@@ -347,19 +347,30 @@ export function Navbar() {
   };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border transition-all duration-300">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border transition-all duration-300 py-2">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo and Brand */}
           <div className="flex items-center space-x-4">
             <button
               onClick={handleLogoClick}
-              className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors duration-200"
+              className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors duration-200 gap-3"
             >
-              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">A</span>
+              <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+                {/* <span className="text-primary-foreground font-bold text-sm">A</span> */}
+                <Image
+                                    src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Scherm_afbeelding_2025-07-20_om_19.00.08-removebg-preview-5SfpVg1sZpmH7Z60mo8coZyoqelzmF.png"
+                                    alt="The New Alkebulan Logo"
+                                    width={60}
+                                    height={60}
+                                    className="rounded-full object-contain"
+                                  />
               </div>
-              <span className="font-bold text-xl hidden sm:block">The New Alkebulan</span>
+              <div className="flex flex-col items-start">
+                <span className="font-semibold text-lg sm:block text-gold inline-block">The New</span>
+                <span className="inline-block text-2xl text-gold">Alkebulan</span>
+              </div>
+              
             </button>
           </div>
 
