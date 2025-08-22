@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -19,109 +19,316 @@ import {
   DollarSign,
   Plus,
   ArrowRight,
+  Loader2,
+  RefreshCw,
 } from "lucide-react"
 import Link from "next/link"
+import { getSupabaseClient } from "@/lib/supabase"
+import { toast } from "sonner"
+
+interface Product {
+  id: string
+  name: string
+  description: string
+  actual_price: number
+  sales_price?: number
+  category: string
+  subcategory: string
+  status: string
+  inventory: number
+  has_variants: boolean
+  user_id: string
+  created_at: string
+  updated_at: string
+}
+
+interface Category {
+  id: string
+  name: string
+  type: string
+  description: string
+  product_count: number
+}
+
+interface Subcategory {
+  id: string
+  name: string
+  category_id: string
+  product_count: number
+}
+
+interface Seller {
+  id: string
+  first_name: string
+  last_name: string
+  business_name?: string
+  location?: string
+  product_count: number
+  rating: number
+  total_sales: number
+}
 
 export default function MarketplacePage() {
   const [searchQuery, setSearchQuery] = useState("")
+  const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([])
+  const [sellers, setSellers] = useState<Seller[]>([])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [stats, setStats] = useState({
+    activeProducts: 0,
+    verifiedSellers: 0,
+    totalSales: 0,
+    growthRate: 0
+  })
+  const [productImages, setProductImages] = useState<Record<string, string[]>>({})
 
-  const stats = [
-    { label: "Active Products", value: "5,000+", icon: Package },
-    { label: "Verified Sellers", value: "1,200+", icon: Users },
-    { label: "Total Sales", value: "€2.5M", icon: DollarSign },
-    { label: "Growth Rate", value: "+25%", icon: TrendingUp },
-  ]
+  // Fetch live data from backend
+  useEffect(() => {
+    fetchMarketplaceData()
+  }, [])
 
-  const categories = [
-    { name: "Fashion & Clothing", count: 1250, image: "/placeholder.svg?height=200&width=300" },
-    { name: "Art & Crafts", count: 890, image: "/placeholder.svg?height=200&width=300" },
-    { name: "Food & Beverages", count: 650, image: "/placeholder.svg?height=200&width=300" },
-    { name: "Beauty & Wellness", count: 420, image: "/placeholder.svg?height=200&width=300" },
-    { name: "Books & Media", count: 380, image: "/placeholder.svg?height=200&width=300" },
-    { name: "Home & Decor", count: 320, image: "/placeholder.svg?height=200&width=300" },
-  ]
+  const fetchMarketplaceData = async () => {
+    try {
+      setLoading(true)
+      const supabase = getSupabaseClient()
+      
+      // Debug: First check if products table exists and has any data
+      console.log('🔍 Fetching marketplace data...')
+      
+      // Test connection first
+      console.log('🔌 Testing Supabase connection...')
+      const { data: testData, error: testError } = await supabase
+        .from('products')
+        .select('count')
+        .limit(1)
+      
+      console.log('🔌 Connection test result:', { testData, testError })
+      
+      // Fetch ALL products first (for debugging)
+      const { data: allProductsData, error: allProductsError } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false })
+      
+      console.log('📊 All products data:', allProductsData)
+      console.log('❌ All products error:', allProductsError)
+      
+      // Fetch active products
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('*')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(20)
+      
+      console.log('✅ Active products data:', productsData)
+      console.log('❌ Active products error:', productsError)
+      
+      if (productsError) {
+        console.error('Error fetching products:', productsError)
+        toast.error('Failed to fetch products')
+      } else {
+        setProducts(productsData || [])
+        
+        // Fetch images for all products
+        if (productsData && productsData.length > 0) {
+          const productIds = productsData.map(p => p.id)
+          console.log('🔍 Fetching images for product IDs:', productIds)
+          
+          try {
+            const { data: imagesData, error: imagesError } = await supabase
+              .from('product_images')
+              .select('product_id, image_url') // Changed from file_path to image_url
+              .in('product_id', productIds)
+              .order('created_at', { ascending: false })
+            
+            console.log('🖼️ Images query result:', { imagesData, imagesError })
+            
+            if (imagesError) {
+              console.error('Error fetching product images:', imagesError)
+              // Don't fail the whole request, just log the error
+            } else {
+              // Group images by product_id
+              const imagesByProduct: Record<string, string[]> = {}
+              imagesData?.forEach(img => {
+                if (!imagesByProduct[img.product_id]) {
+                  imagesByProduct[img.product_id] = []
+                }
+                // Get the full URL for the image
+                const imageUrl = supabase.storage
+                  .from('product-media')
+                  .getPublicUrl(img.image_url).data.publicUrl // Changed from file_path to image_url
+                imagesByProduct[img.product_id].push(imageUrl)
+              })
+              setProductImages(imagesByProduct)
+              console.log('🖼️ Product images loaded:', imagesByProduct)
+            }
+          } catch (imageError) {
+            console.error('Exception while fetching images:', imageError)
+            // Don't fail the whole request, just log the error
+          }
+        }
+      }
+      
+      // Also fetch draft products to see if that's the issue
+      const { data: draftProductsData, error: draftProductsError } = await supabase
+        .from('products')
+        .select('*')
+        .eq('status', 'draft')
+        .order('created_at', { ascending: false })
+      
+      console.log('📝 Draft products data:', draftProductsData)
+      console.log('❌ Draft products error:', draftProductsError)
+      
+      // Fetch categories with product counts
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from('product_categories')
+        .select('*')
+        .order('name')
+      
+      console.log('🏷️ Categories data:', categoriesData)
+      console.log('❌ Categories error:', categoriesError)
+      
+      if (categoriesError) {
+        console.error('Error fetching categories:', categoriesError)
+      } else {
+        setCategories(categoriesData || [])
+      }
+      
+      // Fetch subcategories with product counts
+      const { data: subcategoriesData, error: subcategoriesError } = await supabase
+        .from('product_subcategories')
+        .select('*')
+        .order('name')
+      
+      console.log('📂 Subcategories data:', subcategoriesData)
+      console.log('❌ Subcategories error:', subcategoriesError)
+      
+      if (subcategoriesError) {
+        console.error('Error fetching subcategories:', subcategoriesError)
+      } else {
+        setSubcategories(subcategoriesData || [])
+      }
+      
+      // Fetch top sellers (users with most products)
+      const { data: sellersData, error: sellersError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, business_name, location, business_enabled')
+        .eq('business_enabled', true)
+        .limit(6)
+      
+      console.log('👥 Sellers data:', sellersData)
+      console.log('❌ Sellers error:', sellersError)
+      
+      if (sellersError) {
+        console.error('Error fetching sellers:', sellersError)
+      } else {
+        // Calculate product counts for sellers
+        const sellersWithCounts = await Promise.all(
+          (sellersData || []).map(async (seller) => {
+            const { count } = await supabase
+              .from('products')
+              .select('*', { count: 'exact', head: true })
+              .eq('user_id', seller.id)
+              .eq('status', 'active')
+            
+            return {
+              ...seller,
+              product_count: count || 0,
+              total_sales: 0, // Will be calculated when orders table is available
+              rating: 4.5 // Mock rating for now
+            }
+          })
+        )
+        
+        setSellers(sellersWithCounts)
+      }
+      
+      // Calculate stats
+      const activeProducts = productsData?.length || 0
+      const verifiedSellers = sellersData?.length || 0
+      const totalSales = 0 // Will be calculated when orders table is available
+      const growthRate = 15 // Mock growth rate for now
+      
+      console.log('📈 Stats calculated:', { activeProducts, verifiedSellers, totalSales, growthRate })
+      
+      setStats({
+        activeProducts,
+        verifiedSellers,
+        totalSales,
+        growthRate
+      })
+      
+    } catch (error) {
+      console.error('Error fetching marketplace data:', error)
+      toast.error('Failed to fetch marketplace data')
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  const featuredProducts = [
-    {
-      id: 1,
-      name: "Handwoven Kente Cloth",
-      seller: "Akosua Textiles",
-      price: "€89.99",
-      originalPrice: "€120.00",
-      rating: 4.8,
-      reviews: 124,
-      location: "Ghana",
-      image: "/placeholder.svg?height=250&width=250",
-      badge: "Bestseller",
-      inStock: true,
-    },
-    {
-      id: 2,
-      name: "African Shea Butter Set",
-      seller: "Natural Beauty Co.",
-      price: "€34.99",
-      originalPrice: null,
-      rating: 4.9,
-      reviews: 89,
-      location: "Burkina Faso",
-      image: "/placeholder.svg?height=250&width=250",
-      badge: "New",
-      inStock: true,
-    },
-    {
-      id: 3,
-      name: "Wooden Djembe Drum",
-      seller: "Rhythm Makers",
-      price: "€156.00",
-      originalPrice: "€180.00",
-      rating: 4.7,
-      reviews: 67,
-      location: "Mali",
-      image: "/placeholder.svg?height=250&width=250",
-      badge: "Sale",
-      inStock: true,
-    },
-    {
-      id: 4,
-      name: "Ethiopian Coffee Beans",
-      seller: "Highland Roasters",
-      price: "€24.99",
-      originalPrice: null,
-      rating: 4.6,
-      reviews: 156,
-      location: "Ethiopia",
-      image: "/placeholder.svg?height=250&width=250",
-      badge: "Organic",
-      inStock: false,
-    },
-  ]
+  const refreshData = async () => {
+    setRefreshing(true)
+    await fetchMarketplaceData()
+    setRefreshing(false)
+    toast.success('Marketplace data refreshed')
+  }
 
-  const topSellers = [
-    {
-      name: "Amara's Boutique",
-      products: 45,
-      rating: 4.9,
-      sales: "€25,000",
-      location: "Nigeria",
-      image: "/placeholder.svg?height=80&width=80",
-    },
-    {
-      name: "Kwame's Crafts",
-      products: 32,
-      rating: 4.8,
-      sales: "€18,500",
-      location: "Ghana",
-      image: "/placeholder.svg?height=80&width=80",
-    },
-    {
-      name: "Zara's Wellness",
-      products: 28,
-      rating: 4.7,
-      sales: "€15,200",
-      location: "Kenya",
-      image: "/placeholder.svg?height=80&width=80",
-    },
-  ]
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount)
+  }
+
+  const getProductImage = (product: Product) => {
+    const productId = product.id
+    const images = productImages[productId]
+    
+    if (images && images.length > 0) {
+      // Return the first image URL
+      return images[0]
+    }
+    
+    // Fallback to placeholder if no images
+    return "/placeholder.svg?height=250&width=250"
+  }
+
+  const getProductBadge = (product: Product) => {
+    if (product.sales_price && product.sales_price < product.actual_price) {
+      return "Sale"
+    }
+    if (product.has_variants) {
+      return "Variants"
+    }
+    if (product.inventory <= 5) {
+      return "Low Stock"
+    }
+    return "New"
+  }
+
+  const filteredProducts = products.filter((product) => {
+    const matchesSearch = product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         product.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         product.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         product.subcategory?.toLowerCase().includes(searchQuery.toLowerCase())
+    return matchesSearch
+  })
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Loading marketplace...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -136,19 +343,53 @@ export default function MarketplacePage() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          {stats.map((stat, index) => (
-            <Card key={index} className="bg-card border-border">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                    <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  </div>
-                  <stat.icon className="h-8 w-8 text-primary" />
+          <Card className="bg-card border-border">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-2xl font-bold text-foreground">{stats.activeProducts}+</p>
+                  <p className="text-sm text-muted-foreground">Active Products</p>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+                <Package className="h-8 w-8 text-primary" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-card border-border">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-2xl font-bold text-foreground">{stats.verifiedSellers}+</p>
+                  <p className="text-sm text-muted-foreground">Verified Sellers</p>
+                </div>
+                <Users className="h-8 w-8 text-primary" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-card border-border">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-2xl font-bold text-foreground">€{stats.totalSales.toLocaleString()}</p>
+                  <p className="text-sm text-muted-foreground">Total Sales</p>
+                </div>
+                <DollarSign className="h-8 w-8 text-primary" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-card border-border">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-2xl font-bold text-foreground">+{stats.growthRate}%</p>
+                  <p className="text-sm text-muted-foreground">Growth Rate</p>
+                </div>
+                <TrendingUp className="h-8 w-8 text-primary" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Search and Actions */}
@@ -165,6 +406,19 @@ export default function MarketplacePage() {
                 />
               </div>
               <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  className="border-border text-foreground hover:bg-muted bg-transparent"
+                  onClick={refreshData}
+                  disabled={refreshing}
+                >
+                  {refreshing ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                  )}
+                  Refresh
+                </Button>
                 <Button variant="outline" className="border-border text-foreground hover:bg-muted bg-transparent">
                   <Filter className="mr-2 h-4 w-4" />
                   Filters
@@ -181,86 +435,161 @@ export default function MarketplacePage() {
               value="products"
               className="text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
-              Products
+              Products ({filteredProducts.length})
             </TabsTrigger>
             <TabsTrigger
               value="categories"
               className="text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
-              Categories
+              Categories ({categories.length})
             </TabsTrigger>
             <TabsTrigger
               value="sellers"
               className="text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
-              Top Sellers
+              Top Sellers ({sellers.length})
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="products" className="space-y-8">
             <div>
-              <h2 className="text-2xl font-bold text-foreground mb-6">Featured Products</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {featuredProducts.map((product) => (
-                  <Card key={product.id} className="bg-card border-border hover:border-primary transition-colors group">
-                    <div className="relative">
-                      <img
-                        src={product.image || "/placeholder.svg"}
-                        alt={product.name}
-                        className="w-full h-48 object-cover rounded-t-lg"
-                      />
-                      <div className="absolute top-2 left-2">
-                        <Badge className="bg-primary text-primary-foreground">{product.badge}</Badge>
-                      </div>
-                      <div className="absolute top-2 right-2">
-                        <Button size="sm" variant="outline" className="h-8 w-8 p-0 bg-background/80 border-border">
-                          <Heart className="h-4 w-4 text-foreground" />
-                        </Button>
-                      </div>
-                      {!product.inStock && (
-                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                          <Badge variant="destructive">Out of Stock</Badge>
-                        </div>
-                      )}
-                    </div>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-foreground line-clamp-2 text-base">{product.name}</CardTitle>
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <MapPin className="mr-1 h-3 w-3" />
-                        {product.location}
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-lg font-bold text-primary">{product.price}</span>
-                            {product.originalPrice && (
-                              <span className="text-sm text-muted-foreground line-through">
-                                {product.originalPrice}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center text-muted-foreground">
-                            <Star className="mr-1 h-4 w-4 text-primary fill-current" />
-                            {product.rating} ({product.reviews})
-                          </div>
-                          <span className="text-muted-foreground">by {product.seller}</span>
-                        </div>
-                        <Button
-                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-                          disabled={!product.inStock}
-                        >
-                          <ShoppingCart className="mr-2 h-4 w-4" />
-                          {product.inStock ? "Add to Cart" : "Out of Stock"}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+              <h2 className="text-2xl font-bold text-foreground mb-6">
+                {searchQuery ? `Search Results for "${searchQuery}"` : 'Featured Products'}
+              </h2>
+              
+              {/* Temporary Debug Section - Remove after fixing */}
+              <div className="mb-8 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                <h3 className="text-lg font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
+                  🔍 Debug Information
+                </h3>
+                <div className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                  <p>Total products in database: {products.length}</p>
+                  <p>Products status breakdown:</p>
+                  <ul className="ml-4">
+                    <li>• Active: {products.filter(p => p.status === 'active').length}</li>
+                    <li>• Draft: {products.filter(p => p.status === 'draft').length}</li>
+                    <li>• Inactive: {products.filter(p => p.status === 'inactive').length}</li>
+                  </ul>
+                  <p className="mt-2">Check browser console for detailed debugging information.</p>
+                </div>
               </div>
+              
+              {/* Temporary: Show all products for debugging */}
+              <div className="mb-8">
+                <h3 className="text-lg font-semibold text-foreground mb-4">🔍 All Products (Debug View)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {products.map((product) => (
+                    <Card key={product.id} className="bg-card border-border">
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between items-start">
+                          <CardTitle className="text-sm line-clamp-2">{product.name}</CardTitle>
+                          <Badge className={`text-xs ${
+                            product.status === 'active' ? 'bg-green-100 text-green-800' :
+                            product.status === 'draft' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {product.status}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="text-xs text-muted-foreground">
+                        <p>Category: {product.category} • {product.subcategory}</p>
+                        <p>Price: ${product.actual_price}</p>
+                        <p>Inventory: {product.inventory}</p>
+                        <p>Created: {new Date(product.created_at).toLocaleDateString()}</p>
+                        <p>User ID: {product.user_id}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+              
+              {filteredProducts.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {filteredProducts.map((product) => (
+                    <Card key={product.id} className="bg-card border-border hover:border-primary transition-colors group">
+                      <div className="relative">
+                        <img
+                          src={getProductImage(product)}
+                          alt={product.name}
+                          className="w-full h-48 object-cover rounded-t-lg"
+                        />
+                        <div className="absolute top-2 left-2">
+                          <Badge className="bg-primary text-primary-foreground">{getProductBadge(product)}</Badge>
+                        </div>
+                        <div className="absolute top-2 right-2">
+                          <Button size="sm" variant="outline" className="h-8 w-8 p-0 bg-background/80 border-border">
+                            <Heart className="h-4 w-4 text-foreground" />
+                          </Button>
+                        </div>
+                        {product.inventory <= 0 && (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                            <Badge variant="destructive">Out of Stock</Badge>
+                          </div>
+                        )}
+                      </div>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-foreground line-clamp-2 text-base">{product.name}</CardTitle>
+                        <div className="flex items-center text-sm text-muted-foreground">
+                          <MapPin className="mr-1 h-3 w-3" />
+                          {product.category} • {product.subcategory}
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-lg font-bold text-primary">
+                                {product.sales_price ? formatCurrency(product.sales_price) : formatCurrency(product.actual_price)}
+                              </span>
+                              {product.sales_price && product.sales_price < product.actual_price && (
+                                <span className="text-sm text-muted-foreground line-through">
+                                  {formatCurrency(product.actual_price)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center text-muted-foreground">
+                              <Star className="mr-1 h-4 w-4 text-primary fill-current" />
+                              4.5 (0)
+                            </div>
+                            <span className="text-muted-foreground">
+                              Stock: {product.inventory}
+                            </span>
+                          </div>
+                          <Button
+                            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                            disabled={product.inventory <= 0}
+                          >
+                            <ShoppingCart className="mr-2 h-4 w-4" />
+                            {product.inventory > 0 ? "Add to Cart" : "Out of Stock"}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="max-w-md mx-auto">
+                    <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Package className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-lg font-semibold mb-2">No products found</h3>
+                    <p className="text-muted-foreground mb-4">
+                      {searchQuery 
+                        ? `No products match your search for "${searchQuery}". Try different keywords or browse all categories.`
+                        : 'No products available at the moment. Check back soon!'}
+                    </p>
+                    {searchQuery && (
+                      <Button onClick={() => setSearchQuery("")}>
+                        Clear Search
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </TabsContent>
 
@@ -268,22 +597,20 @@ export default function MarketplacePage() {
             <div>
               <h2 className="text-2xl font-bold text-foreground mb-6">Shop by Category</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {categories.map((category, index) => (
+                {categories.map((category) => (
                   <Card
-                    key={index}
+                    key={category.id}
                     className="bg-card border-border hover:border-primary transition-colors group cursor-pointer"
                   >
                     <div className="relative">
-                      <img
-                        src={category.image || "/placeholder.svg"}
-                        alt={category.name}
-                        className="w-full h-40 object-cover rounded-t-lg"
-                      />
-                      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors" />
+                      <div className="w-full h-40 bg-gradient-to-br from-primary/20 to-primary/10 rounded-t-lg flex items-center justify-center">
+                        <Package className="w-16 h-16 text-primary/60" />
+                      </div>
+                      <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors" />
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="text-center text-white">
+                        <div className="text-center text-foreground">
                           <h3 className="text-xl font-bold mb-2">{category.name}</h3>
-                          <p className="text-sm opacity-90">{category.count} products</p>
+                          <p className="text-sm opacity-90">{category.type} products</p>
                         </div>
                       </div>
                     </div>
@@ -303,17 +630,17 @@ export default function MarketplacePage() {
             <div>
               <h2 className="text-2xl font-bold text-foreground mb-6">Top Sellers</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {topSellers.map((seller, index) => (
-                  <Card key={index} className="bg-card border-border">
+                {sellers.map((seller) => (
+                  <Card key={seller.id} className="bg-card border-border">
                     <CardContent className="p-6">
                       <div className="text-center space-y-4">
-                        <img
-                          src={seller.image || "/placeholder.svg"}
-                          alt={seller.name}
-                          className="w-20 h-20 rounded-full mx-auto object-cover"
-                        />
+                        <div className="w-20 h-20 rounded-full mx-auto bg-primary/20 flex items-center justify-center">
+                          <Users className="w-10 h-10 text-primary" />
+                        </div>
                         <div>
-                          <h3 className="font-semibold text-foreground">{seller.name}</h3>
+                          <h3 className="font-semibold text-foreground">
+                            {seller.business_name || `${seller.first_name} ${seller.last_name}`}
+                          </h3>
                           <div className="flex items-center justify-center text-sm text-muted-foreground">
                             <MapPin className="mr-1 h-3 w-3" />
                             {seller.location}
@@ -321,11 +648,11 @@ export default function MarketplacePage() {
                         </div>
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div className="text-center">
-                            <div className="font-semibold text-foreground">{seller.products}</div>
+                            <div className="font-semibold text-foreground">{seller.product_count}</div>
                             <div className="text-muted-foreground">Products</div>
                           </div>
                           <div className="text-center">
-                            <div className="font-semibold text-primary">{seller.sales}</div>
+                            <div className="font-semibold text-primary">€{seller.total_sales.toLocaleString()}</div>
                             <div className="text-muted-foreground">Sales</div>
                           </div>
                         </div>
@@ -354,7 +681,7 @@ export default function MarketplacePage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                <Link href="/marketplace/upload" className="flex items-center">
+                <Link href="/business/add-product" className="flex items-center">
                   <Plus className="mr-2 h-4 w-4" />
                   List Your Product
                 </Link>

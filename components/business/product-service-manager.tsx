@@ -39,6 +39,7 @@ export function ProductServiceManager() {
   const [refreshing, setRefreshing] = useState(false)
   const [categories, setCategories] = useState<string[]>([])
   const [subcategories, setSubcategories] = useState<string[]>([])
+  const [productImages, setProductImages] = useState<Record<string, string[]>>({})
 
   // Fetch products from backend
   useEffect(() => {
@@ -56,22 +57,60 @@ export function ProductServiceManager() {
       const supabase = getSupabaseClient()
       
       // Fetch user's products
-      const { data: productsData, error } = await supabase
+      const { data: productsData, error: productsError } = await supabase
         .from('products')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
-      if (error) {
-        console.error('Error fetching products:', error)
+      if (productsError) {
+        console.error('Error fetching products:', productsError)
         toast.error('Failed to fetch products')
-        return
+      } else {
+        setProducts(productsData || [])
+        
+        // Fetch images for all products
+        if (productsData && productsData.length > 0) {
+          const productIds = productsData.map(p => p.id)
+          console.log('🔍 Fetching images for product IDs:', productIds)
+          
+          try {
+            const { data: imagesData, error: imagesError } = await supabase
+              .from('product_images')
+              .select('product_id, image_url') // Changed from file_path to image_url
+              .in('product_id', productIds)
+              .order('created_at', { ascending: false })
+            
+            console.log('🖼️ Images query result:', { imagesData, imagesError })
+            
+            if (imagesError) {
+              console.error('Error fetching product images:', imagesError)
+              // Don't fail the whole request, just log the error
+            } else {
+              // Group images by product_id
+              const imagesByProduct: Record<string, string[]> = {}
+              imagesData?.forEach(img => {
+                if (!imagesByProduct[img.product_id]) {
+                  imagesByProduct[img.product_id] = []
+                }
+                // Get the full URL for the image
+                const imageUrl = supabase.storage
+                  .from('product-media')
+                  .getPublicUrl(img.image_url).data.publicUrl // Changed from file_path to image_url
+                imagesByProduct[img.product_id].push(imageUrl)
+              })
+              setProductImages(imagesByProduct)
+              console.log('🖼️ Product images loaded:', imagesByProduct)
+            }
+          } catch (imageError) {
+            console.error('Exception while fetching images:', imageError)
+            // Don't fail the whole request, just log the error
+          }
+        }
       }
-
-      setProducts(productsData || [])
-    } catch (err) {
-      console.error('Error fetching products:', err)
-      toast.error('Failed to load products')
+    } catch (error) {
+      console.error('Error fetching products:', error)
+      toast.error('Failed to fetch products')
     } finally {
       setLoading(false)
     }
@@ -205,6 +244,19 @@ export function ProductServiceManager() {
     return `${Math.floor(diffInMinutes / 1440)} days ago`
   }
 
+  const getProductImage = (product: Product) => {
+    const productId = product.id
+    const images = productImages[productId]
+    
+    if (images && images.length > 0) {
+      // Return the first image URL
+      return images[0]
+    }
+    
+    // Fallback to placeholder if no images
+    return "/placeholder.svg?height=200&width=200"
+  }
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -301,10 +353,26 @@ export function ProductServiceManager() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredProducts.map((product) => (
             <Card key={product.id} className="hover:shadow-lg transition-shadow">
+              {/* Product Image */}
+              <div className="relative">
+                <img
+                  src={getProductImage(product)}
+                  alt={product.name}
+                  className="w-full h-48 object-cover rounded-t-lg"
+                />
+                <div className="absolute top-2 right-2">
+                  <Badge className={getStatusColor(product.status)}>{product.status}</Badge>
+                </div>
+                {product.inventory <= 0 && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-t-lg">
+                    <Badge variant="destructive">Out of Stock</Badge>
+                  </div>
+                )}
+              </div>
+              
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-lg line-clamp-2">{product.name}</CardTitle>
-                  <Badge className={getStatusColor(product.status)}>{product.status}</Badge>
                 </div>
               </CardHeader>
               <CardContent>
@@ -345,7 +413,12 @@ export function ProductServiceManager() {
                   </div>
 
                   <div className="flex gap-2 pt-2">
-                    <Button variant="outline" size="sm" className="flex-1">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => router.push(`/marketplace/product/${product.id}`)}
+                    >
                       <Eye className="w-4 h-4 mr-1" />
                       View
                     </Button>

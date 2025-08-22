@@ -228,8 +228,6 @@ export default function AddProductPage() {
       
       const supabase = getSupabaseClient()
       
-      // For now, we'll just show a success message
-      // In a real app, you'd insert into your products table
       console.log('Adding product:', { 
         userId: user.id, 
         category: formData.category,
@@ -237,8 +235,109 @@ export default function AddProductPage() {
         ...formData 
       })
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Insert the product into the database
+      const { data: productData, error: productError } = await supabase
+        .from('products')
+        .insert({
+          name: formData.name,
+          description: formData.description,
+          additional_description: formData.additionalDescription,
+          category: formData.category === 'physical' ? 'Physical Products' : 'Digital Products',
+          subcategory: formData.subcategory,
+          actual_price: formData.actualPrice,
+          sales_price: formData.salesPrice || formData.actualPrice,
+          status: formData.status,
+          inventory: formData.inventory,
+          has_variants: formData.hasVariants,
+          sku: formData.sku || null,
+          user_id: user.id
+        })
+        .select()
+        .single()
+      
+      if (productError) {
+        console.error('Error inserting product:', productError)
+        toast.error(`Failed to add product: ${productError.message}`)
+        return
+      }
+      
+      console.log('Product inserted successfully:', productData)
+      
+      // Handle image uploads if any
+      if (formData.images.length > 0) {
+        for (const image of formData.images) {
+          const fileName = `products/${productData.id}/images/${Date.now()}_${image.name}`
+          
+          const { error: uploadError } = await supabase.storage
+            .from('product-media')
+            .upload(fileName, image)
+          
+          if (uploadError) {
+            console.error('Error uploading image:', uploadError)
+            toast.error(`Failed to upload image: ${uploadError.message}`)
+          } else {
+            // Insert image record with correct column names
+            await supabase
+              .from('product_images')
+              .insert({
+                product_id: productData.id,
+                image_url: fileName, // Changed from file_path to image_url
+                image_name: image.name, // Changed from file_name to image_name
+                image_size: image.size, // Changed from file_size to image_size
+                image_type: image.type, // Changed from file_type to image_type
+                is_primary: false, // Default to false
+                sort_order: 0 // Default sort order
+              })
+          }
+        }
+      }
+      
+      // Handle video uploads if any
+      if (formData.videos.length > 0) {
+        for (const video of formData.videos) {
+          const fileName = `products/${productData.id}/videos/${Date.now()}_${video.name}`
+          
+          const { error: uploadError } = await supabase.storage
+            .from('product-media')
+            .upload(fileName, video)
+          
+          if (uploadError) {
+            console.error('Error uploading video:', uploadError)
+            toast.error(`Failed to upload video: ${uploadError.message}`)
+          } else {
+            // Insert video record with correct column names
+            await supabase
+              .from('product_videos')
+              .insert({
+                product_id: productData.id,
+                file_path: fileName,
+                file_name: video.name,
+                file_size: video.size,
+                file_type: video.type
+              })
+          }
+        }
+      }
+      
+      // Handle variants if any
+      if (formData.hasVariants && Object.values(formData.variants).some(arr => arr.length > 0)) {
+        const variantData = {
+          product_id: productData.id,
+          colors: formData.variants.colors,
+          sizes: formData.variants.sizes,
+          numbers: formData.variants.numbers,
+          weights: formData.variants.weights
+        }
+        
+        const { error: variantError } = await supabase
+          .from('product_variants')
+          .insert(variantData)
+        
+        if (variantError) {
+          console.error('Error inserting variants:', variantError)
+          toast.error(`Failed to add variants: ${variantError.message}`)
+        }
+      }
       
       toast.success('Product added successfully!')
       router.push('/business/dashboard')
