@@ -1,21 +1,81 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Target, Plus, TrendingUp, Calendar, AlertTriangle } from "lucide-react"
+import { Target, Plus, TrendingUp, Calendar, AlertTriangle, Loader2 } from "lucide-react"
 import type { BusinessGoal } from "@/types/business"
 import { CreateGoalDialog } from "./create-goal-dialog"
+import { useAuth } from "@/hooks/use-auth"
+import { getSupabaseClient } from "@/lib/supabase"
+import { toast } from "sonner"
 
 interface BusinessGoalsTrackerProps {
   goals?: BusinessGoal[]
 }
 
 export function BusinessGoalsTracker({ goals = [] }: BusinessGoalsTrackerProps) {
+  const { user } = useAuth()
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
+  const [liveGoals, setLiveGoals] = useState<BusinessGoal[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetch goals from database
+  useEffect(() => {
+    if (!user?.id) return
+    fetchGoals()
+  }, [user?.id])
+
+  const fetchGoals = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const supabase = getSupabaseClient()
+      
+      const { data, error: fetchError } = await supabase
+        .from('business_goals')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (fetchError) {
+        console.error('Error fetching goals:', fetchError)
+        setError('Failed to fetch goals')
+        toast.error('Failed to load goals')
+        return
+      }
+
+      // Transform database data to match BusinessGoal interface
+      const transformedGoals: BusinessGoal[] = (data || []).map(goal => ({
+        id: goal.id,
+        title: goal.title,
+        description: goal.description,
+        target: parseFloat(goal.target),
+        current: parseFloat(goal.current || 0),
+        unit: goal.unit,
+        deadline: goal.deadline,
+        status: goal.status,
+        category: goal.category
+      }))
+
+      setLiveGoals(transformedGoals)
+      
+    } catch (err) {
+      console.error('Error fetching goals:', err)
+      setError('Failed to fetch goals')
+      toast.error('Failed to load goals')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Use live goals if available, otherwise fall back to props
+  const displayGoals = liveGoals.length > 0 ? liveGoals : goals
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -75,12 +135,12 @@ export function BusinessGoalsTracker({ goals = [] }: BusinessGoalsTrackerProps) 
     return `${value} ${unit}`
   }
 
-  const filteredGoals = goals.filter((goal) => {
+  const filteredGoals = displayGoals.filter((goal) => {
     if (categoryFilter === "all") return true
     return goal.category === categoryFilter
   })
 
-  if (!goals || goals.length === 0) {
+  if (loading) {
     return (
       <Card>
         <CardHeader>
@@ -89,7 +149,55 @@ export function BusinessGoalsTracker({ goals = [] }: BusinessGoalsTrackerProps) 
               <Target className="h-5 w-5" />
               Business Goals
             </CardTitle>
-            <CreateGoalDialog onGoalCreated={() => {}} />
+            <CreateGoalDialog onGoalCreated={fetchGoals} />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <Loader2 className="h-12 w-12 animate-spin text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading your business goals...</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5" />
+              Business Goals
+            </CardTitle>
+            <CreateGoalDialog onGoalCreated={fetchGoals} />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-muted-foreground mb-2">Error Loading Goals</h3>
+            <p className="text-sm text-muted-foreground mb-4">{error}</p>
+            <Button onClick={fetchGoals} variant="outline">
+              Retry
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (!displayGoals || displayGoals.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5" />
+              Business Goals
+            </CardTitle>
+            <CreateGoalDialog onGoalCreated={fetchGoals} />
           </div>
         </CardHeader>
         <CardContent>
@@ -100,7 +208,7 @@ export function BusinessGoalsTracker({ goals = [] }: BusinessGoalsTrackerProps) 
               Set business goals to track your progress and achieve success.
             </p>
             <CreateGoalDialog 
-              onGoalCreated={() => {}} 
+              onGoalCreated={fetchGoals} 
               trigger={
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
@@ -114,9 +222,9 @@ export function BusinessGoalsTracker({ goals = [] }: BusinessGoalsTrackerProps) 
     )
   }
 
-  const completedGoals = goals.filter((g) => g.status === "completed").length
-  const inProgressGoals = goals.filter((g) => g.status === "in_progress").length
-  const overdueGoals = goals.filter((g) => isOverdue(g.deadline)).length
+  const completedGoals = displayGoals.filter((g) => g.status === "completed").length
+  const inProgressGoals = displayGoals.filter((g) => g.status === "in_progress").length
+  const overdueGoals = displayGoals.filter((g) => isOverdue(g.deadline)).length
 
   return (
     <Card>
@@ -126,7 +234,7 @@ export function BusinessGoalsTracker({ goals = [] }: BusinessGoalsTrackerProps) 
             <Target className="h-5 w-5" />
             Business Goals
             <Badge variant="secondary" className="ml-2">
-              {goals.length} total
+              {displayGoals.length} total
             </Badge>
           </CardTitle>
           <div className="flex items-center gap-2">
@@ -142,7 +250,7 @@ export function BusinessGoalsTracker({ goals = [] }: BusinessGoalsTrackerProps) 
                 <SelectItem value="customer">Customer</SelectItem>
               </SelectContent>
             </Select>
-            <CreateGoalDialog onGoalCreated={() => {}} />
+            <CreateGoalDialog onGoalCreated={fetchGoals} />
           </div>
         </div>
       </CardHeader>
