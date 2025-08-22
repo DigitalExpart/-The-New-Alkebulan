@@ -16,22 +16,45 @@ import { toast } from "sonner"
 interface ProductFormData {
   name: string
   category: string
+  subcategory: string
   price: number
   description: string
   status: string
 }
 
 const productCategories = [
+  { value: "physical", label: "Physical Products" },
+  { value: "digital", label: "Digital Products" },
+]
+
+const physicalSubcategories = [
   { value: "accessories", label: "Accessories" },
-  { value: "education", label: "Education" },
-  { value: "food", label: "Food" },
-  { value: "services", label: "Services" },
-  { value: "technology", label: "Technology" },
+  { value: "clothing", label: "Clothing & Fashion" },
+  { value: "food", label: "Food & Beverages" },
   { value: "health", label: "Health & Wellness" },
-  { value: "fashion", label: "Fashion" },
   { value: "home", label: "Home & Garden" },
+  { value: "jewelry", label: "Jewelry & Watches" },
   { value: "sports", label: "Sports & Recreation" },
-  { value: "art", label: "Art & Culture" },
+  { value: "beauty", label: "Beauty & Personal Care" },
+  { value: "electronics", label: "Electronics & Gadgets" },
+  { value: "books", label: "Books & Stationery" },
+  { value: "toys", label: "Toys & Games" },
+  { value: "automotive", label: "Automotive & Parts" },
+]
+
+const digitalSubcategories = [
+  { value: "software", label: "Software & Apps" },
+  { value: "courses", label: "Online Courses" },
+  { value: "ebooks", label: "E-books & Guides" },
+  { value: "templates", label: "Templates & Designs" },
+  { value: "music", label: "Music & Audio" },
+  { value: "video", label: "Video & Film" },
+  { value: "photography", label: "Photography & Art" },
+  { value: "consulting", label: "Consulting Services" },
+  { value: "webinars", label: "Webinars & Events" },
+  { value: "memberships", label: "Memberships & Subscriptions" },
+  { value: "licenses", label: "Licenses & Certifications" },
+  { value: "data", label: "Data & Analytics" },
 ]
 
 const productStatuses = [
@@ -47,6 +70,7 @@ export default function AddProductPage() {
   const [formData, setFormData] = useState<ProductFormData>({
     name: "",
     category: "",
+    subcategory: "",
     price: 0,
     description: "",
     status: "draft",
@@ -57,6 +81,24 @@ export default function AddProductPage() {
       ...prev,
       [field]: value
     }))
+    
+    // Reset subcategory when category changes
+    if (field === 'category') {
+      setFormData(prev => ({
+        ...prev,
+        [field]: value,
+        subcategory: ""
+      }))
+    }
+  }
+
+  const getSubcategories = () => {
+    if (formData.category === 'physical') {
+      return physicalSubcategories
+    } else if (formData.category === 'digital') {
+      return digitalSubcategories
+    }
+    return []
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,7 +109,7 @@ export default function AddProductPage() {
       return
     }
 
-    if (!formData.name || !formData.category || !formData.description) {
+    if (!formData.name || !formData.category || !formData.subcategory || !formData.description) {
       toast.error("Please fill in all required fields")
       return
     }
@@ -86,6 +128,8 @@ export default function AddProductPage() {
       // In a real app, you'd insert into your products table
       console.log('Adding product:', { 
         userId: user.id, 
+        category: formData.category,
+        subcategory: formData.subcategory,
         ...formData 
       })
       
@@ -153,18 +197,38 @@ export default function AddProductPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="category">Category *</Label>
+                  <Label htmlFor="category">Product Type *</Label>
                   <Select 
                     value={formData.category} 
                     onValueChange={(value) => handleInputChange('category', value)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
+                      <SelectValue placeholder="Select product type" />
                     </SelectTrigger>
                     <SelectContent>
                       {productCategories.map((category) => (
                         <SelectItem key={category.value} value={category.value}>
                           {category.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="subcategory">Subcategory *</Label>
+                  <Select 
+                    value={formData.subcategory} 
+                    onValueChange={(value) => handleInputChange('subcategory', value)}
+                    disabled={!formData.category}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={formData.category ? "Select subcategory" : "Select product type first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getSubcategories().map((subcategory) => (
+                        <SelectItem key={subcategory.value} value={subcategory.value}>
+                          {subcategory.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
