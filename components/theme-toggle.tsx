@@ -35,7 +35,7 @@ export function ThemeToggle() {
           className="h-9 w-9 text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-all duration-200"
         >
           {currentTheme === "light" ? (
-            <Sun className="h-[1.2rem] w-[1.2rem] transition-all duration-300" />
+            <Sun className="h-[1.2rem] w-[1.2rem] transition-all duration-300 text-white" />
           ) : (
             <Moon className="h-[1.2rem] w-[1.2rem] transition-all duration-300" />
           )}

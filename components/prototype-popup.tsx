@@ -44,7 +44,7 @@ export function PrototypePopup() {
 
   return (
     <div className="fixed bottom-6 right-6 z-50 max-w-sm animate-in slide-in-from-bottom-4 duration-500">
-      <Card className="relative overflow-hidden border border-border/50 shadow-2xl backdrop-blur-md bg-card/95 hover:shadow-3xl transition-all duration-300">
+      <Card className="relative overflow-hidden border border-border/50 shadow-2xl backdrop-blur-md dark:bg-card/95 hover:shadow-3xl transition-all duration-300 bg-[#07370d]">
         {/* Base gradient shine */}
         <div className="absolute inset-0 bg-gradient-to-bl from-white/8 via-transparent to-transparent pointer-events-none" />
 
@@ -93,7 +93,7 @@ export function PrototypePopup() {
           <div className="space-y-4 pr-8">
             {/* Header with badge */}
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full dark:bg-gradient-to-br dark:from-primary/20 dark:to-primary/10 bg-dark-border flex items-center justify-center">
                 <TrendingUp className="h-5 w-5 text-primary" />
               </div>
               <Badge variant="secondary" className="text-xs font-medium bg-primary/10 text-primary border-primary/20">
@@ -103,24 +103,24 @@ export function PrototypePopup() {
 
             {/* Main content */}
             <div className="space-y-3">
-              <h3 className="font-bold text-base leading-tight text-foreground">🚀 Building the Future Together</h3>
+              <h3 className="font-bold text-base leading-tight dark:text-foreground text-white">🚀 Building the Future Together</h3>
 
-              <div className="space-y-2 text-sm text-muted-foreground leading-relaxed">
+              <div className="space-y-2 text-sm dark:text-muted-foreground leading-relaxed text-white">
                 <p>
-                  This website is a <span className="font-semibold text-foreground">live prototype</span> of what we are
+                  This website is a <span className="font-semibold dark:text-foreground text-white">live prototype</span> of what we are
                   building.
                 </p>
-                <p className="text-foreground font-medium">
+                <p className="dark:text-foreground text-white font-medium">
                   Be part of the journey. Join us in creating a digital home for the Alkebulan community.
                 </p>
-                <p className="text-foreground font-semibold">
+                <p className="dark:text-foreground text-white font-semibold">
                   Invest in The New Alkebulan and empower our community for generations to come.
                 </p>
               </div>
             </div>
 
             {/* Stats row */}
-            <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2">
+            <div className="flex items-center gap-4 text-xs dark:text-muted-foreground pt-2 text-white">
               <div className="flex items-center gap-1.5">
                 <Users className="h-3.5 w-3.5" />
                 <span>2.1k+ interested</span>

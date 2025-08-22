@@ -43,7 +43,7 @@ export function Footer() {
           animation: heartbeat 2.5s ease-in-out;
         }
       `}</style>
-      <footer className="bg-[hsl(var(--background))] border-t border-[hsl(var(--border))] mt-auto">
+      <footer className="dark:bg-[hsl(var(--background))] border-t border-[hsl(var(--border))] mt-auto bg-[#07370d]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {/* Logo and Description */}
@@ -64,24 +64,24 @@ export function Footer() {
                 </div>
                 <span className="font-bold text-lg text-yellow-500">The New Alkebulan</span>
               </Link>
-              <p className="text-[hsl(var(--muted-foreground))] text-sm">
+              <p className="dark:text-[hsl(var(--muted-foreground))] text-sm text-white">
                 Empowering the African diaspora through community, culture, and connection. Building bridges across
                 continents.
               </p>
               <div className="flex space-x-4">
-                <Link href="#" className="text-[hsl(var(--muted-foreground))] hover:text-yellow-500 transition-colors">
+                <Link href="#" className="dark:text-[hsl(var(--muted-foreground))] text-white hover:text-yellow-500 transition-colors">
                   <Facebook className="w-5 h-5" />
                 </Link>
-                <Link href="#" className="text-[hsl(var(--muted-foreground))] hover:text-yellow-500 transition-colors">
+                <Link href="#" className="dark:text-[hsl(var(--muted-foreground))] text-white hover:text-yellow-500 transition-colors">
                   <Twitter className="w-5 h-5" />
                 </Link>
-                <Link href="#" className="text-[hsl(var(--muted-foreground))] hover:text-yellow-500 transition-colors">
+                <Link href="#" className="dark:text-[hsl(var(--muted-foreground))] text-white hover:text-yellow-500 transition-colors">
                   <Instagram className="w-5 h-5" />
                 </Link>
-                <Link href="#" className="text-[hsl(var(--muted-foreground))] hover:text-yellow-500 transition-colors">
+                <Link href="#" className="dark:text-[hsl(var(--muted-foreground))] text-white hover:text-yellow-500 transition-colors">
                   <Linkedin className="w-5 h-5" />
                 </Link>
-                <Link href="#" className="text-[hsl(var(--muted-foreground))] hover:text-yellow-500 transition-colors">
+                <Link href="#" className="dark:text-[hsl(var(--muted-foreground))] text-white hover:text-yellow-500 transition-colors">
                   <Youtube className="w-5 h-5" />
                 </Link>
               </div>
@@ -89,12 +89,12 @@ export function Footer() {
 
             {/* Quick Links */}
             <div>
-              <h3 className="font-semibold text-[hsl(var(--foreground))] mb-4">Quick Links</h3>
+              <h3 className="font-semibold dark:text-[hsl(var(--foreground))] mb-4 text-white">Quick Links</h3>
               <ul className="space-y-2">
                 <li>
                   <Link
                     href="/communities"
-                    className="text-[hsl(var(--muted-foreground))] hover:text-yellow-500 transition-colors text-sm"
+                    className="dark:text-[hsl(var(--muted-foreground))] hover:text-yellow-500 transition-colors text-sm text-white"
                   >
                     Community
                   </Link>
@@ -102,7 +102,7 @@ export function Footer() {
                 <li>
                   <Link
                     href="/marketplace"
-                    className="text-[hsl(var(--muted-foreground))] hover:text-yellow-500 transition-colors text-sm"
+                    className="dark:text-[hsl(var(--muted-foreground))] hover:text-yellow-500 transition-colors text-sm text-white"
                   >
                     Marketplace
                   </Link>
@@ -110,7 +110,7 @@ export function Footer() {
                 <li>
                   <Link
                     href="/learning"
-                    className="text-[hsl(var(--muted-foreground))] hover:text-yellow-500 transition-colors text-sm"
+                    className="dark:text-[hsl(var(--muted-foreground))] text-white hover:text-yellow-500 transition-colors text-sm"
                   >
                     Learning Hub
                   </Link>
@@ -118,7 +118,7 @@ export function Footer() {
                 <li>
                   <Link
                     href="/business"
-                    className="text-[hsl(var(--muted-foreground))] hover:text-yellow-500 transition-colors text-sm"
+                    className="dark:text-[hsl(var(--muted-foreground))] text-white hover:text-yellow-500 transition-colors text-sm"
                   >
                     Business
                   </Link>
@@ -126,7 +126,7 @@ export function Footer() {
                 <li>
                   <Link
                     href="/health"
-                    className="text-[hsl(var(--muted-foreground))] hover:text-yellow-500 transition-colors text-sm"
+                    className="dark:text-[hsl(var(--muted-foreground))] text-white hover:text-yellow-500 transition-colors text-sm"
                   >
                     Health & Wellness
                   </Link>
@@ -136,12 +136,12 @@ export function Footer() {
 
             {/* Support */}
             <div>
-              <h3 className="font-semibold text-[hsl(var(--foreground))] mb-4">Support</h3>
+              <h3 className="font-semibold dark:text-[hsl(var(--foreground))] mb-4 text-white">Support</h3>
               <ul className="space-y-2">
                 <li>
                   <Link
                     href="/help"
-                    className="text-[hsl(var(--muted-foreground))] hover:text-yellow-500 transition-colors text-sm"
+                    className="dark:text-[hsl(var(--muted-foreground))] text-white hover:text-yellow-500 transition-colors text-sm"
                   >
                     Help Center
                   </Link>
@@ -149,7 +149,7 @@ export function Footer() {
                 <li>
                   <Link
                     href="/contact"
-                    className="text-[hsl(var(--muted-foreground))] hover:text-yellow-500 transition-colors text-sm"
+                    className="dark:text-[hsl(var(--muted-foreground))] text-white hover:text-yellow-500 transition-colors text-sm"
                   >
                     Contact Us
                   </Link>
@@ -157,7 +157,7 @@ export function Footer() {
                 <li>
                   <Link
                     href="/privacy"
-                    className="text-[hsl(var(--muted-foreground))] hover:text-yellow-500 transition-colors text-sm"
+                    className="dark:text-[hsl(var(--muted-foreground))] text-white hover:text-yellow-500 transition-colors text-sm"
                   >
                     Privacy Policy
                   </Link>
@@ -165,7 +165,7 @@ export function Footer() {
                 <li>
                   <Link
                     href="/terms"
-                    className="text-[hsl(var(--muted-foreground))] hover:text-yellow-500 transition-colors text-sm"
+                    className="dark:text-[hsl(var(--muted-foreground))] text-white hover:text-yellow-500 transition-colors text-sm"
                   >
                     Terms of Service
                   </Link>
@@ -173,7 +173,7 @@ export function Footer() {
                 <li>
                   <Link
                     href="/governance/about"
-                    className="text-[hsl(var(--muted-foreground))] hover:text-yellow-500 transition-colors text-sm"
+                    className="dark:text-[hsl(var(--muted-foreground))] text-white hover:text-yellow-500 transition-colors text-sm"
                   >
                     Governance
                   </Link>
@@ -183,19 +183,19 @@ export function Footer() {
 
             {/* Contact Info */}
             <div>
-              <h3 className="font-semibold text-[hsl(var(--foreground))] mb-4">Contact</h3>
+              <h3 className="font-semibold dark:text-[hsl(var(--foreground))] mb-4 text-white">Contact</h3>
               <div className="space-y-3">
                 <div className="flex items-center space-x-2">
                   <Mail className="w-4 h-4 text-yellow-500" />
-                  <span className="text-[hsl(var(--muted-foreground))] text-sm">hello@newalkebulan.com</span>
+                  <span className="dark:text-[hsl(var(--muted-foreground))] text-white text-sm">hello@newalkebulan.com</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Phone className="w-4 h-4 text-yellow-500" />
-                  <span className="text-[hsl(var(--muted-foreground))] text-sm">+1 (555) 123-4567</span>
+                  <span className="dark:text-[hsl(var(--muted-foreground))] text-white text-sm">+1 (555) 123-4567</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <MapPin className="w-4 h-4 text-yellow-500" />
-                  <span className="text-[hsl(var(--muted-foreground))] text-sm">Global Community</span>
+                  <span className="dark:text-[hsl(var(--muted-foreground))] text-white text-sm">Global Community</span>
                 </div>
               </div>
             </div>
@@ -203,25 +203,25 @@ export function Footer() {
 
           {/* Bottom Bar */}
           <div className="border-t border-[hsl(var(--border))] mt-8 pt-8 flex flex-col sm:flex-row justify-between items-center">
-            <p className="text-[hsl(var(--muted-foreground))] text-sm">
+            <p className="dark:text-[hsl(var(--muted-foreground))] text-white text-sm">
               © 2024 The New Alkebulan. All rights reserved.
             </p>
             <div className="flex space-x-6 mt-4 sm:mt-0">
               <Link
                 href="/accessibility"
-                className="text-[hsl(var(--muted-foreground))] hover:text-yellow-500 transition-colors text-sm"
+                className="dark:text-[hsl(var(--muted-foreground))] text-white hover:text-yellow-500 transition-colors text-sm"
               >
                 Accessibility
               </Link>
               <Link
                 href="/cookies"
-                className="text-[hsl(var(--muted-foreground))] hover:text-yellow-500 transition-colors text-sm"
+                className="dark:text-[hsl(var(--muted-foreground))] text-white hover:text-yellow-500 transition-colors text-sm"
               >
                 Cookie Policy
               </Link>
               <Link
                 href="/sitemap"
-                className="text-[hsl(var(--muted-foreground))] hover:text-yellow-500 transition-colors text-sm"
+                className="dark:text-[hsl(var(--muted-foreground))] text-white hover:text-yellow-500 transition-colors text-sm"
               >
                 Sitemap
               </Link>

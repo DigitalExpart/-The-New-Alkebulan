@@ -73,6 +73,7 @@ export function Navbar() {
   const [isCommunityOpen, setIsCommunityOpen] = useState(false)
   const [isMarketplaceOpen, setIsMarketplaceOpen] = useState(false)
   const [isInvestingOpen, setIsInvestingOpen] = useState(false)
+  const [isGrowthOpen, setIsGrowthOpen] = useState(false)
 
   // Helper function to get first name from full name
   const getFirstName = (fullName?: string) => {
@@ -347,7 +348,7 @@ export function Navbar() {
   };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border transition-all duration-300 py-2">
+    <nav className="fixed top-0 left-0 right-0 z-50 dark:bg-background border-b border-border transition-all duration-300 py-2 bg-[#07370d] ">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo and Brand */}
@@ -356,7 +357,7 @@ export function Navbar() {
               onClick={handleLogoClick}
               className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors duration-200 gap-3"
             >
-              <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+              <div className="w-16 h-16 bg-transparent rounded-full flex items-center justify-center">
                 {/* <span className="text-primary-foreground font-bold text-sm">A</span> */}
                 <Image
                                     src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Scherm_afbeelding_2025-07-20_om_19.00.08-removebg-preview-5SfpVg1sZpmH7Z60mo8coZyoqelzmF.png"
@@ -367,9 +368,14 @@ export function Navbar() {
                                   />
               </div>
               <div className="flex flex-col items-start">
-                <span className="font-semibold text-lg sm:block text-gold inline-block">The New</span>
-                <span className="inline-block text-2xl text-gold">Alkebulan</span>
-              </div>
+  <span className="text-amber-400 text-lg font-semibold">
+    The New
+  </span>
+  <span className="text-amber-400 text-2xl font-extrabold">
+    Alkebulan
+  </span>
+</div>
+
             </button>
           </div>
 
@@ -378,8 +384,8 @@ export function Navbar() {
             {/* Community Dropdown */}
             <DropdownMenu open={isCommunityOpen} onOpenChange={setIsCommunityOpen}>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors duration-200 font-medium">
-                  <span>Community</span>
+                <button className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors duration-200 font-medium text-white">
+                  <span className="">Community</span>
                   <ChevronDown className="h-4 w-4" />
                 </button>
               </DropdownMenuTrigger>
@@ -426,7 +432,7 @@ export function Navbar() {
             {/* Marketplace Dropdown */}
             <DropdownMenu open={isMarketplaceOpen} onOpenChange={setIsMarketplaceOpen}>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors duration-200 font-medium">
+                <button className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors duration-200 font-medium text-white">
                   <span>Marketplace</span>
                   <ChevronDown className="h-4 w-4" />
                 </button>
@@ -446,16 +452,66 @@ export function Navbar() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Link
+
+            {/* Growth Dropdown */}
+              <DropdownMenu open={isGrowthOpen} onOpenChange={setIsGrowthOpen}>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors duration-200 font-medium text-white">
+                  <span>Growth</span>
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuItem asChild>
+                  <Link href="/marketplace" className="cursor-pointer flex items-center gap-2">
+                    <Store className="w-4 h-4" />
+                    Daily Planner
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/marketplace/companies" className="cursor-pointer flex items-center gap-2">
+                    <Building2 className="w-4 h-4" />
+                    Progress
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/marketplace/companies" className="cursor-pointer flex items-center gap-2">
+                    <Building2 className="w-4 h-4" />
+                    Journey
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/marketplace/companies" className="cursor-pointer flex items-center gap-2">
+                    <Building2 className="w-4 h-4" />
+                    Learning Hub
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/marketplace/companies" className="cursor-pointer flex items-center gap-2">
+                    <Building2 className="w-4 h-4" />
+                    Mentorship
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/marketplace/companies" className="cursor-pointer flex items-center gap-2">
+                    <Building2 className="w-4 h-4" />
+                    The Manifest Lab
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+
+            {/* <Link
               href="/learning"
-              className="text-foreground hover:text-primary transition-colors duration-200 font-medium"
+              className="text-foreground hover:text-primary transition-colors duration-200 font-medium text-white"
             >
               Growth
-            </Link>
+            </Link> */}
             {/* Investing Dropdown */}
             <DropdownMenu open={isInvestingOpen} onOpenChange={setIsInvestingOpen}>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors duration-200 font-medium">
+                <button className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors duration-200 font-medium text-white">
                   <span>Investing</span>
                   <ChevronDown className="h-4 w-4" />
                 </button>
