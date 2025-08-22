@@ -208,6 +208,11 @@ export default function AddProductPage() {
       return
     }
 
+    // Set default inventory to 1 if not specified
+    if (!formData.inventory || formData.inventory === 0) {
+      setFormData(prev => ({ ...prev, inventory: 1 }))
+    }
+
     if (formData.actualPrice < 0 || formData.salesPrice < 0) {
       toast.error("Prices cannot be negative")
       return
@@ -401,7 +406,7 @@ export default function AddProductPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="inventory">Available Quantity *</Label>
+                  <Label htmlFor="inventory">Available Quantity (Optional)</Label>
                   <Input
                     id="inventory"
                     type="number"
@@ -409,10 +414,9 @@ export default function AddProductPage() {
                     value={formData.inventory || ''}
                     onChange={(e) => handleInputChange('inventory', parseInt(e.target.value) || 1)}
                     min="1"
-                    required
                   />
                   <p className="text-xs text-muted-foreground">
-                    Number of products available for purchase
+                    Number of products available for purchase (leave empty if unlimited)
                   </p>
                 </div>
               </div>
