@@ -39,6 +39,17 @@ export function CreateGoalDialog({ onGoalCreated, trigger }: CreateGoalDialogPro
     deadline: "",
   })
 
+  // Add timeout to prevent infinite loading
+  const resetLoadingState = () => {
+    setTimeout(() => {
+      if (loading) {
+        console.warn('Loading state timeout - resetting')
+        setLoading(false)
+        toast.error('Goal creation timed out. Please try again.')
+      }
+    }, 10000) // 10 second timeout
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -54,8 +65,32 @@ export function CreateGoalDialog({ onGoalCreated, trigger }: CreateGoalDialogPro
 
     try {
       setLoading(true)
+      resetLoadingState() // Start timeout
+      console.log('Creating goal:', { 
+        userId: user.id, 
+        title: formData.title, 
+        target: formData.target,
+        category: formData.category,
+        unit: formData.unit,
+        deadline: formData.deadline
+      })
       
       const supabase = getSupabaseClient()
+      
+      // First, let's check if the business_goals table exists and we can access it
+      const { data: tableCheck, error: tableError } = await supabase
+        .from('business_goals')
+        .select('id')
+        .limit(1)
+
+      if (tableError) {
+        console.error('Error accessing business_goals table:', tableError)
+        toast.error(`Database error: ${tableError.message}`)
+        setLoading(false)
+        return
+      }
+
+      console.log('Table access confirmed, proceeding with goal creation...')
       
       const { data, error } = await supabase
         .from('business_goals')
@@ -75,10 +110,12 @@ export function CreateGoalDialog({ onGoalCreated, trigger }: CreateGoalDialogPro
 
       if (error) {
         console.error('Error creating goal:', error)
-        toast.error('Failed to create goal')
+        toast.error(`Failed to create goal: ${error.message}`)
+        setLoading(false)
         return
       }
 
+      console.log('Goal created successfully:', data)
       toast.success('Goal created successfully!')
       setFormData({
         title: "",
@@ -93,7 +130,7 @@ export function CreateGoalDialog({ onGoalCreated, trigger }: CreateGoalDialogPro
       
     } catch (err) {
       console.error('Error creating goal:', err)
-      toast.error('Failed to create goal')
+      toast.error(`Failed to create goal: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
       setLoading(false)
     }
@@ -229,6 +266,18 @@ export function CreateGoalDialog({ onGoalCreated, trigger }: CreateGoalDialogPro
             <Button type="button" variant="outline" onClick={resetForm}>
               Reset
             </Button>
+            {loading && (
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  setLoading(false)
+                  toast.info('Goal creation cancelled. Please try again.')
+                }}
+              >
+                Cancel Creation
+              </Button>
+            )}
             <Button type="submit" disabled={loading}>
               {loading ? (
                 <>
