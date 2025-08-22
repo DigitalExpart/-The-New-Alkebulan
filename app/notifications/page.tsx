@@ -1,20 +1,27 @@
 "use client"
 
 import { useState } from "react"
-import { Bell, Search, Settings, Check, CheckCheck } from "lucide-react"
+import { Bell, Search, Settings, Check, CheckCheck, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { NotificationItem } from "@/components/notifications/notification-item"
-import { mockNotifications } from "@/data/notifications-data"
 import type { Notification } from "@/types/notification"
 import { groupNotificationsByDate } from "@/utils/date-utils"
 import Link from "next/link"
 import { toast } from "sonner"
+import { useNotifications } from "@/hooks/use-notifications"
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications)
+  const { 
+    notifications, 
+    loading, 
+    error, 
+    markAsRead, 
+    markAllAsRead: markAllAsReadHook,
+    fetchNotifications 
+  } = useNotifications()
   const [searchQuery, setSearchQuery] = useState("")
   const [filterType, setFilterType] = useState<string>("all")
   const [filterStatus, setFilterStatus] = useState<string>("all")
@@ -39,23 +46,14 @@ export default function NotificationsPage() {
 
   const groupedNotifications = groupNotificationsByDate(filteredNotifications)
 
-  const handleNotificationClick = (notification: Notification) => {
+  const handleNotificationClick = async (notification: Notification) => {
     if (!notification.isRead) {
-      setNotifications((prev) => prev.map((n) => (n.id === notification.id ? { ...n, isRead: true } : n)))
+      await markAsRead(notification.id)
     }
   }
 
   const handleFriendRequestAction = async (friendRequestId: string, action: 'accept' | 'reject') => {
     try {
-      // Update the notification status
-      setNotifications((prev) =>
-        prev.map((n) =>
-          n.friendRequestId === friendRequestId
-            ? { ...n, status: action === 'accept' ? 'accepted' : 'rejected', isRead: true }
-            : n
-        )
-      )
-
       // Here you would typically make an API call to update the friendship status
       // For now, we'll just show a toast message
       if (action === 'accept') {
@@ -64,10 +62,8 @@ export default function NotificationsPage() {
         toast.success('Friend request rejected')
       }
 
-      // Remove the notification after a short delay
-      setTimeout(() => {
-        setNotifications((prev) => prev.filter((n) => n.friendRequestId !== friendRequestId))
-      }, 2000)
+      // Refresh notifications to get updated data
+      await fetchNotifications()
 
     } catch (error) {
       toast.error(`Failed to ${action} friend request`)
@@ -75,14 +71,16 @@ export default function NotificationsPage() {
     }
   }
 
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
+  const handleMarkAllAsRead = async () => {
+    await markAllAsReadHook()
   }
 
-  const markSelectedAsRead = () => {
-    setNotifications((prev) =>
-      prev.map((n) => (filteredNotifications.some((fn) => fn.id === n.id) && !n.isRead ? { ...n, isRead: true } : n)),
-    )
+  const handleMarkSelectedAsRead = async () => {
+    // Mark selected notifications as read
+    const unreadFiltered = filteredNotifications.filter(n => !n.isRead)
+    for (const notification of unreadFiltered) {
+      await markAsRead(notification.id)
+    }
   }
 
   return (
@@ -104,7 +102,7 @@ export default function NotificationsPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={markSelectedAsRead}
+                onClick={handleMarkSelectedAsRead}
                 disabled={filteredNotifications.filter((n) => !n.isRead).length === 0}
                 className="dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
               >
@@ -114,7 +112,7 @@ export default function NotificationsPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={markAllAsRead}
+                onClick={handleMarkAllAsRead}
                 disabled={unreadCount === 0}
                 className="dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 bg-transparent"
               >
@@ -176,7 +174,26 @@ export default function NotificationsPage() {
 
         {/* Notifications */}
         <div className="space-y-6">
-          {groupedNotifications.length > 0 ? (
+          {loading ? (
+            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-dark border border-gray-200 dark:border-gray-700">
+              <Loader2 className="w-12 h-12 mx-auto mb-4 animate-spin text-gray-400 dark:text-gray-600" />
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Loading notifications...</h3>
+              <p className="text-gray-600 dark:text-gray-400">Please wait while we fetch your notifications</p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-dark border border-gray-200 dark:border-gray-700">
+              <Bell className="w-12 h-12 mx-auto mb-4 text-red-400 dark:text-red-600" />
+              <h3 className="text-lg font-medium text-red-900 dark:text-red-100 mb-2">Error loading notifications</h3>
+              <p className="text-red-600 dark:text-red-400">{error}</p>
+              <Button 
+                onClick={fetchNotifications} 
+                variant="outline" 
+                className="mt-4 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+              >
+                Try Again
+              </Button>
+            </div>
+          ) : groupedNotifications.length > 0 ? (
             groupedNotifications.map(({ date, notifications: groupNotifications }) => (
               <div
                 key={date}

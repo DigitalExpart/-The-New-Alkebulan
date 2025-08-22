@@ -169,12 +169,6 @@ export default function MarketplacePage() {
                   <Filter className="mr-2 h-4 w-4" />
                   Filters
                 </Button>
-                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                  <Link href="/marketplace/upload" className="flex items-center">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Sell Product
-                  </Link>
-                </Button>
               </div>
             </div>
           </CardContent>

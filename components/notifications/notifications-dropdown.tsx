@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Bell, Settings, Check } from "lucide-react"
+import { Bell, Settings, Check, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -11,14 +11,21 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { NotificationItem } from "./notification-item"
-import { mockNotifications } from "@/data/notifications-data"
 import type { Notification } from "@/types/notification"
 import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
+import { useNotifications } from "@/hooks/use-notifications"
 
 export function NotificationsDropdown() {
   const { user } = useAuth()
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications)
+  const { 
+    recentNotifications, 
+    unreadCount, 
+    loading, 
+    error,
+    markAsRead,
+    markAllAsRead 
+  } = useNotifications()
   const [isOpen, setIsOpen] = useState(false)
 
   // Debug: Log user state in NotificationsDropdown
@@ -30,18 +37,15 @@ export function NotificationsDropdown() {
     return null
   }
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length
-  const recentNotifications = notifications.slice(0, 6) // Show only 6 most recent
-
-  const handleNotificationClick = (notification: Notification) => {
+  const handleNotificationClick = async (notification: Notification) => {
     if (!notification.isRead) {
-      setNotifications((prev) => prev.map((n) => (n.id === notification.id ? { ...n, isRead: true } : n)))
+      await markAsRead(notification.id)
     }
     setIsOpen(false)
   }
 
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
+  const handleMarkAllAsRead = async () => {
+    await markAllAsRead()
   }
 
   return (
@@ -74,7 +78,7 @@ export function NotificationsDropdown() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={markAllAsRead}
+                onClick={handleMarkAllAsRead}
                 className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 p-1 h-auto"
               >
                 <Check className="w-3 h-3 mr-1" />
@@ -96,7 +100,17 @@ export function NotificationsDropdown() {
 
         {/* Notifications List */}
         <div className="max-h-80 overflow-y-auto">
-          {recentNotifications.length > 0 ? (
+          {loading ? (
+            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+              <Loader2 className="w-8 h-8 mx-auto mb-2 animate-spin opacity-50" />
+              <p className="text-sm">Loading notifications...</p>
+            </div>
+          ) : error ? (
+            <div className="p-8 text-center text-red-500 dark:text-red-400">
+              <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">{error}</p>
+            </div>
+          ) : recentNotifications.length > 0 ? (
             <div>
               {recentNotifications.map((notification) => (
                 <NotificationItem key={notification.id} notification={notification} onClick={handleNotificationClick} />
@@ -111,7 +125,7 @@ export function NotificationsDropdown() {
         </div>
 
         {/* Footer */}
-        {notifications.length > 6 && (
+        {recentNotifications.length > 0 && (
           <>
             <DropdownMenuSeparator className="bg-gray-100 dark:bg-gray-800" />
             <div className="p-3">
@@ -119,7 +133,7 @@ export function NotificationsDropdown() {
                 variant="ghost"
                 size="sm"
                 asChild
-                className="w-full text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                className="w-full text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20"
               >
                 <Link href="/notifications">View all notifications</Link>
               </Button>
