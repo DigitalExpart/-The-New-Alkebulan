@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Target, Plus, TrendingUp, Calendar, AlertTriangle } from "lucide-react"
 import type { BusinessGoal } from "@/types/business"
+import { CreateGoalDialog } from "./create-goal-dialog"
 
 interface BusinessGoalsTrackerProps {
   goals?: BusinessGoal[]
@@ -88,10 +89,7 @@ export function BusinessGoalsTracker({ goals = [] }: BusinessGoalsTrackerProps) 
               <Target className="h-5 w-5" />
               Business Goals
             </CardTitle>
-            <Button size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Goal
-            </Button>
+            <CreateGoalDialog onGoalCreated={() => {}} />
           </div>
         </CardHeader>
         <CardContent>
@@ -101,10 +99,15 @@ export function BusinessGoalsTracker({ goals = [] }: BusinessGoalsTrackerProps) 
             <p className="text-sm text-muted-foreground mb-4">
               Set business goals to track your progress and achieve success.
             </p>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Your First Goal
-            </Button>
+            <CreateGoalDialog 
+              onGoalCreated={() => {}} 
+              trigger={
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Your First Goal
+                </Button>
+              }
+            />
           </div>
         </CardContent>
       </Card>
@@ -139,10 +142,7 @@ export function BusinessGoalsTracker({ goals = [] }: BusinessGoalsTrackerProps) 
                 <SelectItem value="customer">Customer</SelectItem>
               </SelectContent>
             </Select>
-            <Button size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Goal
-            </Button>
+            <CreateGoalDialog onGoalCreated={() => {}} />
           </div>
         </div>
       </CardHeader>
