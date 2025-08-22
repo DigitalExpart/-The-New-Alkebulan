@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Target, Plus, TrendingUp, Calendar, AlertTriangle, Loader2 } from "lucide-react"
+import { Target, Plus, TrendingUp, Calendar, AlertTriangle, Loader2, Edit } from "lucide-react"
 import type { BusinessGoal } from "@/types/business"
 import { CreateGoalDialog } from "./create-goal-dialog"
+import { UpdateGoalDialog } from "./update-goal-dialog"
 import { useAuth } from "@/hooks/use-auth"
 import { getSupabaseClient } from "@/lib/supabase"
 import { toast } from "sonner"
@@ -317,9 +318,16 @@ export function BusinessGoalsTracker({ goals = [] }: BusinessGoalsTrackerProps) 
                       <TrendingUp className="h-3 w-3" />
                       {progress > 75 ? "On track" : progress > 50 ? "Good progress" : "Needs attention"}
                     </div>
-                    <Button size="sm" variant="outline">
-                      Update Progress
-                    </Button>
+                    <UpdateGoalDialog 
+                      goal={goal} 
+                      onGoalUpdated={fetchGoals}
+                      trigger={
+                        <Button size="sm" variant="outline">
+                          <Edit className="h-4 w-4 mr-2" />
+                          Update Progress
+                        </Button>
+                      }
+                    />
                   </div>
                 </CardContent>
               </Card>
