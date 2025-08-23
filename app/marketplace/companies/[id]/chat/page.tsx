@@ -48,7 +48,7 @@ export default function CompanyChatPage() {
   const [otherAvatar, setOtherAvatar] = useState<string | null>(null)
   const [convSearch, setConvSearch] = useState("")
   const [ownerConversations, setOwnerConversations] = useState<Array<{ id: string; user_id: string; last_message: string | null; last_message_at: string | null }>>([])
-  const [ownerProfiles, setOwnerProfiles] = useState<Record<string, { full_name: string | null; email: string | null; avatar_url: string | null }>>({})
+  const [ownerProfiles, setOwnerProfiles] = useState<Record<string, { first_name?: string | null; last_name?: string | null; username?: string | null; email?: string | null; avatar_url?: string | null }>>({})
   const [recording, setRecording] = useState<boolean>(false)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const recordedChunksRef = useRef<Blob[]>([])
@@ -186,13 +186,14 @@ export default function CompanyChatPage() {
       const supabase = getSupabaseClient()
       const { data } = await supabase
         .from("profiles")
-        .select("first_name,last_name,username,avatar_url,email")
+        .select("*")
         .eq("user_id", conversationUserId)
         .maybeSingle()
       if (data) {
-        const dn = [data.first_name, data.last_name].filter(Boolean).join(' ').trim()
-        setOtherName(dn || data.username || data.email || "User")
-        setOtherAvatar(data.avatar_url || null)
+        const anyData = data as Record<string, any>
+        const dn = [anyData['first_name'], anyData['last_name']].filter(Boolean).join(' ').trim()
+        setOtherName(dn || anyData['username'] || anyData['email'] || "User")
+        setOtherAvatar(anyData['avatar_url'] || null)
       }
     }
     loadProfile()
@@ -226,8 +227,9 @@ export default function CompanyChatPage() {
   const filteredConversations = ownerConversations.filter((c) => {
     if (!convSearch) return true
     const p = ownerProfiles[c.user_id]
-    const name = (p?.full_name || p?.email || "").toLowerCase()
-    return name.includes(convSearch.toLowerCase()) || (c.last_message || "").toLowerCase().includes(convSearch.toLowerCase())
+    const full = [p?.first_name, p?.last_name].filter(Boolean).join(' ').trim()
+    const display = (full || p?.username || p?.email || '').toLowerCase()
+    return display.includes(convSearch.toLowerCase()) || (c.last_message || '').toLowerCase().includes(convSearch.toLowerCase())
   })
 
   const openConversationForUser = async (targetUserId: string) => {
@@ -289,18 +291,24 @@ export default function CompanyChatPage() {
 
     // Ensure conversation exists before sending
     let convId = conversationId
-    if (!convId && params?.id) {
-      const { data: conv, error: convErr } = await supabase
-        .from("company_conversations")
-        .insert({ company_id: (params?.id as string), user_id: user.id })
-        .select("id")
-        .single()
-      if (convErr) {
-        toast.error(`Could not start conversation: ${convErr.message}`)
+    if (!convId) {
+      if (isOwner) {
+        toast("Select a conversation from the list")
         return
       }
-      convId = conv.id
-      setConversationId(convId)
+      if (params?.id) {
+        const { data: conv, error: convErr } = await supabase
+          .from("company_conversations")
+          .insert({ company_id: (params?.id as string), user_id: user.id })
+          .select("id")
+          .single()
+        if (convErr) {
+          toast.error(`Could not start conversation: ${convErr.message}`)
+          return
+        }
+        convId = conv.id
+        setConversationId(convId)
+      }
     }
     if (!convId) {
       if (isOwner) toast("No conversations yet")
@@ -341,6 +349,7 @@ export default function CompanyChatPage() {
             title: `New message from ${companyName || 'company'}`,
             message: content.slice(0, 140),
             related_id: (params?.id as string),
+            action_url: `/marketplace/companies/${params?.id}/chat?with=${conversationUserId}`,
             is_read: false,
           })
         }
@@ -351,6 +360,7 @@ export default function CompanyChatPage() {
           title: `New message from customer`,
           message: content.slice(0, 140),
           related_id: (params?.id as string),
+          action_url: `/marketplace/companies/${params?.id}/chat?with=${user.id}`,
           is_read: false,
         })
       }
@@ -417,6 +427,12 @@ export default function CompanyChatPage() {
         .single()
       if (error) throw error
       if (inserted) setMessages((prev) => [...prev, inserted as any])
+
+      // update conversation last_message for list ordering
+      await supabase
+        .from('company_conversations')
+        .update({ last_message: mediaType === 'audio' ? 'Voice note' : (mediaType === 'image' ? 'Image' : mediaType === 'video' ? 'Video' : 'File'), last_message_at: new Date().toISOString() })
+        .eq('id', convId)
     } catch (err: any) {
       console.error('sendMediaMessage error:', err)
       toast.error(err?.message || 'Failed to send media')
