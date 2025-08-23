@@ -534,7 +534,7 @@ export function Navbar() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/investing/projects" className="cursor-pointer flex items-center gap-2">
+                  <Link href="/investing/more-projects" className="cursor-pointer flex items-center gap-2">
                     <FolderOpen className="w-4 h-4" />
                     More Projects
                   </Link>
@@ -841,7 +841,7 @@ export function Navbar() {
                   <Link href="/investing/my-investments" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
                     <BarChart3 className="h-4 w-4" /> My Investments
               </Link>
-                  <Link href="/investing/projects" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
+                  <Link href="/investing/more-projects" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
                     <FolderOpen className="h-4 w-4" /> More Projects
               </Link>
                 </CollapsibleContent>
