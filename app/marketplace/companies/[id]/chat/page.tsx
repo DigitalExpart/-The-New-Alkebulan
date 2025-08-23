@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth"
 import { toast } from "sonner"
 import { Check, CheckCheck, X } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import Link from "next/link"
 
 interface Message {
   id: string
@@ -33,8 +35,14 @@ export default function CompanyChatPage() {
   const listRef = useRef<HTMLDivElement>(null)
   const [companyName, setCompanyName] = useState<string>("")
   const [companyOwnerId, setCompanyOwnerId] = useState<string | null>(null)
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null)
   const [isOwner, setIsOwner] = useState<boolean>(false)
   const [conversationUserId, setConversationUserId] = useState<string | null>(null)
+  const [otherName, setOtherName] = useState<string>("")
+  const [otherAvatar, setOtherAvatar] = useState<string | null>(null)
+  const [convSearch, setConvSearch] = useState("")
+  const [ownerConversations, setOwnerConversations] = useState<Array<{ id: string; user_id: string; last_message: string | null; last_message_at: string | null }>>([])
+  const [ownerProfiles, setOwnerProfiles] = useState<Record<string, { full_name: string | null; email: string | null; avatar_url: string | null }>>({})
 
   useEffect(() => {
     if (!user?.id || !params?.id) return
@@ -103,11 +111,12 @@ export default function CompanyChatPage() {
       // Fetch company name for header
       const { data: companyRow } = await supabase
         .from("companies")
-        .select("name, owner_id")
+        .select("name, owner_id, logo")
         .eq("id", params.id)
         .maybeSingle()
       if (companyRow?.name) setCompanyName(companyRow.name)
       if (companyRow?.owner_id) setCompanyOwnerId(companyRow.owner_id)
+      if (companyRow?.logo) setCompanyLogo(companyRow.logo)
       if (companyRow?.owner_id && user?.id) setIsOwner(companyRow.owner_id === user.id)
 
       const convId = await ensureConversation()
@@ -152,6 +161,79 @@ export default function CompanyChatPage() {
       ;(async () => (await sub)?.() )()
     }
   }, [user?.id, params?.id])
+
+  // Load other participant profile (for company owner views)
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!conversationUserId) return
+      const supabase = getSupabaseClient()
+      const { data } = await supabase
+        .from("profiles")
+        .select("full_name, avatar_url, email")
+        .eq("user_id", conversationUserId)
+        .maybeSingle()
+      if (data) {
+        setOtherName(data.full_name || data.email || "User")
+        setOtherAvatar(data.avatar_url || null)
+      }
+    }
+    loadProfile()
+  }, [conversationUserId])
+
+  // Owner: load conversations list for sidebar
+  useEffect(() => {
+    const loadConversations = async () => {
+      if (!isOwner || !params?.id) return
+      const supabase = getSupabaseClient()
+      const { data: convs } = await supabase
+        .from("company_conversations")
+        .select("id,user_id,last_message,last_message_at")
+        .eq("company_id", params.id)
+        .order("last_message_at", { ascending: false })
+      setOwnerConversations((convs || []) as any)
+      const userIds = Array.from(new Set(((convs || []) as any).map((c: any) => c.user_id)))
+      if (userIds.length) {
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("user_id,full_name,email,avatar_url")
+          .in("user_id", userIds)
+        const map: Record<string, any> = {}
+        ;(profs || []).forEach((p: any) => { map[p.user_id] = p })
+        setOwnerProfiles(map)
+      }
+    }
+    loadConversations()
+  }, [isOwner, params?.id])
+
+  const filteredConversations = ownerConversations.filter((c) => {
+    if (!convSearch) return true
+    const p = ownerProfiles[c.user_id]
+    const name = (p?.full_name || p?.email || "").toLowerCase()
+    return name.includes(convSearch.toLowerCase()) || (c.last_message || "").toLowerCase().includes(convSearch.toLowerCase())
+  })
+
+  const openConversationForUser = async (targetUserId: string) => {
+    const supabase = getSupabaseClient()
+    const { data } = await supabase
+      .from("company_conversations")
+      .select("id,user_id")
+      .eq("company_id", params.id as string)
+      .eq("user_id", targetUserId)
+      .maybeSingle()
+    if (data?.id) {
+      setConversationId(data.id)
+      setConversationUserId(data.user_id)
+      // fetch messages for this conv
+      const { data: msgs } = await supabase
+        .from("company_messages")
+        .select("*")
+        .eq("conversation_id", data.id)
+        .order("created_at")
+      setMessages((msgs as any) || [])
+      // update url param for shareability
+      router.replace(`/marketplace/companies/${params.id}/chat?with=${targetUserId}`)
+    }
+  }
 
   const markDelivered = async (messageId: string) => {
     const supabase = getSupabaseClient()
@@ -256,31 +338,85 @@ export default function CompanyChatPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 max-w-3xl">
-        <Card>
-          <CardHeader className="flex !flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-left">{companyName ? `Chat with ${companyName}` : 'Chat with Company'}</CardTitle>
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex gap-4">
+          {isOwner && (
+            <Card className="w-[320px] flex-shrink-0 hidden md:block">
+              <CardHeader>
+                <CardTitle>Conversations</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-3">
+                  <Input placeholder="Search" value={convSearch} onChange={(e) => setConvSearch(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  {filteredConversations.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">No conversations</div>
+                  ) : (
+                    filteredConversations.map((c) => {
+                      const p = ownerProfiles[c.user_id]
+                      const name = p?.full_name || p?.email || 'User'
+                      return (
+                        <button key={c.id} onClick={() => openConversationForUser(c.user_id)} className="w-full text-left p-2 rounded-md border hover:bg-muted/50 flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={p?.avatar_url || undefined} />
+                            <AvatarFallback>{name.substring(0,1)}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">{name}</div>
+                            <div className="text-xs text-muted-foreground truncate">{c.last_message || ''}</div>
+                          </div>
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
+                <div className="mt-3 text-xs text-muted-foreground">
+                  <Link href={`/marketplace/companies/${params.id}/conversations`} className="underline">Open full list</Link>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        <Card className="flex-1">
+          <CardHeader className="sticky top-0 z-10 flex !flex-row items-center justify-between space-y-0 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={isOwner ? (otherAvatar || undefined) : (companyLogo || undefined)} />
+                <AvatarFallback>{(isOwner ? otherName : companyName)?.substring(0,1) || 'C'}</AvatarFallback>
+              </Avatar>
+              <CardTitle className="text-left">{isOwner ? (otherName || 'Conversation') : (companyName ? `Chat with ${companyName}` : 'Chat with Company')}</CardTitle>
+            </div>
             <Button variant="outline" size="icon" onClick={() => router.push('/marketplace/companies')} aria-label="Close chat">
               <X className="h-4 w-4" />
             </Button>
           </CardHeader>
           <CardContent>
-            <div ref={listRef} className="h-[60vh] overflow-y-auto space-y-3 border rounded-md p-3 mb-3">
+            <div ref={listRef} className="h-[65vh] overflow-y-auto space-y-3 border rounded-md p-3 mb-3 bg-background/40">
               {messages.map((m) => {
-                const isMine = m.sender_type === "user"
+                const isMine = m.sender_id === (user?.id || "")
                 const status = m.status || (m.read_at ? "read" : m.delivered_at ? "delivered" : "sent")
+                const timeStr = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 return (
-                  <div key={m.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[75%] rounded-lg px-3 py-2 text-sm ${isMine ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                  <div key={m.id} className={`flex ${isMine ? "justify-end" : "justify-start"} items-end gap-2`}>
+                    {!isMine && (
+                      <Avatar className="h-6 w-6">
+                        <AvatarImage src={isOwner ? (otherAvatar || undefined) : (companyLogo || undefined)} />
+                        <AvatarFallback>{(isOwner ? otherName : companyName)?.substring(0,1) || 'C'}</AvatarFallback>
+                      </Avatar>
+                    )}
+                    <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm shadow ${isMine ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-muted rounded-bl-sm"}`}>
                       <div className={`flex ${isMine ? 'justify-end' : ''} items-end gap-1`}>
-                        <span className="whitespace-pre-wrap break-words">{m.content}</span>
-                        {isMine && (
-                          <span className="flex items-center gap-0.5 text-[10px] opacity-80">
-                            {status === "sent" && <Check className="h-3 w-3" />}
-                            {status === "delivered" && <CheckCheck className="h-3 w-3" />}
-                            {status === "read" && <CheckCheck className="h-3 w-3 text-green-500" />}
-                          </span>
-                        )}
+                        <span className="whitespace-pre-wrap break-words leading-relaxed">{m.content}</span>
+                        <span className={`ml-1 inline-flex items-center gap-0.5 text-[10px] ${isMine ? 'text-primary-foreground/90' : 'text-foreground/70'}`}>
+                          <span>{timeStr}</span>
+                          {isMine && (
+                            <>
+                              {status === "sent" && <Check className="h-3 w-3" />}
+                              {status === "delivered" && <CheckCheck className="h-3 w-3" />}
+                              {status === "read" && <CheckCheck className="h-3 w-3 text-green-300" />}
+                            </>
+                          )}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -288,11 +424,22 @@ export default function CompanyChatPage() {
               })}
             </div>
             <div className="flex gap-2">
-              <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type your message..." onKeyDown={(e) => { if (e.key === 'Enter') sendMessage() }} />
+              <Input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={isOwner ? `Message ${otherName || 'user'}...` : `Message ${companyName || 'company'}...`}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    sendMessage()
+                  }
+                }}
+              />
               <Button onClick={sendMessage}>Send</Button>
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   )
