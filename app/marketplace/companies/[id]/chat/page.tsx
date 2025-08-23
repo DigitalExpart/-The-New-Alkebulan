@@ -22,10 +22,16 @@ interface Message {
   status?: "sent" | "delivered" | "read"
   delivered_at?: string | null
   read_at?: string | null
+  media_url?: string | null
+  media_type?: 'image' | 'video' | 'audio' | 'file' | null
+  media_thumb?: string | null
+  media_name?: string | null
+  media_size?: number | null
+  media_duration?: number | null
 }
 
 export default function CompanyChatPage() {
-  const params = useParams<{ id: string }>()
+  const params = useParams<{ id?: string }>()
   const { user } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -228,7 +234,7 @@ export default function CompanyChatPage() {
     const { data } = await supabase
       .from("company_conversations")
       .select("id,user_id")
-      .eq("company_id", params.id as string)
+      .eq("company_id", (params?.id as string))
       .eq("user_id", targetUserId)
       .maybeSingle()
     if (data?.id) {
@@ -242,7 +248,7 @@ export default function CompanyChatPage() {
         .order("created_at")
       setMessages((msgs as any) || [])
       // update url param for shareability
-      router.replace(`/marketplace/companies/${params.id}/chat?with=${targetUserId}`)
+      router.replace(`/marketplace/companies/${params?.id}/chat?with=${targetUserId}`)
     }
   }
 
@@ -263,6 +269,17 @@ export default function CompanyChatPage() {
       .in("id", messageIds)
   }
 
+  // Mark incoming messages as read when visible
+  useEffect(() => {
+    if (!user?.id || messages.length === 0) return
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+    const unreadIncoming = messages.filter((m) => m.sender_id !== user.id && m.status !== 'read').map((m) => m.id)
+    if (unreadIncoming.length) {
+      markRead(unreadIncoming)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, user?.id])
+
   const sendMessage = async () => {
     if (!input.trim() || !user?.id) return
     const supabase = getSupabaseClient()
@@ -274,7 +291,7 @@ export default function CompanyChatPage() {
     if (!convId && params?.id) {
       const { data: conv, error: convErr } = await supabase
         .from("company_conversations")
-        .insert({ company_id: params.id as string, user_id: user.id })
+        .insert({ company_id: (params?.id as string), user_id: user.id })
         .select("id")
         .single()
       if (convErr) {
@@ -322,7 +339,7 @@ export default function CompanyChatPage() {
             type: "message",
             title: `New message from ${companyName || 'company'}`,
             message: content.slice(0, 140),
-            related_id: params.id as string,
+            related_id: (params?.id as string),
             is_read: false,
           })
         }
@@ -332,7 +349,7 @@ export default function CompanyChatPage() {
           type: "message",
           title: `New message from customer`,
           message: content.slice(0, 140),
-          related_id: params.id as string,
+          related_id: (params?.id as string),
           is_read: false,
         })
       }
@@ -348,47 +365,61 @@ export default function CompanyChatPage() {
   }
 
   const uploadFileToStorage = async (file: File) => {
-    const supabase = getSupabaseClient()
-    const path = `conversations/${conversationId || 'new'}/${Date.now()}_${file.name}`
-    const { error } = await supabase.storage.from('chat-media').upload(path, file, { upsert: true, contentType: file.type })
-    if (error) throw error
-    const { data } = supabase.storage.from('chat-media').getPublicUrl(path)
-    return data.publicUrl
+    try {
+      const supabase = getSupabaseClient()
+      const path = `conversations/${conversationId || 'new'}/${Date.now()}_${file.name}`
+      const { error } = await supabase.storage
+        .from('chat-media')
+        .upload(path, file, { upsert: true, contentType: file.type })
+      if (error) throw error
+      const { data } = supabase.storage.from('chat-media').getPublicUrl(path)
+      return data.publicUrl
+    } catch (err: any) {
+      console.error('Upload error:', err)
+      toast.error(`Upload failed: ${err?.message || 'unknown error'}`)
+      throw err
+    }
   }
 
   const sendMediaMessage = async (file: File, mediaType: 'image' | 'video' | 'audio' | 'file') => {
-    if (!user?.id) return
-    const supabase = getSupabaseClient()
-    let convId = conversationId
-    if (!convId && params?.id) {
-      const { data: conv } = await supabase
-        .from('company_conversations')
-        .insert({ company_id: params.id as string, user_id: user.id })
-        .select('id')
-        .single()
-      convId = conv?.id || null
-      if (convId) setConversationId(convId)
-    }
-    if (!convId) return
+    try {
+      if (!user?.id) return
+      const supabase = getSupabaseClient()
+      let convId = conversationId
+      if (!convId && params?.id) {
+        const { data: conv, error: convErr } = await supabase
+          .from('company_conversations')
+          .insert({ company_id: (params?.id as string), user_id: user.id })
+          .select('id')
+          .single()
+        if (convErr) throw convErr
+        convId = conv?.id || null
+        if (convId) setConversationId(convId)
+      }
+      if (!convId) throw new Error('No conversation selected')
 
-    const url = await uploadFileToStorage(file)
-    const { data: inserted, error } = await supabase
-      .from('company_messages')
-      .insert({
-        conversation_id: convId,
-        sender_type: isOwner ? 'company' : 'user',
-        sender_id: user.id,
-        content: '',
-        status: 'sent',
-        media_url: url,
-        media_type: mediaType,
-        media_name: file.name,
-        media_size: file.size,
-      })
-      .select('*')
-      .single()
-    if (error) { toast.error('Upload failed'); return }
-    if (inserted) setMessages((prev) => [...prev, inserted as any])
+      const url = await uploadFileToStorage(file)
+      const { data: inserted, error } = await supabase
+        .from('company_messages')
+        .insert({
+          conversation_id: convId,
+          sender_type: isOwner ? 'company' : 'user',
+          sender_id: user.id,
+          content: '',
+          status: 'sent',
+          media_url: url,
+          media_type: mediaType,
+          media_name: file.name,
+          media_size: file.size,
+        })
+        .select('*')
+        .single()
+      if (error) throw error
+      if (inserted) setMessages((prev) => [...prev, inserted as any])
+    } catch (err: any) {
+      console.error('sendMediaMessage error:', err)
+      toast.error(err?.message || 'Failed to send media')
+    }
   }
 
   const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -459,7 +490,7 @@ export default function CompanyChatPage() {
                   )}
                 </div>
                 <div className="mt-3 text-xs text-muted-foreground">
-                  <Link href={`/marketplace/companies/${params.id}/conversations`} className="underline">Open full list</Link>
+                  <Link href={`/marketplace/companies/${params?.id}/conversations`} className="underline">Open full list</Link>
                 </div>
               </CardContent>
             </Card>
@@ -514,7 +545,7 @@ export default function CompanyChatPage() {
                             <>
                               {status === "sent" && <Check className="h-3 w-3" />}
                               {status === "delivered" && <CheckCheck className="h-3 w-3" />}
-                              {status === "read" && <CheckCheck className="h-3 w-3 text-green-300" />}
+                              {status === "read" && <CheckCheck className="h-3 w-3 text-green-500" />}
                             </>
                           )}
                         </span>

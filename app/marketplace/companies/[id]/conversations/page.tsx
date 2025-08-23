@@ -30,6 +30,7 @@ export default function CompanyConversationsPage() {
   const { user } = useAuth()
   const [conversations, setConversations] = useState<ConversationRow[]>([])
   const [profiles, setProfiles] = useState<Record<string, ProfileRow>>({})
+  const [company, setCompany] = useState<{ name: string | null; logo: string | null } | null>(null)
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
 
@@ -39,6 +40,13 @@ export default function CompanyConversationsPage() {
 
     const load = async () => {
       setLoading(true)
+      // Load company profile (for header / fallback)
+      const { data: comp } = await supabase
+        .from('companies')
+        .select('name, logo')
+        .eq('id', params.id)
+        .maybeSingle()
+      setCompany(comp as any)
       // Get all conversations for this company
       const { data: convs } = await supabase
         .from("company_conversations")
@@ -84,7 +92,10 @@ export default function CompanyConversationsPage() {
       <div className="container mx-auto px-4 py-8 max-w-3xl">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5" /> Conversations</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              {company?.name ? `${company.name} · Conversations` : 'Conversations'}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="mb-4 flex items-center gap-2">
