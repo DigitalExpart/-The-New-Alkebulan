@@ -186,11 +186,12 @@ export default function CompanyChatPage() {
       const supabase = getSupabaseClient()
       const { data } = await supabase
         .from("profiles")
-        .select("full_name, avatar_url, email")
+        .select("first_name,last_name,username,avatar_url,email")
         .eq("user_id", conversationUserId)
         .maybeSingle()
       if (data) {
-        setOtherName(data.full_name || data.email || "User")
+        const dn = [data.first_name, data.last_name].filter(Boolean).join(' ').trim()
+        setOtherName(dn || data.username || data.email || "User")
         setOtherAvatar(data.avatar_url || null)
       }
     }
@@ -212,7 +213,7 @@ export default function CompanyChatPage() {
       if (userIds.length) {
         const { data: profs } = await supabase
           .from("profiles")
-          .select("user_id,full_name,email,avatar_url")
+          .select("user_id,first_name,last_name,username,email,avatar_url")
           .in("user_id", userIds)
         const map: Record<string, any> = {}
         ;(profs || []).forEach((p: any) => { map[p.user_id] = p })
@@ -473,7 +474,8 @@ export default function CompanyChatPage() {
                   ) : (
                     filteredConversations.map((c) => {
                       const p = ownerProfiles[c.user_id]
-                      const name = p?.full_name || p?.email || 'User'
+                      const full = [p?.first_name, p?.last_name].filter(Boolean).join(' ').trim()
+                      const name = full || p?.username || p?.email || 'User'
                       return (
                         <button key={c.id} onClick={() => openConversationForUser(c.user_id)} className="w-full text-left p-2 rounded-md border hover:bg-muted/50 flex items-center gap-3">
                           <Avatar className="h-8 w-8">
