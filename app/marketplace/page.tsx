@@ -457,52 +457,7 @@ export default function MarketplacePage() {
                 {searchQuery ? `Search Results for "${searchQuery}"` : 'Featured Products'}
               </h2>
               
-              {/* Temporary Debug Section - Remove after fixing */}
-              <div className="mb-8 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                <h3 className="text-lg font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
-                  🔍 Debug Information
-                </h3>
-                <div className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
-                  <p>Total products in database: {products.length}</p>
-                  <p>Products status breakdown:</p>
-                  <ul className="ml-4">
-                    <li>• Active: {products.filter(p => p.status === 'active').length}</li>
-                    <li>• Draft: {products.filter(p => p.status === 'draft').length}</li>
-                    <li>• Inactive: {products.filter(p => p.status === 'inactive').length}</li>
-                  </ul>
-                  <p className="mt-2">Check browser console for detailed debugging information.</p>
-                </div>
-              </div>
-              
-              {/* Temporary: Show all products for debugging */}
-              <div className="mb-8">
-                <h3 className="text-lg font-semibold text-foreground mb-4">🔍 All Products (Debug View)</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {products.map((product) => (
-                    <Card key={product.id} className="bg-card border-border">
-                      <CardHeader className="pb-2">
-                        <div className="flex justify-between items-start">
-                          <CardTitle className="text-sm line-clamp-2">{product.name}</CardTitle>
-                          <Badge className={`text-xs ${
-                            product.status === 'active' ? 'bg-green-100 text-green-800' :
-                            product.status === 'draft' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {product.status}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="text-xs text-muted-foreground">
-                        <p>Category: {product.category} • {product.subcategory}</p>
-                        <p>Price: ${product.actual_price}</p>
-                        <p>Inventory: {product.inventory}</p>
-                        <p>Created: {new Date(product.created_at).toLocaleDateString()}</p>
-                        <p>User ID: {product.user_id}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
+              {/* Debug section removed for production */}
               
               {filteredProducts.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

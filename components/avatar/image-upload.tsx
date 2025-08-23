@@ -58,20 +58,21 @@ export function ImageUpload({ currentImageUrl, onImageUpload, onImageRemove }: I
 
     setIsUploading(true)
     try {
-      // Generate unique filename
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`
+      // Generate a stable per-user storage path to satisfy common RLS policies
+      const fileExt = (file.name.split('.').pop() || 'jpg').toLowerCase()
+      const filePath = `avatars/${user.id}/${Date.now()}.${fileExt}`
       
-      console.log('Uploading file:', fileName)
+      console.log('Uploading file to:', filePath)
       console.log('File size:', file.size)
       console.log('File type:', file.type)
 
-      // Upload to Supabase storage with simpler path
-      const { data, error } = await supabase.storage
+      // Upload to Supabase storage (ensure contentType and path follow user folder)
+      const { error } = await supabase.storage
         .from('profile-images')
-        .upload(fileName, file, {
+        .upload(filePath, file, {
           cacheControl: '3600',
-          upsert: true  // Allow overwriting
+          upsert: true,
+          contentType: file.type || 'image/*',
         })
 
       if (error) {
@@ -82,22 +83,26 @@ export function ImageUpload({ currentImageUrl, onImageUpload, onImageRemove }: I
           toast.error('Storage bucket not found. Please check your Supabase configuration.')
         } else if (error.message.includes('The resource was not found')) {
           toast.error('Storage service not available. Please check your Supabase setup.')
-        } else if (error.message.includes('Invalid bucket')) {
-          toast.error('Invalid storage bucket. Please verify bucket name.')
+        } else if (error.message.toLowerCase().includes('permission')) {
+          toast.error('Upload blocked by storage policy. Ensure your bucket policies allow user uploads to their folder.')
         } else {
           toast.error(`Upload failed: ${error.message}`)
         }
         return
       }
 
-      console.log('Upload success:', data)
-
       // Get public URL
-      const { data: { publicUrl } } = supabase.storage
+      const { data: pub } = supabase.storage
         .from('profile-images')
-        .getPublicUrl(data.path)
+        .getPublicUrl(filePath)
 
+      const publicUrl = pub?.publicUrl
       console.log('Public URL:', publicUrl)
+
+      if (!publicUrl) {
+        toast.error('Could not obtain public URL for the uploaded image')
+        return
+      }
 
       onImageUpload(publicUrl)
       toast.success('Image uploaded successfully!')

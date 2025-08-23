@@ -467,37 +467,37 @@ export function Navbar() {
               <DropdownMenuContent align="start" className="w-56">
                 <DropdownMenuItem asChild>
                   <Link href="/marketplace" className="cursor-pointer flex items-center gap-2">
-                    <Store className="w-4 h-4" />
+                    <ClipboardList className="w-4 h-4" />
                     Daily Planner
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/marketplace/companies" className="cursor-pointer flex items-center gap-2">
-                    <Building2 className="w-4 h-4" />
+                    <TrendingUp className="w-4 h-4" />
                     Progress
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/marketplace/companies" className="cursor-pointer flex items-center gap-2">
-                    <Building2 className="w-4 h-4" />
+                    <Map className="w-4 h-4" />
                     Journey
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/marketplace/companies" className="cursor-pointer flex items-center gap-2">
-                    <Building2 className="w-4 h-4" />
+                    <BookOpen className="w-4 h-4" />
                     Learning Hub
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/marketplace/companies" className="cursor-pointer flex items-center gap-2">
-                    <Building2 className="w-4 h-4" />
+                    <Users className="w-4 h-4" />
                     Mentorship
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/marketplace/companies" className="cursor-pointer flex items-center gap-2">
-                    <Building2 className="w-4 h-4" />
+                    <Sparkles className="w-4 h-4" />
                     The Manifest Lab
                   </Link>
                 </DropdownMenuItem>
