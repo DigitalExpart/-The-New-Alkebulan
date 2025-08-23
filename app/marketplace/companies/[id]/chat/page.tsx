@@ -30,6 +30,7 @@ export default function CompanyChatPage() {
   const [input, setInput] = useState("")
   const listRef = useRef<HTMLDivElement>(null)
   const [companyName, setCompanyName] = useState<string>("")
+  const [companyOwnerId, setCompanyOwnerId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user?.id || !params?.id) return
@@ -66,10 +67,11 @@ export default function CompanyChatPage() {
       // Fetch company name for header
       const { data: companyRow } = await supabase
         .from("companies")
-        .select("name")
+        .select("name, owner_id")
         .eq("id", params.id)
         .maybeSingle()
       if (companyRow?.name) setCompanyName(companyRow.name)
+      if (companyRow?.owner_id) setCompanyOwnerId(companyRow.owner_id)
 
       const convId = await ensureConversation()
       if (!convId) return
@@ -176,6 +178,22 @@ export default function CompanyChatPage() {
       setMessages((prev) => [...prev, inserted as Message])
       // Mark delivered after DB ack
       markDelivered(inserted.id)
+    }
+
+    // Create a notification for the company owner
+    try {
+      if (companyOwnerId && companyOwnerId !== user.id) {
+        await supabase.from("notifications").insert({
+          user_id: companyOwnerId,
+          type: "message",
+          title: `New message from customer`,
+          message: content.slice(0, 140),
+          related_id: params.id as string,
+          is_read: false,
+        })
+      }
+    } catch (notifyErr) {
+      console.warn("Failed to create notification", notifyErr)
     }
 
     const { error: convUpdateErr } = await supabase
