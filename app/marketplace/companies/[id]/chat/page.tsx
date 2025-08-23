@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth"
+import { toast } from "sonner"
 
 interface Message {
   id: string
@@ -92,20 +93,52 @@ export default function CompanyChatPage() {
   }, [user?.id, params?.id])
 
   const sendMessage = async () => {
-    if (!input.trim() || !conversationId || !user?.id) return
+    if (!input.trim() || !user?.id) return
     const supabase = getSupabaseClient()
     const content = input.trim()
     setInput("")
-    await supabase.from("company_messages").insert({
-      conversation_id: conversationId,
-      sender_type: "user",
-      sender_id: user.id,
-      content,
-    })
-    await supabase
+
+    // Ensure conversation exists before sending
+    let convId = conversationId
+    if (!convId && params?.id) {
+      const { data: conv, error: convErr } = await supabase
+        .from("company_conversations")
+        .insert({ company_id: params.id as string, user_id: user.id })
+        .select("id")
+        .single()
+      if (convErr) {
+        toast.error(`Could not start conversation: ${convErr.message}`)
+        return
+      }
+      convId = conv.id
+      setConversationId(convId)
+    }
+    if (!convId) return
+
+    const { data: inserted, error } = await supabase
+      .from("company_messages")
+      .insert({
+        conversation_id: convId,
+        sender_type: "user",
+        sender_id: user.id,
+        content,
+      })
+      .select("*")
+      .single()
+
+    if (error) {
+      toast.error(`Message failed: ${error.message}`)
+      return
+    }
+
+    // Optimistic append
+    if (inserted) setMessages((prev) => [...prev, inserted as Message])
+
+    const { error: convUpdateErr } = await supabase
       .from("company_conversations")
       .update({ last_message: content, last_message_at: new Date().toISOString() })
-      .eq("id", conversationId)
+      .eq("id", convId)
+    if (convUpdateErr) console.warn("Failed to update conversation last_message", convUpdateErr)
   }
 
   return (
