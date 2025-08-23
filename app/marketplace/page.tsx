@@ -142,11 +142,11 @@ export default function MarketplacePage() {
           console.log('🔍 Fetching images for product IDs:', productIds)
           
           try {
+            // Some environments may not have created_at on product_images; avoid ordering by it
             const { data: imagesData, error: imagesError } = await supabase
               .from('product_images')
-              .select('product_id, image_url') // Changed from file_path to image_url
+              .select('product_id, image_url')
               .in('product_id', productIds)
-              .order('created_at', { ascending: false })
             
             console.log('🖼️ Images query result:', { imagesData, imagesError })
             
@@ -327,8 +327,14 @@ export default function MarketplacePage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-muted-foreground">Loading marketplace...</p>
+          <div className="flex flex-col items-center">
+            <img
+              src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Scherm_afbeelding_2025-07-20_om_19.00.08-removebg-preview-5SfpVg1sZpmH7Z60mo8coZyoqelzmF.png"
+              alt="The New Alkebulan Logo"
+              className="h-16 w-16 animate-spin"
+            />
+            <p className="text-muted-foreground mt-3">Loading marketplace...</p>
+          </div>
         </div>
       </div>
     )

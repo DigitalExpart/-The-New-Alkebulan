@@ -1,4 +1,4 @@
-export default function MarketplaceLoading() {
+export default function RootLoading() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="text-center">
@@ -9,9 +9,11 @@ export default function MarketplaceLoading() {
             className="h-16 w-16 animate-spin"
             style={{ animationDuration: `${0.9 + Math.random() * 1.2}s`, animationDirection: Math.random() > 0.5 ? "reverse" : "normal" }}
           />
-          <p className="text-muted-foreground mt-3">Loading marketplace...</p>
+          <p className="text-muted-foreground mt-3">Loading...</p>
         </div>
       </div>
     </div>
   )
 }
+
+

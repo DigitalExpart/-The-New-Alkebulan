@@ -77,9 +77,8 @@ export function ProductServiceManager() {
           try {
             const { data: imagesData, error: imagesError } = await supabase
               .from('product_images')
-              .select('product_id, image_url') // Changed from file_path to image_url
+              .select('product_id, image_url')
               .in('product_id', productIds)
-              .order('created_at', { ascending: false })
             
             console.log('🖼️ Images query result:', { imagesData, imagesError })
             
