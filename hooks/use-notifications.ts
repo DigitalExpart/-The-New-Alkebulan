@@ -384,7 +384,7 @@ export function useNotifications() {
 function getActionUrl(type: string, relatedId?: string): string {
   switch (type) {
     case 'message':
-      return '/messages'
+      return relatedId ? `/marketplace/companies/${relatedId}/chat` : '/notifications'
     case 'comment':
       return '/communities'
     case 'mention':

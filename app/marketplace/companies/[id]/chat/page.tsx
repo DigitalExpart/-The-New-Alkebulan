@@ -63,9 +63,11 @@ export default function CompanyChatPage() {
         if (withUserId) {
           const { data } = await supabase
             .from("company_conversations")
-            .select("id,user_id")
+            .select("id,user_id,last_message_at")
             .eq("company_id", params.id)
             .eq("user_id", withUserId)
+            .order("last_message_at", { ascending: false })
+            .limit(1)
             .maybeSingle()
           if (data?.id) {
             setConversationId(data.id)
@@ -236,9 +238,11 @@ export default function CompanyChatPage() {
     const supabase = getSupabaseClient()
     const { data } = await supabase
       .from("company_conversations")
-      .select("id,user_id")
+      .select("id,user_id,last_message_at")
       .eq("company_id", (params?.id as string))
       .eq("user_id", targetUserId)
+      .order("last_message_at", { ascending: false })
+      .limit(1)
       .maybeSingle()
     if (data?.id) {
       setConversationId(data.id)
@@ -251,7 +255,7 @@ export default function CompanyChatPage() {
         .order("created_at")
       setMessages((msgs as any) || [])
       // update url param for shareability
-      router.replace(`/marketplace/companies/${params?.id}/chat?with=${targetUserId}`)
+      router.push(`/marketplace/companies/${params?.id}/chat?with=${targetUserId}`)
     }
   }
 
