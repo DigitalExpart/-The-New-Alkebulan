@@ -151,6 +151,14 @@ export default function CompanyChatPage() {
             setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 0)
           }
         )
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "company_messages", filter: `conversation_id=eq.${convId}` },
+          (payload) => {
+            const updated = payload.new as Message
+            setMessages((prev) => prev.map((m) => (m.id === updated.id ? { ...m, ...updated } as Message : m)))
+          }
+        )
         .subscribe()
 
       return () => {
@@ -163,7 +171,7 @@ export default function CompanyChatPage() {
       // best effort cleanup
       ;(async () => (await sub)?.() )()
     }
-  }, [user?.id, params?.id])
+  }, [user?.id, params?.id, isOwner, searchParams?.toString()])
 
   // Load other participant profile (for company owner views)
   useEffect(() => {
