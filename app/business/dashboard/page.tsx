@@ -31,6 +31,7 @@ import { TeamPermissions } from "@/components/business/team-permissions"
 import { useAuth } from "@/hooks/use-auth"
 import { getSupabaseClient } from "@/lib/supabase"
 import { toast } from "sonner"
+import { useOverlay } from "@/components/overlay/overlay-provider"
 import Link from "next/link"
 
 interface BusinessMetrics {
@@ -68,6 +69,8 @@ interface DashboardOrder {
 
 export default function BusinessDashboardPage() {
   const { user, profile } = useAuth()
+  const { showOverlay, hideOverlay } = useOverlay()
+  const [companyProfile, setCompanyProfile] = useState<any | null>(null)
   const [activeTab, setActiveTab] = useState("overview")
   const [metrics, setMetrics] = useState<BusinessMetrics | null>(null)
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
@@ -79,7 +82,10 @@ export default function BusinessDashboardPage() {
   // Fetch business data
   useEffect(() => {
     if (!user?.id) return
-    fetchBusinessData()
+    ;(async () => {
+      await fetchCompanyProfile()
+      await fetchBusinessData()
+    })()
   }, [user?.id])
 
   const fetchBusinessData = async () => {
@@ -87,6 +93,7 @@ export default function BusinessDashboardPage() {
     
     try {
       setLoading(true)
+      showOverlay()
       setError(null)
       
       const supabase = getSupabaseClient()
@@ -219,14 +226,82 @@ export default function BusinessDashboardPage() {
       toast.error('Failed to load business dashboard')
     } finally {
       setLoading(false)
+      hideOverlay()
+    }
+  }
+
+  const fetchCompanyProfile = async () => {
+    if (!user?.id) return
+    const supabase = getSupabaseClient()
+    try {
+      showOverlay()
+      // Try to get existing company profile by owner_id
+      let { data: company, error } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('owner_id', user.id)
+        .limit(1)
+        .maybeSingle()
+
+      if (error) {
+        console.error('Error fetching company:', error)
+      }
+
+      // Create a minimal company profile if none exists
+      if (!company) {
+        const minimal = {
+          owner_id: user.id,
+          name: profile?.business_name || profile?.first_name || 'Company Name',
+          description: '',
+          industry: '',
+          location: '',
+          website: '',
+          email: profile?.email || '',
+          phone: '',
+          team_size: '',
+          founded: '',
+          logo: null,
+          social_links: {},
+          featured: false,
+          size: '',
+        }
+        const { data: created, error: createErr } = await supabase
+          .from('companies')
+          .insert(minimal)
+          .select('*')
+          .single()
+        if (!createErr) company = created
+      }
+
+      if (company) {
+        // Map DB to UI shape expected by CompanyProfileSection
+        setCompanyProfile({
+          id: company.id,
+          name: company.name,
+          description: company.description,
+          industry: company.industry,
+          location: company.location,
+          website: company.website,
+          email: company.email,
+          phone: company.phone,
+          teamSize: company.team_size,
+          founded: company.founded,
+          logo: company.logo,
+          socialLinks: company.social_links || {},
+        })
+      }
+    } finally {
+      hideOverlay()
     }
   }
 
   const refreshData = async () => {
     setRefreshing(true)
+    showOverlay()
     await fetchBusinessData()
     setRefreshing(false)
     toast.success('Dashboard refreshed')
+    hideOverlay()
   }
 
   // Format time ago
@@ -508,7 +583,12 @@ export default function BusinessDashboardPage() {
 
           {/* Profile Tab */}
           <TabsContent value="profile">
-            <CompanyProfileSection profile={profile} />
+            {companyProfile && (
+              <CompanyProfileSection
+                profile={companyProfile}
+                onSaved={(updated) => setCompanyProfile(updated)}
+              />
+            )}
           </TabsContent>
 
           {/* Team Tab */}

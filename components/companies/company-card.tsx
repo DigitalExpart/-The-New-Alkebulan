@@ -12,32 +12,28 @@ interface CompanyCardProps {
 }
 
 export function CompanyCard({ company }: CompanyCardProps) {
+  const tags: string[] = Array.isArray((company as any).tags) ? (company as any).tags : []
+  const initials = ((company?.name ?? "C").split(" ").map((word) => word?.[0] || "").join("") || "C").slice(0, 2)
   return (
     <Card className="bg-white/10 backdrop-blur-sm border-white/20 hover:bg-white/15 transition-all duration-300 group">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
             <Avatar className="h-12 w-12 border-2 border-white/20">
-              <AvatarImage src={company.logo || "/placeholder.svg"} alt={`${company.name} logo`} />
-              <AvatarFallback className="bg-green-600 text-white font-bold">
-                {company.name
-                  .split(" ")
-                  .map((word) => word[0])
-                  .join("")
-                  .slice(0, 2)}
-              </AvatarFallback>
+              <AvatarImage src={company?.logo || "/placeholder.svg"} alt={`${company?.name || "Company"} logo`} />
+              <AvatarFallback className="bg-green-600 text-white font-bold">{initials}</AvatarFallback>
             </Avatar>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-white group-hover:text-yellow-400 transition-colors">
-                  {company.name}
+                  {company?.name || "Company"}
                 </h3>
-                {company.verified && <Verified className="h-4 w-4 text-blue-400" />}
-                {company.featured && <Star className="h-4 w-4 text-yellow-400 fill-current" />}
+                {company?.verified && <Verified className="h-4 w-4 text-blue-400" />}
+                {company?.featured && <Star className="h-4 w-4 text-yellow-400 fill-current" />}
               </div>
               <div className="flex items-center gap-2 text-sm text-green-100">
                 <MapPin className="h-3 w-3" />
-                {company.location}
+                {company?.location || ""}
               </div>
             </div>
           </div>
@@ -46,17 +42,17 @@ export function CompanyCard({ company }: CompanyCardProps) {
 
       <CardContent className="space-y-4">
         {/* Description */}
-        <p className="text-sm text-green-100 line-clamp-3">{company.description}</p>
+        <p className="text-sm text-green-100 line-clamp-3">{company?.description || ""}</p>
 
         {/* Industry & Size */}
         <div className="flex items-center gap-4 text-sm text-green-100">
           <div className="flex items-center gap-1">
             <Building2 className="h-3 w-3" />
-            {company.industry}
+            {company?.industry || ""}
           </div>
           <div className="flex items-center gap-1">
             <Users className="h-3 w-3" />
-            {company.size} employees
+            {(company?.size || "")} {company?.size ? "employees" : ""}
           </div>
         </div>
 
@@ -64,17 +60,17 @@ export function CompanyCard({ company }: CompanyCardProps) {
         <div className="flex items-center justify-between text-sm">
           <div className="flex items-center gap-1 text-green-100">
             <Calendar className="h-3 w-3" />
-            Founded {company.founded}
+            Founded {company?.founded || ""}
           </div>
           <div className="flex items-center gap-1 text-yellow-400 font-semibold">
             <DollarSign className="h-3 w-3" />
-            {company.revenue}
+            {company?.revenue || ""}
           </div>
         </div>
 
         {/* Tags */}
         <div className="flex flex-wrap gap-1">
-          {company.tags.slice(0, 3).map((tag) => (
+          {tags.slice(0, 3).map((tag) => (
             <Badge
               key={tag}
               variant="secondary"
@@ -83,9 +79,9 @@ export function CompanyCard({ company }: CompanyCardProps) {
               {tag}
             </Badge>
           ))}
-          {company.tags.length > 3 && (
+          {tags.length > 3 && (
             <Badge variant="secondary" className="text-xs bg-white/10 text-white border-white/20">
-              +{company.tags.length - 3}
+              +{tags.length - 3}
             </Badge>
           )}
         </div>

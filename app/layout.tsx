@@ -7,7 +7,7 @@ import { Footer } from "@/components/footer"
 import { ThemeProvider } from "@/components/theme-provider"
 import { CartProvider } from "@/components/commerce/cart-context"
 import { WishlistProvider } from "@/components/commerce/wishlist-context"
-import { RouteProgressOverlay } from "@/components/route-progress-overlay"
+import { OverlayProvider } from "@/components/overlay/overlay-provider"
 import { AIAssistantProvider } from "@/components/ai-assistant/ai-assistant-provider"
 import { AuthProvider } from "@/hooks/use-auth"
 import { PrototypePopup } from "@/components/prototype-popup"
@@ -47,12 +47,13 @@ export default function RootLayout({
             <WishlistProvider>
               <AuthProvider>
                 <AIAssistantProvider>
-                <div className="min-h-screen flex flex-col theme-transition">
-                  <Navbar />
-                  <main className="flex-1 pt-16 theme-transition">{children}</main>
-                  <Footer />
-                </div>
-                <RouteProgressOverlay />
+                <OverlayProvider>
+                  <div className="min-h-screen flex flex-col theme-transition">
+                    <Navbar />
+                    <main className="flex-1 pt-16 theme-transition">{children}</main>
+                    <Footer />
+                  </div>
+                </OverlayProvider>
                 <PrototypePopup />
                 <FriendRequestNotification />
                 <Toaster position="top-right" />

@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Building2, Users, MapPin, TrendingUp } from "lucide-react"
 import { CompanyCard } from "@/components/companies/company-card"
 import { CompanyFilters } from "@/components/companies/company-filters"
-import { companiesData, industries, locations } from "@/data/companies-data"
 import type { CompanyFilters as CompanyFiltersType } from "@/types/company"
+import { getSupabaseClient } from "@/lib/supabase"
 
 export default function CompaniesPage() {
   const [filters, setFilters] = useState<CompanyFiltersType>({
@@ -17,22 +17,76 @@ export default function CompaniesPage() {
     size: "",
     featured: false,
   })
+  const [companiesData, setCompaniesData] = useState<any[]>([])
+  const [industries, setIndustries] = useState<string[]>([])
+  const [locations, setLocations] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        setLoading(true)
+        const supabase = getSupabaseClient()
+        const { data: companies, error } = await supabase
+          .from('companies')
+          .select('*')
+          .order('name')
+        if (error) {
+          console.error('Error fetching companies:', error)
+          setCompaniesData([])
+        } else {
+          // Map DB rows to UI shape expected by the grid/cards
+          const mapped = (companies || []).map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            description: c.description || '',
+            industry: c.industry || '',
+            location: c.location || '',
+            website: c.website || '',
+            logo: c.logo || null,
+            founded: c.founded || '',
+            featured: !!c.featured,
+            size: c.size || c.team_size || '',
+            // Optional fields used in UI; ensure safe defaults
+            tags: Array.isArray(c.tags) ? c.tags : [],
+            verified: !!c.verified,
+            revenue: c.revenue || '',
+          }))
+          setCompaniesData(mapped)
+          const inds = Array.from(new Set(mapped.map((c: any) => c.industry).filter(Boolean)))
+          const locs = Array.from(new Set(mapped.map((c: any) => c.location).filter(Boolean)))
+          setIndustries(inds)
+          setLocations(locs)
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchCompanies()
+  }, [])
 
   const filteredCompanies = useMemo(() => {
+    const search = (filters.search || '').toLowerCase().trim()
     return companiesData.filter((company) => {
+      const name = (company?.name || '').toLowerCase()
+      const description = (company?.description || '').toLowerCase()
+      const tags: string[] = Array.isArray(company?.tags) ? company.tags : []
+
       const matchesSearch =
-        company.name.toLowerCase().includes(filters.search.toLowerCase()) ||
-        company.description.toLowerCase().includes(filters.search.toLowerCase()) ||
-        company.tags.some((tag) => tag.toLowerCase().includes(filters.search.toLowerCase()))
+        !search ||
+        name.includes(search) ||
+        description.includes(search) ||
+        tags.some((tag) => (tag || '').toLowerCase().includes(search))
 
       const matchesIndustry = !filters.industry || company.industry === filters.industry
       const matchesLocation = !filters.location || company.location === filters.location
-      const matchesSize = !filters.size || company.size === filters.size
-      const matchesFeatured = !filters.featured || company.featured
+      const sizeValue = company.size || company.team_size || ''
+      const matchesSize = !filters.size || sizeValue === filters.size
+      const matchesFeatured = !filters.featured || !!company.featured
 
       return matchesSearch && matchesIndustry && matchesLocation && matchesSize && matchesFeatured
     })
-  }, [filters])
+  }, [filters, companiesData])
 
   const stats = {
     total: companiesData.length,
@@ -118,7 +172,9 @@ export default function CompaniesPage() {
         </div>
 
         {/* Companies Grid */}
-        {filteredCompanies.length > 0 ? (
+        {loading ? (
+          <div className="text-green-100">Loading companies...</div>
+        ) : filteredCompanies.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredCompanies.map((company) => (
               <CompanyCard key={company.id} company={company} />

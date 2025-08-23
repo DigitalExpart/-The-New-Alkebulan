@@ -8,23 +8,83 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Building2, MapPin, Globe, Mail, Phone, Edit3, Save, X, ExternalLink, Users, Calendar } from "lucide-react"
+import { getSupabaseClient } from "@/lib/supabase"
+import { toast } from "sonner"
 import type { BusinessProfile } from "@/types/business"
 
 interface CompanyProfileSectionProps {
   profile: BusinessProfile
+  onSaved?: (updated: any) => void
 }
 
-export function CompanyProfileSection({ profile }: CompanyProfileSectionProps) {
+export function CompanyProfileSection({ profile, onSaved }: CompanyProfileSectionProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editedProfile, setEditedProfile] = useState(profile)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [saving, setSaving] = useState(false)
 
-  // Safely access socialLinks with fallback
-  const socialLinks = profile?.socialLinks || {}
+  // Use local state as the source of truth for display and edit
+  const socialLinks = (editedProfile as any)?.socialLinks || {}
 
-  const handleSave = () => {
-    // Here you would typically save to your backend
-    console.log("Saving profile:", editedProfile)
-    setIsEditing(false)
+  const handleSave = async () => {
+    try {
+      setSaving(true)
+      const supabase = getSupabaseClient()
+
+      let logo_url = editedProfile.logo
+      if (logoFile) {
+        const filePath = `companies/${editedProfile.id || 'unknown'}/logo_${Date.now()}_${logoFile.name}`
+        const { error: uploadError } = await supabase.storage
+          .from('company-media')
+          .upload(filePath, logoFile, { upsert: true })
+        if (!uploadError) {
+          logo_url = supabase.storage.from('company-media').getPublicUrl(filePath).data.publicUrl
+          // Save metadata in company_logos table (backend audit/history)
+          await supabase.from('company_logos').insert({
+            company_id: editedProfile.id,
+            file_path: filePath,
+            file_name: logoFile.name,
+            file_size: logoFile.size,
+            file_type: logoFile.type,
+            is_primary: true,
+          })
+        } else {
+          toast.error(`Logo upload failed: ${uploadError.message}`)
+          return
+        }
+      }
+
+      // Map UI shape -> DB column names
+      const payload: Record<string, any> = {
+        name: editedProfile?.name ?? null,
+        description: editedProfile?.description ?? null,
+        industry: editedProfile?.industry ?? null,
+        location: editedProfile?.location ?? null,
+        website: editedProfile?.website ?? null,
+        email: editedProfile?.email ?? null,
+        phone: editedProfile?.phone ?? null,
+        team_size: editedProfile?.teamSize ?? null,
+        founded: editedProfile?.founded ?? null,
+        logo: logo_url ?? null,
+        social_links: editedProfile?.socialLinks ?? {},
+      }
+
+      const { error: updateError } = await supabase
+        .from('companies')
+        .update(payload)
+        .eq('id', editedProfile.id)
+      if (updateError) {
+        toast.error(`Save failed: ${updateError.message}`)
+        return
+      }
+      const updatedUiShape = { ...editedProfile, logo: logo_url }
+      setEditedProfile(updatedUiShape as any)
+      onSaved?.(updatedUiShape)
+      toast.success('Company profile updated')
+      setIsEditing(false)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleCancel = () => {
@@ -56,6 +116,20 @@ export function CompanyProfileSection({ profile }: CompanyProfileSectionProps) {
         <CardContent className="space-y-6">
           <div className="grid md:grid-cols-2 gap-6">
             <div className="space-y-4">
+              {/* Logo uploader */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">Company Logo</label>
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-16 w-16">
+                    <AvatarImage src={logoFile ? URL.createObjectURL(logoFile) : (editedProfile.logo || "/placeholder.svg") } alt={editedProfile?.name} />
+                    <AvatarFallback>{editedProfile?.name?.charAt(0) || 'C'}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <input type="file" accept="image/*" onChange={(e) => setLogoFile(e.target.files?.[0] || null)} />
+                    <p className="text-xs text-muted-foreground mt-1">PNG/JPG, up to 5MB.</p>
+                  </div>
+                </div>
+              </div>
               <div>
                 <label className="text-sm font-medium mb-2 block">Company Name</label>
                 <Input
@@ -207,48 +281,48 @@ export function CompanyProfileSection({ profile }: CompanyProfileSectionProps) {
           {/* Company Logo/Avatar */}
           <div className="flex-shrink-0">
             <Avatar className="h-24 w-24">
-              <AvatarImage src={profile?.logo || "/placeholder.svg"} alt={profile?.name} />
-              <AvatarFallback className="text-lg">{profile?.name?.charAt(0) || "C"}</AvatarFallback>
+              <AvatarImage src={editedProfile?.logo || "/placeholder.svg"} alt={editedProfile?.name} />
+              <AvatarFallback className="text-lg">{editedProfile?.name?.charAt(0) || "C"}</AvatarFallback>
             </Avatar>
           </div>
 
           {/* Company Details */}
           <div className="flex-1 space-y-4">
             <div>
-              <h3 className="text-2xl font-bold">{profile?.name || "Company Name"}</h3>
+              <h3 className="text-2xl font-bold">{editedProfile?.name || "Company Name"}</h3>
               <div className="flex flex-wrap gap-2 mt-2">
-                {profile?.industry && <Badge variant="secondary">{profile.industry}</Badge>}
-                {profile?.teamSize && (
+                {editedProfile?.industry && <Badge variant="secondary">{editedProfile.industry}</Badge>}
+                {editedProfile?.teamSize && (
                   <Badge variant="outline" className="flex items-center gap-1">
                     <Users className="h-3 w-3" />
-                    {profile.teamSize}
+                    {editedProfile.teamSize}
                   </Badge>
                 )}
-                {profile?.founded && (
+                {editedProfile?.founded && (
                   <Badge variant="outline" className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
-                    Founded {profile.founded}
+                    Founded {editedProfile.founded}
                   </Badge>
                 )}
               </div>
             </div>
 
-            <p className="text-muted-foreground">{profile?.description || "No description available."}</p>
+            <p className="text-muted-foreground">{editedProfile?.description || "No description available."}</p>
 
             {/* Contact Information */}
             <div className="grid md:grid-cols-2 gap-4 text-sm">
-              {profile?.location && (
+              {editedProfile?.location && (
                 <div className="flex items-center gap-2">
                   <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <span>{profile.location}</span>
+                  <span>{editedProfile.location}</span>
                 </div>
               )}
 
-              {profile?.website && (
+              {editedProfile?.website && (
                 <div className="flex items-center gap-2">
                   <Globe className="h-4 w-4 text-muted-foreground" />
                   <a
-                    href={profile.website}
+                    href={editedProfile.website}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary hover:underline flex items-center gap-1"
@@ -259,20 +333,20 @@ export function CompanyProfileSection({ profile }: CompanyProfileSectionProps) {
                 </div>
               )}
 
-              {profile?.email && (
+              {editedProfile?.email && (
                 <div className="flex items-center gap-2">
                   <Mail className="h-4 w-4 text-muted-foreground" />
-                  <a href={`mailto:${profile.email}`} className="text-primary hover:underline">
-                    {profile.email}
+                  <a href={`mailto:${editedProfile.email}`} className="text-primary hover:underline">
+                    {editedProfile.email}
                   </a>
                 </div>
               )}
 
-              {profile?.phone && (
+              {editedProfile?.phone && (
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-muted-foreground" />
-                  <a href={`tel:${profile.phone}`} className="text-primary hover:underline">
-                    {profile.phone}
+                  <a href={`tel:${editedProfile.phone}`} className="text-primary hover:underline">
+                    {editedProfile.phone}
                   </a>
                 </div>
               )}
