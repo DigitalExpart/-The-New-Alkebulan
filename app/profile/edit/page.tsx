@@ -299,8 +299,16 @@ export default function EditProfilePage() {
     setSaving(true)
 
     try {
+      // Normalize arrays to avoid malformed array literal errors
+      const interestsArray: string[] = Array.isArray(formData.interests)
+        ? formData.interests
+        : (formData.interests ? String(formData.interests).split(',').map((s) => s.trim()).filter(Boolean) : [])
+      const competenciesArray: string[] = Array.isArray(formData.core_competencies)
+        ? formData.core_competencies
+        : (formData.core_competencies ? String(formData.core_competencies).split(',').map((s) => s.trim()).filter(Boolean) : [])
+
       // Prepare profile data for update
-      const profileData = {
+      const profileData: any = {
         first_name: formData.first_name,
         last_name: formData.last_name,
         username: formData.username,
@@ -319,12 +327,22 @@ export default function EditProfilePage() {
         // Convert empty date string to null for database
         date_of_birth: formData.date_of_birth && typeof formData.date_of_birth === 'string' && formData.date_of_birth.trim() !== '' ? formData.date_of_birth : null,
         relationship_status: formData.relationship_status,
-        interests: formData.interests,
-        core_competencies: formData.core_competencies,
+        interests: interestsArray ?? [],
+        core_competencies: competenciesArray ?? [],
         family_members: familyMembers,
         work_experience: workExperience,
         updated_at: new Date().toISOString()
       }
+
+      // Remove empty string fields to keep optional saves truly optional
+      Object.keys(profileData).forEach((key) => {
+        const v = (profileData as any)[key]
+        if (v === '' || v === undefined || v === null) {
+          // Leave arrays and objects intact if they are empty (valid JSON types)
+          if (Array.isArray(v)) return
+          delete (profileData as any)[key]
+        }
+      })
 
       const { error: updateError } = await supabase
         .from('profiles')
