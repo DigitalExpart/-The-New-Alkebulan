@@ -32,36 +32,56 @@ export default function CompanyChatPage() {
   const listRef = useRef<HTMLDivElement>(null)
   const [companyName, setCompanyName] = useState<string>("")
   const [companyOwnerId, setCompanyOwnerId] = useState<string | null>(null)
+  const [isOwner, setIsOwner] = useState<boolean>(false)
+  const [conversationUserId, setConversationUserId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user?.id || !params?.id) return
     const supabase = getSupabaseClient()
 
     const ensureConversation = async () => {
-      const { data, error } = await supabase
-        .from("company_conversations")
-        .select("id")
-        .eq("company_id", params.id)
-        .eq("user_id", user.id)
-        .maybeSingle()
+      if (isOwner) {
+        const { data: latest } = await supabase
+          .from("company_conversations")
+          .select("id,user_id")
+          .eq("company_id", params.id)
+          .order("last_message_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        if (latest?.id) {
+          setConversationId(latest.id)
+          setConversationUserId(latest.user_id)
+          return latest.id
+        }
+        return null
+      } else {
+        const { data, error } = await supabase
+          .from("company_conversations")
+          .select("id")
+          .eq("company_id", params.id)
+          .eq("user_id", user.id)
+          .maybeSingle()
 
-      if (error) console.error(error)
+        if (error) console.error(error)
 
-      if (data?.id) {
-        setConversationId(data.id)
-        return data.id
+        if (data?.id) {
+          setConversationId(data.id)
+          setConversationUserId(user.id)
+          return data.id
+        }
+
+        const { data: created, error: createErr } = await supabase
+          .from("company_conversations")
+          .insert({ company_id: params.id, user_id: user.id })
+          .select("id,user_id")
+          .single()
+        if (!createErr) {
+          setConversationId(created.id)
+          setConversationUserId(created.user_id)
+          return created.id
+        }
+        return null
       }
-
-      const { data: created, error: createErr } = await supabase
-        .from("company_conversations")
-        .insert({ company_id: params.id, user_id: user.id })
-        .select("id")
-        .single()
-      if (!createErr) {
-        setConversationId(created.id)
-        return created.id
-      }
-      return null
     }
 
     const init = async () => {
@@ -73,6 +93,7 @@ export default function CompanyChatPage() {
         .maybeSingle()
       if (companyRow?.name) setCompanyName(companyRow.name)
       if (companyRow?.owner_id) setCompanyOwnerId(companyRow.owner_id)
+      if (companyRow?.owner_id && user?.id) setIsOwner(companyRow.owner_id === user.id)
 
       const convId = await ensureConversation()
       if (!convId) return
@@ -95,8 +116,8 @@ export default function CompanyChatPage() {
               if (prev.some((m) => m.id === incoming.id)) return prev
               return [...prev, incoming]
             })
-            // If I am the recipient (message from company), mark delivered and read
-            if (incoming.sender_type !== "user") {
+            // If I am not the sender, mark delivered and read
+            if (incoming.sender_id !== (user?.id || "")) {
               markDelivered(incoming.id)
               markRead([incoming.id])
             }
@@ -155,13 +176,16 @@ export default function CompanyChatPage() {
       convId = conv.id
       setConversationId(convId)
     }
-    if (!convId) return
+    if (!convId) {
+      if (isOwner) toast("No conversations yet")
+      return
+    }
 
     const { data: inserted, error } = await supabase
       .from("company_messages")
       .insert({
         conversation_id: convId,
-        sender_type: "user",
+        sender_type: isOwner ? "company" : "user",
         sender_id: user.id,
         content,
         status: "sent",
@@ -183,7 +207,18 @@ export default function CompanyChatPage() {
 
     // Create a notification for the company owner
     try {
-      if (companyOwnerId && companyOwnerId !== user.id) {
+      if (isOwner) {
+        if (conversationUserId) {
+          await supabase.from("notifications").insert({
+            user_id: conversationUserId,
+            type: "message",
+            title: `New message from ${companyName || 'company'}`,
+            message: content.slice(0, 140),
+            related_id: params.id as string,
+            is_read: false,
+          })
+        }
+      } else if (companyOwnerId && companyOwnerId !== user.id) {
         await supabase.from("notifications").insert({
           user_id: companyOwnerId,
           type: "message",
