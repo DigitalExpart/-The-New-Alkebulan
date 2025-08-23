@@ -89,14 +89,15 @@ export default function CompanyChatPage() {
         }
         return null
       } else {
-        const { data, error } = await supabase
+        // Find the latest existing conversation for this user-company pair
+        const { data } = await supabase
           .from("company_conversations")
-          .select("id")
+          .select("id,user_id,last_message_at")
           .eq("company_id", params.id)
           .eq("user_id", user.id)
+          .order("last_message_at", { ascending: false })
+          .limit(1)
           .maybeSingle()
-
-        if (error) console.error(error)
 
         if (data?.id) {
           setConversationId(data.id)
@@ -104,6 +105,7 @@ export default function CompanyChatPage() {
           return data.id
         }
 
+        // No conversation yet; create one
         const { data: created, error: createErr } = await supabase
           .from("company_conversations")
           .insert({ company_id: params.id, user_id: user.id })
@@ -211,7 +213,16 @@ export default function CompanyChatPage() {
         .select("id,user_id,last_message,last_message_at")
         .eq("company_id", params.id)
         .order("last_message_at", { ascending: false })
-      setOwnerConversations((convs || []) as any)
+      // Deduplicate by user_id, keeping the most recent conversation per user
+      const unique: any[] = []
+      const seen = new Set<string>()
+      ;(convs || []).forEach((c: any) => {
+        if (!seen.has(c.user_id)) {
+          unique.push(c)
+          seen.add(c.user_id)
+        }
+      })
+      setOwnerConversations(unique)
       const userIds = Array.from(new Set(((convs || []) as any).map((c: any) => c.user_id)))
       if (userIds.length) {
         const { data: profs } = await supabase
