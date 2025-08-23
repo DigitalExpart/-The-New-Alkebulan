@@ -1,14 +1,14 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { getSupabaseClient } from "@/lib/supabase"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth"
 import { toast } from "sonner"
-import { Check, CheckCheck } from "lucide-react"
+import { Check, CheckCheck, X } from "lucide-react"
 
 interface Message {
   id: string
@@ -25,6 +25,7 @@ interface Message {
 export default function CompanyChatPage() {
   const params = useParams<{ id: string }>()
   const { user } = useAuth()
+  const router = useRouter()
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
@@ -207,8 +208,12 @@ export default function CompanyChatPage() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-3xl">
         <Card>
-          <CardHeader>
+          <CardHeader className="flex items-center justify-between">
             <CardTitle>{companyName ? `Chat with ${companyName}` : 'Chat with Company'}</CardTitle>
+            <Button variant="outline" size="sm" onClick={() => router.push('/marketplace/companies')}>
+              <X className="h-4 w-4 mr-1" />
+              Close
+            </Button>
           </CardHeader>
           <CardContent>
             <div ref={listRef} className="h-[60vh] overflow-y-auto space-y-3 border rounded-md p-3 mb-3">
