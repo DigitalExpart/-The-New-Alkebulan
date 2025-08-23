@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { getSupabaseClient } from "@/lib/supabase"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -26,6 +26,7 @@ export default function CompanyChatPage() {
   const params = useParams<{ id: string }>()
   const { user } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
@@ -40,14 +41,28 @@ export default function CompanyChatPage() {
     const supabase = getSupabaseClient()
 
     const ensureConversation = async () => {
+      const withUserId = searchParams?.get('with') || null
       if (isOwner) {
+        if (withUserId) {
+          const { data } = await supabase
+            .from("company_conversations")
+            .select("id,user_id")
+            .eq("company_id", params.id)
+            .eq("user_id", withUserId)
+            .maybeSingle()
+          if (data?.id) {
+            setConversationId(data.id)
+            setConversationUserId(data.user_id)
+            return data.id
+          }
+        }
         const { data: latest } = await supabase
-          .from("company_conversations")
-          .select("id,user_id")
-          .eq("company_id", params.id)
-          .order("last_message_at", { ascending: false })
-          .limit(1)
-          .maybeSingle()
+            .from("company_conversations")
+            .select("id,user_id")
+            .eq("company_id", params.id)
+            .order("last_message_at", { ascending: false })
+            .limit(1)
+            .maybeSingle()
         if (latest?.id) {
           setConversationId(latest.id)
           setConversationUserId(latest.user_id)

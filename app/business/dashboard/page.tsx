@@ -526,7 +526,7 @@ export default function BusinessDashboardPage() {
                       <Edit className="mr-2 h-4 w-4" />
                       Edit Profile
                     </Button>
-                    <Link href={companyProfile?.id ? `/marketplace/companies/${companyProfile.id}/chat` : `/marketplace/companies`}>
+                    <Link href={companyProfile?.id ? `/marketplace/companies/${companyProfile.id}/conversations` : `/marketplace/companies`}>
                       <Button className="w-full justify-start bg-transparent mt-2" variant="outline">
                         <MessageSquare className="mr-2 h-4 w-4" />
                         Chat
