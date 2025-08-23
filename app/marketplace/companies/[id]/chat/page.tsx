@@ -208,11 +208,10 @@ export default function CompanyChatPage() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-3xl">
         <Card>
-          <CardHeader className="flex items-center justify-between">
-            <CardTitle>{companyName ? `Chat with ${companyName}` : 'Chat with Company'}</CardTitle>
-            <Button variant="outline" size="sm" onClick={() => router.push('/marketplace/companies')}>
-              <X className="h-4 w-4 mr-1" />
-              Close
+          <CardHeader className="flex !flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-left">{companyName ? `Chat with ${companyName}` : 'Chat with Company'}</CardTitle>
+            <Button variant="outline" size="icon" onClick={() => router.push('/marketplace/companies')} aria-label="Close chat">
+              <X className="h-4 w-4" />
             </Button>
           </CardHeader>
           <CardContent>
