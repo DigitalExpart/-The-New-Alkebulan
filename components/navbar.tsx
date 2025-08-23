@@ -604,9 +604,6 @@ export function Navbar() {
               <Search className="h-5 w-5" />
             </button>
 
-            {/* Notifications Bell */}
-            {user && <NotificationsDropdown />}
-
             {/* User Menu */}
             {user ? (
               <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
@@ -714,6 +711,9 @@ export function Navbar() {
                 </Link>
               </div>
             )}
+
+            {/* Notifications Bell (last) */}
+            {user && <NotificationsDropdown />}
           </div>
         </div>
 
