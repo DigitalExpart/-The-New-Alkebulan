@@ -1,6 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -99,8 +100,8 @@ export function CompanyCard({ company }: CompanyCardProps) {
               Visit Website
             </a>
           </Button>
-          <Button size="sm" className="bg-yellow-400 hover:bg-yellow-500 text-green-900 font-semibold">
-            Connect
+          <Button size="sm" className="bg-yellow-400 hover:bg-yellow-500 text-green-900 font-semibold" asChild>
+            <Link href={`/marketplace/companies/${company.id}/chat`}>Connect</Link>
           </Button>
         </div>
       </CardContent>
