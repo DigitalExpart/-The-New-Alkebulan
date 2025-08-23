@@ -29,6 +29,7 @@ export default function CompanyChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const listRef = useRef<HTMLDivElement>(null)
+  const [companyName, setCompanyName] = useState<string>("")
 
   useEffect(() => {
     if (!user?.id || !params?.id) return
@@ -62,6 +63,14 @@ export default function CompanyChatPage() {
     }
 
     const init = async () => {
+      // Fetch company name for header
+      const { data: companyRow } = await supabase
+        .from("companies")
+        .select("name")
+        .eq("id", params.id)
+        .maybeSingle()
+      if (companyRow?.name) setCompanyName(companyRow.name)
+
       const convId = await ensureConversation()
       if (!convId) return
 
@@ -181,7 +190,7 @@ export default function CompanyChatPage() {
       <div className="container mx-auto px-4 py-8 max-w-3xl">
         <Card>
           <CardHeader>
-            <CardTitle>Chat with Company</CardTitle>
+            <CardTitle>{companyName ? `Chat with ${companyName}` : 'Chat with Company'}</CardTitle>
           </CardHeader>
           <CardContent>
             <div ref={listRef} className="h-[60vh] overflow-y-auto space-y-3 border rounded-md p-3 mb-3">
@@ -191,14 +200,16 @@ export default function CompanyChatPage() {
                 return (
                   <div key={m.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-[75%] rounded-lg px-3 py-2 text-sm ${isMine ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                      <div>{m.content}</div>
-                      {isMine && (
-                        <div className="mt-1 flex items-center justify-end gap-1 text-xs opacity-80">
-                          {status === "sent" && <Check className="h-3 w-3" />}
-                          {status === "delivered" && <CheckCheck className="h-3 w-3" />}
-                          {status === "read" && <CheckCheck className="h-3 w-3 text-green-500" />}
-                        </div>
-                      )}
+                      <div className={`flex ${isMine ? 'justify-end' : ''} items-end gap-1`}>
+                        <span className="whitespace-pre-wrap break-words">{m.content}</span>
+                        {isMine && (
+                          <span className="flex items-center gap-0.5 text-[10px] opacity-80">
+                            {status === "sent" && <Check className="h-3 w-3" />}
+                            {status === "delivered" && <CheckCheck className="h-3 w-3" />}
+                            {status === "read" && <CheckCheck className="h-3 w-3 text-green-500" />}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )
