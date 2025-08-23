@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth"
 import { toast } from "sonner"
-import { Check, CheckCheck, X } from "lucide-react"
+import { Check, CheckCheck, X, Paperclip, Mic, StopCircle } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import Link from "next/link"
 
@@ -43,6 +43,9 @@ export default function CompanyChatPage() {
   const [convSearch, setConvSearch] = useState("")
   const [ownerConversations, setOwnerConversations] = useState<Array<{ id: string; user_id: string; last_message: string | null; last_message_at: string | null }>>([])
   const [ownerProfiles, setOwnerProfiles] = useState<Record<string, { full_name: string | null; email: string | null; avatar_url: string | null }>>({})
+  const [recording, setRecording] = useState<boolean>(false)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const recordedChunksRef = useRef<Blob[]>([])
 
   useEffect(() => {
     if (!user?.id || !params?.id) return
@@ -336,6 +339,82 @@ export default function CompanyChatPage() {
     if (convUpdateErr) console.warn("Failed to update conversation last_message", convUpdateErr)
   }
 
+  const uploadFileToStorage = async (file: File) => {
+    const supabase = getSupabaseClient()
+    const path = `conversations/${conversationId || 'new'}/${Date.now()}_${file.name}`
+    const { error } = await supabase.storage.from('chat-media').upload(path, file, { upsert: true, contentType: file.type })
+    if (error) throw error
+    const { data } = supabase.storage.from('chat-media').getPublicUrl(path)
+    return data.publicUrl
+  }
+
+  const sendMediaMessage = async (file: File, mediaType: 'image' | 'video' | 'audio' | 'file') => {
+    if (!user?.id) return
+    const supabase = getSupabaseClient()
+    let convId = conversationId
+    if (!convId && params?.id) {
+      const { data: conv } = await supabase
+        .from('company_conversations')
+        .insert({ company_id: params.id as string, user_id: user.id })
+        .select('id')
+        .single()
+      convId = conv?.id || null
+      if (convId) setConversationId(convId)
+    }
+    if (!convId) return
+
+    const url = await uploadFileToStorage(file)
+    const { data: inserted, error } = await supabase
+      .from('company_messages')
+      .insert({
+        conversation_id: convId,
+        sender_type: isOwner ? 'company' : 'user',
+        sender_id: user.id,
+        content: '',
+        status: 'sent',
+        media_url: url,
+        media_type: mediaType,
+        media_name: file.name,
+        media_size: file.size,
+      })
+      .select('*')
+      .single()
+    if (error) { toast.error('Upload failed'); return }
+    if (inserted) setMessages((prev) => [...prev, inserted as any])
+  }
+
+  const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const type = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file'
+    await sendMediaMessage(file, type as any)
+    e.currentTarget.value = ''
+  }
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mr = new MediaRecorder(stream)
+      recordedChunksRef.current = []
+      mr.ondataavailable = (ev) => { if (ev.data.size > 0) recordedChunksRef.current.push(ev.data) }
+      mr.onstop = async () => {
+        const blob = new Blob(recordedChunksRef.current, { type: 'audio/webm' })
+        const file = new File([blob], `voice_${Date.now()}.webm`, { type: 'audio/webm' })
+        await sendMediaMessage(file, 'audio')
+      }
+      mr.start()
+      mediaRecorderRef.current = mr
+      setRecording(true)
+    } catch (err) {
+      toast.error('Microphone access denied')
+    }
+  }
+
+  const stopRecording = () => {
+    mediaRecorderRef.current?.stop()
+    setRecording(false)
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
@@ -406,7 +485,21 @@ export default function CompanyChatPage() {
                     )}
                     <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm shadow ${isMine ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-muted rounded-bl-sm"}`}>
                       <div className={`flex ${isMine ? 'justify-end' : ''} items-end gap-1`}>
-                        <span className="whitespace-pre-wrap break-words leading-relaxed">{m.content}</span>
+                        <span className="whitespace-pre-wrap break-words leading-relaxed">
+                          {m.media_url ? (
+                            m.media_type === 'image' ? (
+                              <img src={m.media_url} alt={m.media_name || 'image'} className="rounded-md max-h-64" />
+                            ) : m.media_type === 'video' ? (
+                              <video src={m.media_url} controls className="rounded-md max-h-64" />
+                            ) : m.media_type === 'audio' ? (
+                              <audio src={m.media_url} controls />
+                            ) : (
+                              <a href={m.media_url} target="_blank" rel="noreferrer" className="underline">{m.media_name || 'Download file'}</a>
+                            )
+                          ) : (
+                            m.content
+                          )}
+                        </span>
                         <span className={`ml-1 inline-flex items-center gap-0.5 text-[10px] ${isMine ? 'text-primary-foreground/90' : 'text-foreground/70'}`}>
                           <span>{timeStr}</span>
                           {isMine && (
@@ -423,7 +516,11 @@ export default function CompanyChatPage() {
                 )
               })}
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
+              <label className="inline-flex items-center justify-center h-10 w-10 rounded-md border cursor-pointer">
+                <Paperclip className="h-4 w-4" />
+                <input type="file" className="hidden" onChange={onPickFile} accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.zip" />
+              </label>
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -435,6 +532,11 @@ export default function CompanyChatPage() {
                   }
                 }}
               />
+              {recording ? (
+                <Button variant="destructive" onClick={stopRecording} className="h-10 px-3"><StopCircle className="h-4 w-4" /></Button>
+              ) : (
+                <Button variant="outline" onClick={startRecording} className="h-10 px-3"><Mic className="h-4 w-4" /></Button>
+              )}
               <Button onClick={sendMessage}>Send</Button>
             </div>
           </CardContent>
