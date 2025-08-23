@@ -631,6 +631,13 @@ export function Navbar() {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
+                    <Link href="/wishlist" className="cursor-pointer flex items-center gap-2">
+                      <Heart className="w-4 h-4" />
+                      Saved Items
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
                     <Link href="/dashboard" className="cursor-pointer flex items-center gap-2">
                       <Monitor className="w-4 h-4" />
                       Dashboard

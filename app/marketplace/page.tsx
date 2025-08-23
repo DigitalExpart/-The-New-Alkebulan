@@ -22,10 +22,11 @@ import {
   Loader2,
   RefreshCw,
 } from "lucide-react"
-import Link from "next/link"
 import { getSupabaseClient } from "@/lib/supabase"
+import Link from "next/link"
 import { toast } from "sonner"
 import { useCart } from "@/components/commerce/cart-context"
+import { useWishlist } from "@/components/commerce/wishlist-context"
 
 interface Product {
   id: string
@@ -85,6 +86,7 @@ export default function MarketplacePage() {
   })
   const [productImages, setProductImages] = useState<Record<string, string[]>>({})
   const { addItem } = useCart()
+  const { has: hasWish, toggle: toggleWish } = useWishlist()
 
   // Fetch live data from backend
   useEffect(() => {
@@ -466,17 +468,19 @@ export default function MarketplacePage() {
                   {filteredProducts.map((product) => (
                     <Card key={product.id} className="bg-card border-border hover:border-primary transition-colors group">
                       <div className="relative">
-                        <img
-                          src={getProductImage(product)}
-                          alt={product.name}
-                          className="w-full h-48 object-cover rounded-t-lg"
-                        />
+                        <Link href={`/marketplace/product/${product.id}`} className="block">
+                          <img
+                            src={getProductImage(product)}
+                            alt={product.name}
+                            className="w-full h-48 object-cover rounded-t-lg cursor-pointer group-hover:opacity-95 transition-opacity"
+                          />
+                        </Link>
                         <div className="absolute top-2 left-2">
                           <Badge className="bg-primary text-primary-foreground">{getProductBadge(product)}</Badge>
                         </div>
                         <div className="absolute top-2 right-2">
-                          <Button size="sm" variant="outline" className="h-8 w-8 p-0 bg-background/80 border-border">
-                            <Heart className="h-4 w-4 text-foreground" />
+                          <Button size="sm" variant="outline" className="h-8 w-8 p-0 bg-background/80 border-border" onClick={() => toggleWish({ id: product.id, name: product.name, price: product.sales_price ?? product.actual_price, imageUrl: getProductImage(product) })}>
+                            <Heart className={`h-4 w-4 ${hasWish(product.id) ? 'text-red-500 fill-red-500' : 'text-foreground'}`} />
                           </Button>
                         </div>
                         {product.inventory <= 0 && (
