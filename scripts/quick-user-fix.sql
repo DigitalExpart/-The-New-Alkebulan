@@ -137,4 +137,4 @@ CREATE INDEX IF NOT EXISTS profiles_user_id_idx ON public.profiles (user_id);
 CREATE INDEX IF NOT EXISTS profiles_is_public_idx ON public.profiles (is_public);
 
 -- Success message
-SELECT 'User save error fixed! New users should now be able to save properly.' as result; 
+SELECT 'User save error fixed! New users should now be able to save properly.' as result; image.pngimage.png

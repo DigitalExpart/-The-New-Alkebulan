@@ -6,11 +6,75 @@ import { getSupabaseClient } from "@/lib/supabase"
 import { toast } from "sonner"
 import type { Notification } from "@/types/notification"
 
+// Minimal settings shape used for filtering notification types
+interface DbNotificationSettings {
+  friend_requests?: boolean
+  messages?: boolean
+  comments?: boolean
+  likes?: boolean
+  mentions?: boolean
+  follows?: boolean
+  system_updates?: boolean
+}
+
 export function useNotifications() {
   const { user } = useAuth()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [settings, setSettings] = useState<DbNotificationSettings | null>(null)
+
+  // Map a notification type to the corresponding settings key
+  const mapTypeToSettingKey = (type: Notification["type"]): keyof DbNotificationSettings | null => {
+    switch (type) {
+      case "friend_request":
+        return "friend_requests"
+      case "message":
+        return "messages"
+      case "comment":
+        return "comments"
+      case "like":
+        return "likes"
+      case "mention":
+        return "mentions"
+      case "follow":
+        return "follows"
+      case "system":
+        return "system_updates"
+      default:
+        return null
+    }
+  }
+
+  const isTypeEnabled = (type: Notification["type"]) => {
+    if (!settings) return true // If no settings yet, allow all
+    const key = mapTypeToSettingKey(type)
+    if (!key) return true
+    const value = (settings as any)[key]
+    return value === undefined ? true : !!value
+  }
+
+  // Fetch user notification settings
+  const fetchNotificationSettings = async () => {
+    if (!user?.id) return
+    try {
+      const supabase = getSupabaseClient()
+      const { data, error } = await supabase
+        .from("notification_settings")
+        .select("friend_requests,messages,comments,likes,mentions,follows,system_updates")
+        .eq("user_id", user.id)
+        .single()
+
+      if (error && error.code !== "PGRST116") {
+        console.error("Error fetching notification settings:", error)
+        return
+      }
+
+      if (data) setSettings(data as DbNotificationSettings)
+    } catch (err) {
+      console.error("Error in fetchNotificationSettings:", err)
+    }
+  }
 
   // Fetch notifications from database
   const fetchNotifications = async () => {
@@ -48,7 +112,7 @@ export function useNotifications() {
       // Transform database notifications to match our interface
       const transformedNotifications: Notification[] = (dbNotifications || []).map((dbNotif) => ({
         id: dbNotif.id,
-        type: dbNotif.type as Notification['type'] || 'system',
+        type: (dbNotif.type as Notification['type']) || 'system',
         title: dbNotif.title,
         message: dbNotif.message,
         timestamp: new Date(dbNotif.created_at),
@@ -60,7 +124,9 @@ export function useNotifications() {
         status: dbNotif.type === 'friend_request' ? 'pending' : undefined,
       }))
 
-      setNotifications(transformedNotifications)
+      // Apply settings filter if available
+      const filtered = transformedNotifications.filter((n) => isTypeEnabled(n.type))
+      setNotifications(filtered)
     } catch (err) {
       console.error('Error in fetchNotifications:', err)
       setError('Failed to fetch notifications')
@@ -204,14 +270,100 @@ export function useNotifications() {
   // Get recent notifications (for dropdown)
   const recentNotifications = notifications.slice(0, 6)
 
-  // Fetch notifications when user changes
+  // Setup realtime listeners and initial fetch when user changes
   useEffect(() => {
-    if (user?.id) {
-      fetchNotifications()
-    } else {
+    if (!user?.id) {
       setNotifications([])
       setLoading(false)
+      return
     }
+
+    let notificationsChannel: any | null = null
+    let settingsChannel: any | null = null
+
+    const supabase = getSupabaseClient()
+
+    // Initial load
+    fetchNotificationSettings().then(fetchNotifications)
+
+    // Realtime: notifications for this user
+    try {
+      notificationsChannel = supabase
+        .channel(`notifications:${user.id}`)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+          (payload) => {
+            const dbNotif: any = payload.new
+            const newNotif: Notification = {
+              id: dbNotif.id,
+              type: (dbNotif.type as Notification['type']) || 'system',
+              title: dbNotif.title,
+              message: dbNotif.message,
+              timestamp: new Date(dbNotif.created_at || Date.now()),
+              isRead: dbNotif.is_read || false,
+              userId: dbNotif.related_id,
+              actionUrl: getActionUrl(dbNotif.type, dbNotif.related_id),
+              iconColor: getIconColor(dbNotif.type),
+              friendRequestId: dbNotif.type === 'friend_request' ? dbNotif.related_id : undefined,
+              status: dbNotif.type === 'friend_request' ? 'pending' : undefined,
+            }
+
+            if (!isTypeEnabled(newNotif.type)) return
+
+            setNotifications((prev) => [newNotif, ...prev])
+            // Optional toast for live arrival
+            toast(newNotif.title || 'New notification', { description: newNotif.message })
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+          (payload) => {
+            const updated: any = payload.new
+            setNotifications((prev) => prev.map((n) => (n.id === updated.id ? { ...n, isRead: !!updated.is_read } : n)))
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: 'DELETE', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+          (payload) => {
+            const deleted: any = payload.old
+            setNotifications((prev) => prev.filter((n) => n.id !== deleted.id))
+          }
+        )
+        .subscribe()
+    } catch (err) {
+      console.error('Error subscribing to notifications realtime:', err)
+    }
+
+    // Realtime: settings changes
+    try {
+      settingsChannel = supabase
+        .channel(`notification_settings:${user.id}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'notification_settings', filter: `user_id=eq.${user.id}` },
+          (payload) => {
+            setSettings(payload.new as DbNotificationSettings)
+            // Re-apply filters to current list when settings change
+            setNotifications((prev) => prev.filter((n) => isTypeEnabled(n.type)))
+          }
+        )
+        .subscribe()
+    } catch (err) {
+      console.error('Error subscribing to notification settings realtime:', err)
+    }
+
+    return () => {
+      try {
+        if (notificationsChannel) supabase.removeChannel(notificationsChannel)
+        if (settingsChannel) supabase.removeChannel(settingsChannel)
+      } catch (err) {
+        console.error('Error cleaning up realtime channels:', err)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id])
 
   return {
