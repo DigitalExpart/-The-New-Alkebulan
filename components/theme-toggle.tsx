@@ -71,3 +71,46 @@ export function ThemeToggle() {
     </DropdownMenu>
   )
 }
+
+// New simplified component for use within other dropdown menus
+export function ThemeToggleDropdownItems() {
+  const { setTheme, theme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return null
+  }
+
+  return (
+    <>
+      <DropdownMenuItem 
+        onClick={() => setTheme("light")} 
+        className="cursor-pointer flex items-center gap-2 hover:bg-accent"
+      >
+        <Sun className="h-4 w-4" />
+        <span>Light Theme</span>
+        {theme === "light" && <span className="ml-auto text-xs text-primary">✓</span>}
+      </DropdownMenuItem>
+      <DropdownMenuItem 
+        onClick={() => setTheme("dark")} 
+        className="cursor-pointer flex items-center gap-2 hover:bg-accent"
+      >
+        <Moon className="h-4 w-4" />
+        <span>Dark Theme</span>
+        {theme === "dark" && <span className="ml-auto text-xs text-primary">✓</span>}
+      </DropdownMenuItem>
+      <DropdownMenuItem 
+        onClick={() => setTheme("system")} 
+        className="cursor-pointer flex items-center gap-2 hover:bg-accent"
+      >
+        <Monitor className="h-4 w-4" />
+        <span>System Theme</span>
+        {theme === "system" && <span className="ml-auto text-xs text-primary">✓</span>}
+      </DropdownMenuItem>
+    </>
+  )
+}
