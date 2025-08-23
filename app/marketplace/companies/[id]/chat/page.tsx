@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth"
 import { toast } from "sonner"
+import { Check, CheckCheck } from "lucide-react"
 
 interface Message {
   id: string
@@ -16,6 +17,9 @@ interface Message {
   sender_id: string
   content: string
   created_at: string
+  status?: "sent" | "delivered" | "read"
+  delivered_at?: string | null
+  read_at?: string | null
 }
 
 export default function CompanyChatPage() {
@@ -74,7 +78,16 @@ export default function CompanyChatPage() {
           "postgres_changes",
           { event: "INSERT", schema: "public", table: "company_messages", filter: `conversation_id=eq.${convId}` },
           (payload) => {
-            setMessages((prev) => [...prev, payload.new as Message])
+            const incoming = payload.new as Message
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === incoming.id)) return prev
+              return [...prev, incoming]
+            })
+            // If I am the recipient (message from company), mark delivered and read
+            if (incoming.sender_type !== "user") {
+              markDelivered(incoming.id)
+              markRead([incoming.id])
+            }
             setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 0)
           }
         )
@@ -91,6 +104,23 @@ export default function CompanyChatPage() {
       ;(async () => (await sub)?.() )()
     }
   }, [user?.id, params?.id])
+
+  const markDelivered = async (messageId: string) => {
+    const supabase = getSupabaseClient()
+    await supabase
+      .from("company_messages")
+      .update({ status: "delivered", delivered_at: new Date().toISOString() })
+      .eq("id", messageId)
+  }
+
+  const markRead = async (messageIds: string[]) => {
+    if (messageIds.length === 0) return
+    const supabase = getSupabaseClient()
+    await supabase
+      .from("company_messages")
+      .update({ status: "read", read_at: new Date().toISOString() })
+      .in("id", messageIds)
+  }
 
   const sendMessage = async () => {
     if (!input.trim() || !user?.id) return
@@ -122,6 +152,7 @@ export default function CompanyChatPage() {
         sender_type: "user",
         sender_id: user.id,
         content,
+        status: "sent",
       })
       .select("*")
       .single()
@@ -132,7 +163,11 @@ export default function CompanyChatPage() {
     }
 
     // Optimistic append
-    if (inserted) setMessages((prev) => [...prev, inserted as Message])
+    if (inserted) {
+      setMessages((prev) => [...prev, inserted as Message])
+      // Mark delivered after DB ack
+      markDelivered(inserted.id)
+    }
 
     const { error: convUpdateErr } = await supabase
       .from("company_conversations")
@@ -150,13 +185,24 @@ export default function CompanyChatPage() {
           </CardHeader>
           <CardContent>
             <div ref={listRef} className="h-[60vh] overflow-y-auto space-y-3 border rounded-md p-3 mb-3">
-              {messages.map((m) => (
-                <div key={m.id} className={`flex ${m.sender_type === "user" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[75%] rounded-lg px-3 py-2 text-sm ${m.sender_type === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                    {m.content}
+              {messages.map((m) => {
+                const isMine = m.sender_type === "user"
+                const status = m.status || (m.read_at ? "read" : m.delivered_at ? "delivered" : "sent")
+                return (
+                  <div key={m.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[75%] rounded-lg px-3 py-2 text-sm ${isMine ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                      <div>{m.content}</div>
+                      {isMine && (
+                        <div className="mt-1 flex items-center justify-end gap-1 text-xs opacity-80">
+                          {status === "sent" && <Check className="h-3 w-3" />}
+                          {status === "delivered" && <CheckCheck className="h-3 w-3" />}
+                          {status === "read" && <CheckCheck className="h-3 w-3 text-green-500" />}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
             <div className="flex gap-2">
               <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type your message..." onKeyDown={(e) => { if (e.key === 'Enter') sendMessage() }} />
