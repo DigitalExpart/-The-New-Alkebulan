@@ -45,7 +45,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { ThemeToggle } from "@/components/theme-toggle"
+import { ThemeToggleDropdownItems } from "@/components/theme-toggle"
 import { UserAvatarFixed } from "@/components/user-avatar-fixed"
 import { AnimatedSearch } from "@/components/animated-search"
 import { NotificationsDropdown } from "@/components/notifications/notifications-dropdown"
@@ -601,6 +601,9 @@ export function Navbar() {
               <Search className="h-5 w-5" />
             </button>
 
+            {/* Notifications Bell */}
+            {user && <NotificationsDropdown />}
+
             {/* User Menu */}
             {user ? (
               <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
@@ -672,6 +675,9 @@ export function Navbar() {
                     {profile?.account_type === 'business' && <CheckCircle className="w-4 ml-auto text-primary" />}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
+                  {/* Theme Toggle moved here */}
+                  <ThemeToggleDropdownItems />
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem 
                     onClick={handleSignOut}
                     className="cursor-pointer flex items-center gap-2 text-destructive hover:text-destructive"
@@ -695,9 +701,6 @@ export function Navbar() {
                 </Link>
               </div>
             )}
-
-            {/* Theme Toggle */}
-            <ThemeToggle />
           </div>
         </div>
 
