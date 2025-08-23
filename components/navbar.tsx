@@ -48,6 +48,7 @@ import { Button } from "@/components/ui/button"
 import { ThemeToggleDropdownItems } from "@/components/theme-toggle"
 import { UserAvatarFixed } from "@/components/user-avatar-fixed"
 import { AnimatedSearch } from "@/components/animated-search"
+import { CartDropdown } from "@/components/commerce/cart-dropdown"
 import { NotificationsDropdown } from "@/components/notifications/notifications-dropdown"
 import { useAuth } from "@/hooks/use-auth"
 import {
@@ -711,6 +712,9 @@ export function Navbar() {
                 </Link>
               </div>
             )}
+
+            {/* Cart (visible to all) */}
+            <CartDropdown />
 
             {/* Notifications Bell (last) */}
             {user && <NotificationsDropdown />}

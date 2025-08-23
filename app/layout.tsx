@@ -5,6 +5,7 @@ import "./globals.css"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { ThemeProvider } from "@/components/theme-provider"
+import { CartProvider } from "@/components/commerce/cart-context"
 import { AIAssistantProvider } from "@/components/ai-assistant/ai-assistant-provider"
 import { AuthProvider } from "@/hooks/use-auth"
 import { PrototypePopup } from "@/components/prototype-popup"
@@ -40,18 +41,20 @@ export default function RootLayout({
           disableTransitionOnChange={false}
           storageKey="the-new-alkebulan-theme"
         >
-          <AuthProvider>
-            <AIAssistantProvider>
-              <div className="min-h-screen flex flex-col theme-transition">
-                <Navbar />
-                <main className="flex-1 pt-16 theme-transition">{children}</main>
-                <Footer />
-              </div>
-              <PrototypePopup />
-              <FriendRequestNotification />
-              <Toaster position="top-right" />
-            </AIAssistantProvider>
-          </AuthProvider>
+          <CartProvider>
+            <AuthProvider>
+              <AIAssistantProvider>
+                <div className="min-h-screen flex flex-col theme-transition">
+                  <Navbar />
+                  <main className="flex-1 pt-16 theme-transition">{children}</main>
+                  <Footer />
+                </div>
+                <PrototypePopup />
+                <FriendRequestNotification />
+                <Toaster position="top-right" />
+              </AIAssistantProvider>
+            </AuthProvider>
+          </CartProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -25,6 +25,7 @@ import {
 import Link from "next/link"
 import { getSupabaseClient } from "@/lib/supabase"
 import { toast } from "sonner"
+import { useCart } from "@/components/commerce/cart-context"
 
 interface Product {
   id: string
@@ -83,6 +84,7 @@ export default function MarketplacePage() {
     growthRate: 0
   })
   const [productImages, setProductImages] = useState<Record<string, string[]>>({})
+  const { addItem } = useCart()
 
   // Fetch live data from backend
   useEffect(() => {
@@ -516,6 +518,7 @@ export default function MarketplacePage() {
                           <Button
                             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                             disabled={product.inventory <= 0}
+                            onClick={() => addItem({ id: product.id, name: product.name, price: product.sales_price ?? product.actual_price, imageUrl: getProductImage(product) })}
                           >
                             <ShoppingCart className="mr-2 h-4 w-4" />
                             {product.inventory > 0 ? "Add to Cart" : "Out of Stock"}
