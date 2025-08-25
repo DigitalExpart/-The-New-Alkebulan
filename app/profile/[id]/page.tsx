@@ -124,6 +124,7 @@ export default function UserProfilePage() {
     try {
       const supabase = getSupabaseClient()
       
+      // Prefer explicit FK aliases to avoid relationship ambiguity
       const { data, error } = await supabase
         .from('community_posts')
         .select(`
@@ -131,20 +132,76 @@ export default function UserProfilePage() {
           content,
           created_at,
           community_id,
+          user:profiles!community_posts_user_id_fkey(
+            first_name,
+            last_name,
+            avatar_url
+          ),
           communities (
             name
           )
         `)
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
-        .limit(10)
+        .limit(20)
 
       if (error) {
         console.error('Error fetching posts:', error)
+        // Fall back to a two-step fetch below
+      }
+
+      if (data && data.length > 0 && !error) {
+        // Normalize in case the relation returns an array/object
+        const normalized: UserPost[] = (data || []).map((p: any) => ({
+          id: p.id,
+          content: p.content,
+          created_at: p.created_at,
+          community_id: p.community_id,
+          community: {
+            name: (Array.isArray(p.communities) ? p.communities[0]?.name : p.communities?.name) || 'Community'
+          }
+        }))
+        setPosts(normalized)
         return
       }
 
-      setPosts(data || [])
+      // Fallback: two-step fetch (posts then communities)
+      const { data: basicPosts, error: basicErr } = await supabase
+        .from('community_posts')
+        .select('id, content, created_at, community_id')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      if (basicErr) {
+        console.error('Error fetching basic posts:', basicErr)
+        return
+      }
+
+      const communityIds = (basicPosts || []).map((p: any) => p.community_id)
+      let communityMap: Record<string, string> = {}
+      if (communityIds.length > 0) {
+        const { data: comms, error: commErr } = await supabase
+          .from('communities')
+          .select('id, name')
+          .in('id', communityIds)
+
+        if (!commErr && comms) {
+          comms.forEach((c: any) => {
+            communityMap[c.id] = c.name
+          })
+        }
+      }
+
+      const normalizedFallback: UserPost[] = (basicPosts || []).map((p: any) => ({
+        id: p.id,
+        content: p.content,
+        created_at: p.created_at,
+        community_id: p.community_id,
+        community: { name: communityMap[p.community_id] || 'Community' }
+      }))
+
+      setPosts(normalizedFallback)
     } catch (error) {
       console.error('Error fetching posts:', error)
     }
