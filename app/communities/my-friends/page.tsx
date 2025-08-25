@@ -6,15 +6,18 @@ import { Input } from "@/components/ui/input"
 import { FriendCard } from "@/components/friends/friend-card"
 import { FriendsFilters } from "@/components/friends/friends-filters"
 import { FriendsStats } from "@/components/friends/friends-stats"
-import { friendsData } from "@/data/friends-data"
 import type { FriendFilters, ViewMode, FriendStats } from "@/types/friends"
 import { useFriendRequests } from "@/hooks/use-friend-requests"
-import { Search, Grid3X3, List, Users, UserPlus, SortAsc, Inbox } from "lucide-react"
+import { Search, Grid3X3, List, Users, UserPlus, SortAsc, Inbox, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { isAfter, subDays } from "date-fns"
+import { useAuth } from "@/hooks/use-auth"
+import { getSupabaseClient } from "@/lib/supabase"
+import { toast } from "sonner"
 
 export default function MyFriendsPage() {
+  const { user } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
   const [viewMode, setViewMode] = useState<ViewMode>("grid")
   const [sortBy, setSortBy] = useState("name")
@@ -34,9 +37,95 @@ export default function MyFriendsPage() {
     fetchSentRequests()
   }, [])
 
+  // Live friends state
+  const [friends, setFriends] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetch friends from Supabase
+  useEffect(() => {
+    if (!user) return
+
+    const fetchFriends = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const supabase = getSupabaseClient()
+        // First fetch accepted friendships (friend ids)
+        const { data, error } = await supabase
+          .from('friendships')
+          .select('id, user_id, friend_id, status, created_at')
+          .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
+          .eq('status', 'accepted')
+
+        if (error) {
+          console.error('Error fetching friendships:', error)
+          setError('Failed to load friends')
+          toast.error('Failed to load friends')
+          return
+        }
+
+        const friendIds = (data || []).map((row: any) => (row.user_id === user.id ? row.friend_id : row.user_id))
+
+        if (friendIds.length === 0) {
+          setFriends([])
+          return
+        }
+
+        // Now fetch friend profiles separately (FK points to auth.users, so we resolve via profiles)
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, email, avatar_url, bio, location, interests, occupation, created_at, updated_at')
+          .in('id', friendIds)
+
+        if (profilesError) {
+          console.error('Error fetching friend profiles:', profilesError)
+          setError('Failed to load friends')
+          toast.error('Failed to load friends')
+          return
+        }
+
+        const mapped = (data || []).map((f: any) => {
+          const otherId = f.user_id === user.id ? f.friend_id : f.user_id
+          const friend = profiles?.find((p: any) => p.id === otherId)
+          return {
+            id: otherId,
+            name: `${friend?.first_name || ''} ${friend?.last_name || ''}`.trim() || 'Unknown User',
+            avatar: friend?.avatar_url || "/placeholder.svg?height=100&width=100",
+            location: friend?.location || 'Unknown Location',
+            bio: friend?.bio || 'No bio available',
+            tags: friend?.interests || [],
+            mutualCommunities: [],
+            sharedProjects: [],
+            friendSince: f.created_at,
+            lastActive: friend?.updated_at || friend?.created_at || f.created_at,
+            isOnline: (() => {
+              const last = new Date(friend?.updated_at || friend?.created_at || f.created_at).getTime()
+              const fiveMin = 5 * 60 * 1000
+              return Date.now() - last < fiveMin
+            })(),
+            relationship: 'friend' as const,
+            profileUrl: `/profile/${otherId}`,
+            messageUrl: `/messages?user=${otherId}`,
+          }
+        })
+
+        setFriends(mapped)
+      } catch (err) {
+        console.error('Error fetching friends:', err)
+        setError('Failed to load friends')
+        toast.error('Failed to load friends')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchFriends()
+  }, [user])
+
   // Filter and sort friends
   const filteredFriends = useMemo(() => {
-    const filtered = friendsData.filter((friend) => {
+    const filtered = friends.filter((friend) => {
       // Search filter
       const matchesSearch =
         friend.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -92,18 +181,18 @@ export default function MyFriendsPage() {
     })
 
     return filtered
-  }, [searchQuery, filters, sortBy])
+  }, [searchQuery, filters, sortBy, friends])
 
   // Calculate stats
   const stats: FriendStats = useMemo(() => {
-    const totalFriends = friendsData.length
-    const onlineFriends = friendsData.filter((friend) => friend.isOnline).length
-    const recentlyAdded = friendsData.filter((friend) =>
+    const totalFriends = friends.length
+    const onlineFriends = friends.filter((friend) => friend.isOnline).length
+    const recentlyAdded = friends.filter((friend) =>
       isAfter(new Date(friend.friendSince), subDays(new Date(), 30)),
     ).length
 
     // Calculate mutual connections (simplified - just count unique communities)
-    const allCommunities = friendsData.flatMap((friend) => friend.mutualCommunities)
+    const allCommunities = friends.flatMap((friend) => friend.mutualCommunities)
     const mutualConnections = new Set(allCommunities).size
 
     return {
@@ -114,7 +203,7 @@ export default function MyFriendsPage() {
       sentRequests: sentRequests?.length || 0,
       receivedRequests: pendingRequests?.length || 0,
     }
-  }, [pendingRequests, sentRequests])
+  }, [pendingRequests, sentRequests, friends])
 
   const handleRemoveFriend = (friendId: string) => {
     // In a real app, this would make an API call to remove the friend
@@ -205,7 +294,7 @@ export default function MyFriendsPage() {
             {/* Results count */}
             <div className="flex items-center justify-between mb-6">
               <p className="text-sm text-muted-foreground">
-                {filteredFriends.length} of {friendsData.length} friends
+                {filteredFriends.length} of {friends.length} friends
               </p>
               {searchQuery && (
                 <Button
@@ -219,19 +308,40 @@ export default function MyFriendsPage() {
               )}
             </div>
 
+            {/* Loading State */}
+            {loading && (
+              <div className="text-center py-12">
+                <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Loading friends...</h3>
+                <p className="text-muted-foreground">Please wait while we fetch your friends list.</p>
+              </div>
+            )}
+
+            {/* Error State */}
+            {error && !loading && (
+              <div className="text-center py-12">
+                <Users className="w-12 h-12 text-destructive mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Failed to load friends</h3>
+                <p className="text-muted-foreground mb-4">{error}</p>
+                <Button onClick={() => window.location.reload()}>Try Again</Button>
+              </div>
+            )}
+
             {/* Friends Grid/List */}
-            <div
-              className={`grid gap-6 ${
-                viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
-              }`}
-            >
-              {filteredFriends.map((friend) => (
-                <FriendCard key={friend.id} friend={friend} viewMode={viewMode} onRemoveFriend={handleRemoveFriend} />
-              ))}
-            </div>
+            {!loading && !error && (
+              <div
+                className={`grid gap-6 ${
+                  viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                }`}
+              >
+                {filteredFriends.map((friend) => (
+                  <FriendCard key={friend.id} friend={friend} viewMode={viewMode} onRemoveFriend={handleRemoveFriend} />
+                ))}
+              </div>
+            )}
 
             {/* Empty state */}
-            {filteredFriends.length === 0 && (
+            {!loading && !error && filteredFriends.length === 0 && (
               <div className="text-center py-12">
                 <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No friends found</h3>

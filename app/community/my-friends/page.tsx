@@ -44,55 +44,65 @@ export default function MyFriendsPage() {
         
         const supabase = getSupabaseClient()
         
-        // Fetch accepted friendships for the current user
+        // Fetch accepted friendships where the current user is either side
         const { data: friendships, error: friendshipsError } = await supabase
           .from('friendships')
-          .select(`
-            *,
-            friend:profiles!friendships_friend_id_fkey (
-              id,
-              first_name,
-              last_name,
-              email,
-              avatar_url,
-              bio,
-              location,
-              occupation,
-              interests,
-              created_at
-            )
-          `)
-          .eq('user_id', user.id)
+          .select('id, user_id, friend_id, status, created_at')
+          .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
           .eq('status', 'accepted')
-        
+
         if (friendshipsError) {
           console.error('Error fetching friendships:', friendshipsError)
           setError('Failed to load friends')
           toast.error('Failed to load friends')
           return
         }
-        
-        // Transform the data to match our Friend interface
-        const transformedFriends = friendships?.map(friendship => {
-          const friend = friendship.friend
+
+        const friendIds = (friendships || []).map(f => (f.user_id === user.id ? f.friend_id : f.user_id))
+
+        if (friendIds.length === 0) {
+          setFriends([])
+          return
+        }
+
+        // Fetch corresponding profiles
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, email, avatar_url, bio, location, occupation, interests, created_at, updated_at')
+          .in('id', friendIds)
+
+        if (profilesError) {
+          console.error('Error fetching profiles:', profilesError)
+          setError('Failed to load friends')
+          toast.error('Failed to load friends')
+          return
+        }
+
+        const transformedFriends = (friendships || []).map(friendship => {
+          const otherId = friendship.user_id === user.id ? friendship.friend_id : friendship.user_id
+          const friend = profiles?.find(p => p.id === otherId)
           return {
-            id: friend.id,
-            name: `${friend.first_name || ''} ${friend.last_name || ''}`.trim() || 'Unknown User',
-            avatar: friend.avatar_url || "/placeholder.svg?height=100&width=100",
-            location: friend.location || 'Unknown Location',
-            bio: friend.bio || 'No bio available',
-            tags: friend.interests || [],
-            mutualCommunities: [], // Will be populated when communities are implemented
-            sharedProjects: [], // Will be populated when projects are implemented
+            id: otherId,
+            name: `${friend?.first_name || ''} ${friend?.last_name || ''}`.trim() || 'Unknown User',
+            avatar: friend?.avatar_url || "/placeholder.svg?height=100&width=100",
+            location: friend?.location || 'Unknown Location',
+            bio: friend?.bio || 'No bio available',
+            tags: friend?.interests || [],
+            mutualCommunities: [], // TODO: populate via community_members
+            sharedProjects: [],
             friendSince: friendship.created_at,
-            lastActive: friend.updated_at || friend.created_at,
-            isOnline: Math.random() > 0.7, // Placeholder - implement real online status
+            lastActive: friend?.updated_at || friend?.created_at || friendship.created_at,
+            isOnline: (() => {
+              const last = new Date(friend?.updated_at || friend?.created_at || friendship.created_at).getTime()
+              const fiveMin = 5 * 60 * 1000
+              return Date.now() - last < fiveMin
+            })(),
             relationship: 'friend' as const,
-            profileUrl: `/profile/${friend.id}`,
-            messageUrl: `/messages?user=${friend.id}`,
+            profileUrl: `/profile/${otherId}`,
+            messageUrl: `/messages?user=${otherId}`,
           }
-        }) || []
-        
+        })
+
         setFriends(transformedFriends)
       } catch (err) {
         console.error('Error fetching friends:', err)
@@ -113,13 +123,13 @@ export default function MyFriendsPage() {
       const matchesSearch =
         friend.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         friend.bio?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        friend.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        friend.tags.some((tag: string) => tag.toLowerCase().includes(searchQuery.toLowerCase())) ||
         friend.location?.toLowerCase().includes(searchQuery.toLowerCase())
 
       // Community filter
       const matchesCommunity =
         filters.community === "All Communities" ||
-        friend.mutualCommunities.some((community) => community.toLowerCase().includes(filters.community.toLowerCase()))
+        friend.mutualCommunities.some((community: string) => community.toLowerCase().includes(filters.community.toLowerCase()))
 
       // Location filter
       const matchesLocation = filters.location === "All Locations" || friend.location?.includes(filters.location)
