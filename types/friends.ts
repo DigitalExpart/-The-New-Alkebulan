@@ -31,4 +31,6 @@ export interface FriendStats {
   onlineFriends: number
   mutualConnections: number
   recentlyAdded: number
+  sentRequests?: number
+  receivedRequests?: number
 }

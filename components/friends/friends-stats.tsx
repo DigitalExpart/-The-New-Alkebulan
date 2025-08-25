@@ -2,7 +2,8 @@
 
 import type { FriendStats } from "@/types/friends"
 import { Card, CardContent } from "@/components/ui/card"
-import { Users, Wifi, Link2, UserPlus } from "lucide-react"
+import { Users, Wifi, Link2, UserPlus, Inbox } from "lucide-react"
+import Link from "next/link"
 
 interface FriendsStatsProps {
   stats: FriendStats
@@ -34,10 +35,18 @@ export function FriendsStats({ stats }: FriendsStatsProps) {
       icon: UserPlus,
       color: "text-orange-600",
     },
+    {
+      label: "Friend Requests",
+      value: (stats.sentRequests ?? 0) + (stats.receivedRequests ?? 0),
+      icon: Inbox,
+      color: "text-yellow-600",
+      href: "/communities/my-friend-requests",
+      isButton: true,
+    },
   ]
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
       {statItems.map((item) => (
         <Card key={item.label}>
           <CardContent className="p-4">
@@ -46,8 +55,19 @@ export function FriendsStats({ stats }: FriendsStatsProps) {
                 <item.icon className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{item.value}</p>
-                <p className="text-sm text-muted-foreground">{item.label}</p>
+                {item.isButton ? (
+                  <>
+                    <p className="text-2xl font-bold">{item.value}</p>
+                    <Link href={item.href!} className="text-sm text-muted-foreground underline">
+                      {item.label}
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-2xl font-bold">{item.value}</p>
+                    <p className="text-sm text-muted-foreground">{item.label}</p>
+                  </>
+                )}
               </div>
             </div>
           </CardContent>

@@ -113,51 +113,117 @@ export function CommunityFeed() {
       const supabase = getSupabaseClient()
       if (!supabase) return
 
-      // Get posts from communities the user is a member of
-      const { data: communityPosts, error: postsError } = await supabase
-        .from('posts')
-        .select(`
-          id,
-          content,
-          user_id,
-          created_at,
-          metadata,
-          profiles!posts_user_id_fkey (
-            full_name,
-            avatar_url
-          )
-        `)
-        .not('metadata->>community_id', 'is', null)
-        .in('metadata->>community_id', userCommunities.map(c => c.id))
-        .order('created_at', { ascending: false })
-        .limit(10)
-
-      if (postsError) {
-        console.error('Error fetching community posts:', postsError)
+      const communityIds = userCommunities.map(c => c.id)
+      if (communityIds.length === 0) {
+        setPosts([])
         return
       }
 
-      const formattedPosts = communityPosts?.map(post => ({
+      // Prefer dedicated community_posts table used elsewhere in the app
+      const { data, error } = await supabase
+        .from('community_posts')
+        .select(`
+          id,
+          content,
+          created_at,
+          user_id,
+          community_id,
+          profiles!community_posts_user_id_fkey (
+            first_name,
+            last_name,
+            avatar_url
+          ),
+          communities (
+            name,
+            description,
+            avatar_url
+          )
+        `)
+        .in('community_id', communityIds)
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      const formattedFromCommunityPosts: CommunityPost[] = (data || []).map((post: any) => ({
         id: post.id,
         content: post.content,
         user_id: post.user_id,
-        community_id: post.metadata?.community_id,
+        community_id: post.community_id,
         created_at: post.created_at,
-        likes_count: 0, // Will be updated when likes table is available
-        comments_count: 0, // Will be updated when comments table is available
-        shares_count: 0, // Will be updated when shares table is available
+        likes_count: 0,
+        comments_count: 0,
+        shares_count: 0,
         user: {
-          full_name: post.profiles?.full_name || 'Anonymous',
+          full_name: `${post.profiles?.first_name ?? 'User'} ${post.profiles?.last_name ?? ''}`.trim(),
           avatar_url: post.profiles?.avatar_url || ''
         },
         community: {
-          name: userCommunities.find(c => c.id === post.metadata?.community_id)?.name || 'Unknown Community',
-          description: userCommunities.find(c => c.id === post.metadata?.community_id)?.description || '',
-          avatar_url: userCommunities.find(c => c.id === post.metadata?.community_id)?.avatar_url || ''
+          name: (Array.isArray(post.communities) ? post.communities[0]?.name : post.communities?.name) ||
+                (userCommunities.find(c => c.id === post.community_id)?.name || 'Community'),
+          description: (Array.isArray(post.communities) ? post.communities[0]?.description : post.communities?.description) ||
+                       (userCommunities.find(c => c.id === post.community_id)?.description || ''),
+          avatar_url: (Array.isArray(post.communities) ? post.communities[0]?.avatar_url : post.communities?.avatar_url) ||
+                      (userCommunities.find(c => c.id === post.community_id)?.avatar_url || '')
         }
-      })) || []
+      }))
 
-      setPosts(formattedPosts)
+      // Fallback/compatibility: old "posts" table with metadata.community_id
+      let formattedFromLegacyPosts: CommunityPost[] = []
+      try {
+        const { data: legacy, error: legacyErr } = await supabase
+          .from('posts')
+          .select(`
+            id,
+            content,
+            user_id,
+            created_at,
+            metadata,
+            profiles!posts_user_id_fkey (
+              full_name,
+              avatar_url
+            )
+          `)
+          .not('metadata->>community_id', 'is', null)
+          .in('metadata->>community_id', communityIds)
+          .order('created_at', { ascending: false })
+          .limit(20)
+
+        if (!legacyErr && legacy) {
+          formattedFromLegacyPosts = legacy.map((post: any) => ({
+            id: post.id,
+            content: post.content,
+            user_id: post.user_id,
+            community_id: post.metadata?.community_id,
+            created_at: post.created_at,
+            likes_count: 0,
+            comments_count: 0,
+            shares_count: 0,
+            user: {
+              full_name: post.profiles?.full_name || 'Anonymous',
+              avatar_url: post.profiles?.avatar_url || ''
+            },
+            community: {
+              name: userCommunities.find(c => c.id === post.metadata?.community_id)?.name || 'Community',
+              description: userCommunities.find(c => c.id === post.metadata?.community_id)?.description || '',
+              avatar_url: userCommunities.find(c => c.id === post.metadata?.community_id)?.avatar_url || ''
+            }
+          }))
+        }
+      } catch (_) {
+        // ignore legacy fetch failures
+      }
+
+      // Merge, dedupe by composite key (community_id + id) and sort by date
+      const merged = [...formattedFromCommunityPosts, ...formattedFromLegacyPosts]
+      const uniqueMap = new Map<string, CommunityPost>()
+      merged.forEach(p => {
+        const key = `${p.community_id}-${p.id}`
+        if (!uniqueMap.has(key)) uniqueMap.set(key, p)
+      })
+      const finalPosts = Array.from(uniqueMap.values()).sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
+
+      setPosts(finalPosts)
     } catch (error) {
       console.error('Error fetching community posts:', error)
     }

@@ -21,6 +21,7 @@ export interface FriendRequest {
 export function useFriendRequests() {
   const { user } = useAuth()
   const [pendingRequests, setPendingRequests] = useState<FriendRequest[]>([])
+  const [sentRequests, setSentRequests] = useState<FriendRequest[]>([])
   const [loading, setLoading] = useState(false)
 
   // Fetch pending friend requests
@@ -67,6 +68,49 @@ export function useFriendRequests() {
       console.error('Error fetching friend requests:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Fetch sent (outgoing) friend requests
+  const fetchSentRequests = async () => {
+    if (!user) return
+
+    try {
+      const supabase = getSupabaseClient()
+      const { data, error } = await supabase
+        .from('friendships')
+        .select(`
+          id,
+          user_id,
+          friend_id,
+          status,
+          created_at,
+          profiles!friendships_friend_id_fkey (
+            first_name,
+            last_name,
+            avatar_url
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('status', 'pending')
+
+      if (error) {
+        console.error('Error fetching sent friend requests:', error)
+        return
+      }
+
+      const requests = data?.map(item => ({
+        id: item.id,
+        user_id: item.user_id,
+        friend_id: item.friend_id,
+        status: item.status,
+        created_at: item.created_at,
+        profile: item.profiles
+      })) || []
+
+      setSentRequests(requests)
+    } catch (error) {
+      console.error('Error fetching sent friend requests:', error)
     }
   }
 
@@ -182,15 +226,18 @@ export function useFriendRequests() {
   useEffect(() => {
     if (user) {
       fetchPendingRequests()
+      fetchSentRequests()
     }
   }, [user])
 
   return {
     pendingRequests,
+    sentRequests,
     loading,
     acceptRequest,
     rejectRequest,
     sendRequest,
-    fetchPendingRequests
+    fetchPendingRequests,
+    fetchSentRequests
   }
 }

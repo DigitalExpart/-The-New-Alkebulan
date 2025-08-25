@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { FriendCard } from "@/components/friends/friend-card"
@@ -8,7 +8,9 @@ import { FriendsFilters } from "@/components/friends/friends-filters"
 import { FriendsStats } from "@/components/friends/friends-stats"
 import { friendsData } from "@/data/friends-data"
 import type { FriendFilters, ViewMode, FriendStats } from "@/types/friends"
-import { Search, Grid3X3, List, Users, UserPlus, SortAsc } from "lucide-react"
+import { useFriendRequests } from "@/hooks/use-friend-requests"
+import { Search, Grid3X3, List, Users, UserPlus, SortAsc, Inbox } from "lucide-react"
+import Link from "next/link"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { isAfter, subDays } from "date-fns"
 
@@ -24,6 +26,13 @@ export default function MyFriendsPage() {
     recentlyAdded: false,
     onlineOnly: false,
   })
+
+  const { pendingRequests, sentRequests, fetchPendingRequests, fetchSentRequests } = useFriendRequests()
+
+  useEffect(() => {
+    fetchPendingRequests()
+    fetchSentRequests()
+  }, [])
 
   // Filter and sort friends
   const filteredFriends = useMemo(() => {
@@ -102,8 +111,10 @@ export default function MyFriendsPage() {
       onlineFriends,
       mutualConnections,
       recentlyAdded,
+      sentRequests: sentRequests?.length || 0,
+      receivedRequests: pendingRequests?.length || 0,
     }
-  }, [])
+  }, [pendingRequests, sentRequests])
 
   const handleRemoveFriend = (friendId: string) => {
     // In a real app, this would make an API call to remove the friend
@@ -122,6 +133,12 @@ export default function MyFriendsPage() {
             </div>
 
             <div className="flex items-center space-x-2 mt-4 lg:mt-0">
+              <Link href="/communities/my-friend-requests" passHref>
+                <Button variant="outline" size="sm">
+                  <Inbox className="w-4 h-4 mr-2" />
+                  Friend Requests
+                </Button>
+              </Link>
               <Button variant="outline" size="sm">
                 <UserPlus className="w-4 h-4 mr-2" />
                 Find Friends
@@ -227,6 +244,12 @@ export default function MyFriendsPage() {
                     : "Start building your network by connecting with people in the community."}
                 </p>
                 <div className="flex justify-center space-x-2">
+                  <Link href="/communities/my-friend-requests" passHref>
+                    <Button variant="outline">
+                      <Inbox className="w-4 h-4 mr-2" />
+                      View Friend Requests
+                    </Button>
+                  </Link>
                   {(searchQuery ||
                     Object.values(filters).some(
                       (f) =>
