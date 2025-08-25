@@ -34,18 +34,7 @@ export function useFriendRequests() {
       
       const { data, error } = await supabase
         .from('friendships')
-        .select(`
-          id,
-          user_id,
-          friend_id,
-          status,
-          created_at,
-          profiles!friendships_user_id_fkey (
-            first_name,
-            last_name,
-            avatar_url
-          )
-        `)
+        .select('id, user_id, friend_id, status, created_at')
         .eq('friend_id', user.id)
         .eq('status', 'pending')
 
@@ -54,14 +43,20 @@ export function useFriendRequests() {
         return
       }
 
-      const requests = data?.map(item => ({
+      const senderIds = (data || []).map((i: any) => i.user_id)
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, avatar_url')
+        .in('id', senderIds)
+
+      const requests = (data || []).map((item: any) => ({
         id: item.id,
         user_id: item.user_id,
         friend_id: item.friend_id,
         status: item.status,
         created_at: item.created_at,
-        profile: item.profiles
-      })) || []
+        profile: profiles?.find(p => p.id === item.user_id) || null
+      }))
 
       setPendingRequests(requests)
     } catch (error) {
@@ -79,18 +74,7 @@ export function useFriendRequests() {
       const supabase = getSupabaseClient()
       const { data, error } = await supabase
         .from('friendships')
-        .select(`
-          id,
-          user_id,
-          friend_id,
-          status,
-          created_at,
-          profiles!friendships_friend_id_fkey (
-            first_name,
-            last_name,
-            avatar_url
-          )
-        `)
+        .select('id, user_id, friend_id, status, created_at')
         .eq('user_id', user.id)
         .eq('status', 'pending')
 
@@ -99,14 +83,20 @@ export function useFriendRequests() {
         return
       }
 
-      const requests = data?.map(item => ({
+      const recipientIds = (data || []).map((i: any) => i.friend_id)
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, avatar_url')
+        .in('id', recipientIds)
+
+      const requests = (data || []).map((item: any) => ({
         id: item.id,
         user_id: item.user_id,
         friend_id: item.friend_id,
         status: item.status,
         created_at: item.created_at,
-        profile: item.profiles
-      })) || []
+        profile: profiles?.find(p => p.id === item.friend_id) || null
+      }))
 
       setSentRequests(requests)
     } catch (error) {
@@ -227,6 +217,41 @@ export function useFriendRequests() {
     if (user) {
       fetchPendingRequests()
       fetchSentRequests()
+    }
+  }, [user])
+
+  // Realtime updates
+  useEffect(() => {
+    if (!user) return
+    const supabase = getSupabaseClient()
+
+    const channelIncoming = supabase
+      .channel(`friendships-incoming-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'friendships', filter: `friend_id=eq.${user.id}` },
+        () => {
+          fetchPendingRequests()
+          fetchSentRequests()
+        }
+      )
+      .subscribe()
+
+    const channelOutgoing = supabase
+      .channel(`friendships-outgoing-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'friendships', filter: `user_id=eq.${user.id}` },
+        () => {
+          fetchPendingRequests()
+          fetchSentRequests()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channelIncoming)
+      supabase.removeChannel(channelOutgoing)
     }
   }, [user])
 

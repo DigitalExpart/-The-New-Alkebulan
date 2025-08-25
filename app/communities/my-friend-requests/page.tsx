@@ -1,6 +1,4 @@
 "use client"
-
-import { useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -9,13 +7,8 @@ import { useFriendRequests } from "@/hooks/use-friend-requests"
 import { useRouter } from "next/navigation"
 
 export default function MyFriendRequestsPage() {
-  const { pendingRequests, sentRequests, loading, acceptRequest, rejectRequest, fetchPendingRequests, fetchSentRequests } = useFriendRequests()
+  const { pendingRequests, sentRequests, loading, acceptRequest, rejectRequest } = useFriendRequests()
   const router = useRouter()
-
-  useEffect(() => {
-    fetchPendingRequests()
-    fetchSentRequests()
-  }, [])
 
   return (
     <div className="min-h-screen bg-background pt-16">
@@ -25,7 +18,7 @@ export default function MyFriendRequestsPage() {
             <h1 className="text-3xl font-bold mb-2">Friend Requests</h1>
             <p className="text-muted-foreground">Manage requests you've received</p>
           </div>
-          <Button variant="outline" onClick={() => router.push('/community/my-friends')}>
+          <Button variant="outline" onClick={() => router.push('/communities/my-friends')}>
             Back to Friends
           </Button>
         </div>
