@@ -174,14 +174,30 @@ export default function UserProfilePage() {
         return
       }
 
-      const userCommunities = data?.map(item => ({
+      // Compute live member counts per community
+      const communityIds = (data || []).map((item: any) => item.communities?.id).filter(Boolean)
+      let memberCountMap: Record<string, number> = {}
+      if (communityIds.length > 0) {
+        const { data: memberRows, error: memberErr } = await supabase
+          .from('community_members')
+          .select('community_id')
+          .in('community_id', communityIds)
+
+        if (!memberErr && memberRows) {
+          memberRows.forEach((row: any) => {
+            memberCountMap[row.community_id] = (memberCountMap[row.community_id] || 0) + 1
+          })
+        }
+      }
+
+      const userCommunities = (data || []).map((item: any) => ({
         id: item.communities.id,
         name: item.communities.name,
         description: item.communities.description,
-        member_count: item.communities.member_count,
+        member_count: memberCountMap[item.communities.id] ?? item.communities.member_count ?? 0,
         role: item.role,
         joined_at: item.joined_at
-      })) || []
+      }))
 
       setCommunities(userCommunities)
     } catch (error) {

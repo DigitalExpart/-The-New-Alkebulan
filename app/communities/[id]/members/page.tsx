@@ -47,7 +47,7 @@ export default function CommunityMembersPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
 
-  const communityId = params.id as string
+  const communityId = (params as { id?: string })?.id as string
   
   // Debug logging
   console.log('CommunityMembersPage loaded with ID:', communityId)
@@ -94,6 +94,7 @@ export default function CommunityMembersPage() {
       const supabase = getSupabaseClient()
 
       // Fetch members with their profile (first_name, last_name, avatar_url)
+      // Primary: try joined select (most efficient) using explicit FK alias
       const { data: rows, error } = await supabase
         .from('community_members')
         .select(`
@@ -101,7 +102,7 @@ export default function CommunityMembersPage() {
           user_id,
           role,
           joined_at,
-          profiles:profiles!community_members_user_id_fkey (
+          user:profiles!community_members_user_id_fkey (
             id,
             first_name,
             last_name,
@@ -111,51 +112,104 @@ export default function CommunityMembersPage() {
         .eq('community_id', communityId)
         .order('joined_at', { ascending: true })
 
-      if (error) throw error
-
-      if (!rows || rows.length === 0) {
-        // Fallback: show owner as the only member if table is empty
-        if (community?.created_by) {
-          setMembers([
-            {
-              id: 'fallback-owner',
-              user_id: community.created_by,
-              role: 'owner',
-              joined_at: community.created_at,
-              user: {
-                first_name: 'Community',
-                last_name: 'Owner',
-                avatar_url: null,
-                bio: null,
-                location: null,
-                company: null,
-                job_title: null
-              }
-            }
-          ])
-        } else {
-          setMembers([])
+      if (error) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('Joined members+profiles query failed (will fallback):', error)
         }
+        // Fallback to two-step fetch below
+      }
+
+      if (rows && rows.length > 0 && !error) {
+        const mapped: CommunityMember[] = rows.map((r: any) => {
+          const p = Array.isArray(r.user) ? r.user[0] : r.user
+          return {
+            id: r.id,
+            user_id: r.user_id,
+            role: r.role,
+            joined_at: r.joined_at,
+            user: {
+              first_name: p?.first_name ?? 'User',
+              last_name: p?.last_name ?? '',
+              avatar_url: p?.avatar_url ?? undefined,
+              bio: undefined,
+              location: undefined,
+              company: undefined,
+              job_title: undefined
+            }
+          }
+        })
+        setMembers(mapped)
         return
       }
 
-      const mapped: CommunityMember[] = rows.map((r: any) => ({
-        id: r.id,
-        user_id: r.user_id,
-        role: r.role,
-        joined_at: r.joined_at,
-        user: {
-          first_name: r.profiles?.first_name ?? 'User',
-          last_name: r.profiles?.last_name ?? '',
-          avatar_url: r.profiles?.avatar_url ?? null,
-          bio: null,
-          location: null,
-          company: null,
-          job_title: null
-        }
-      }))
+      // Fallback: two-step approach in case FK aliasing or policies block joined select
+      const { data: basicMembers, error: membersError } = await supabase
+        .from('community_members')
+        .select('id, user_id, role, joined_at')
+        .eq('community_id', communityId)
+        .order('joined_at', { ascending: true })
 
-      setMembers(mapped)
+      if (membersError) {
+        console.error('Members fetch failed:', membersError)
+        throw membersError
+      }
+
+      const ids = (basicMembers || []).map((m: any) => m.user_id)
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, avatar_url')
+        .in('id', ids)
+
+      if (profilesError) {
+        console.error('Profiles fetch failed:', profilesError)
+      }
+
+      const mapped: CommunityMember[] = (basicMembers || []).map((m: any) => {
+        const p = profiles?.find((x: any) => x.id === m.user_id)
+        return {
+          id: m.id,
+          user_id: m.user_id,
+          role: m.role,
+          joined_at: m.joined_at,
+          user: {
+            first_name: p?.first_name ?? `User_${String(m.user_id).slice(0, 4)}`,
+            last_name: p?.last_name ?? String(m.user_id).slice(4, 8),
+            avatar_url: p?.avatar_url ?? undefined,
+            bio: undefined,
+            location: undefined,
+            company: undefined,
+            job_title: undefined
+          }
+        }
+      })
+
+      if (mapped.length > 0) {
+        setMembers(mapped)
+        return
+      }
+
+      // If no members found even after two-step fetch, fall back to showing owner only
+      if (community?.created_by) {
+        setMembers([
+          {
+            id: 'fallback-owner',
+            user_id: community.created_by,
+            role: 'owner',
+            joined_at: community.created_at,
+            user: {
+              first_name: 'Community',
+              last_name: 'Owner',
+              avatar_url: undefined,
+              bio: undefined,
+              location: undefined,
+              company: undefined,
+              job_title: undefined
+            }
+          }
+        ])
+      } else {
+        setMembers([])
+      }
     } catch (error) {
       console.error('Error fetching members:', error)
       toast.error('Failed to load community members')
