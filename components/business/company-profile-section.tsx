@@ -81,7 +81,7 @@ export function CompanyProfileSection({ profile, onSaved }: CompanyProfileSectio
       setEditedProfile(updatedUiShape as any)
       onSaved?.(updatedUiShape)
       toast.success('Company profile updated')
-      setIsEditing(false)
+    setIsEditing(false)
     } finally {
       setSaving(false)
     }

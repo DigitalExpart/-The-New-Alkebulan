@@ -102,6 +102,7 @@ export default function MyCommunitiesPage() {
   })
   const [recentPosts, setRecentPosts] = useState<CommunityPost[]>([])
   const [userActivities, setUserActivities] = useState<CommunityActivity[]>([])
+  const [memberCountMap, setMemberCountMap] = useState<Record<string, number>>({})
 
   // Fetch user's communities and stats on component mount
   useEffect(() => {
@@ -120,6 +121,15 @@ export default function MyCommunitiesPage() {
       return () => clearTimeout(timeout)
     }
   }, [user])
+
+  // Fetch live member counts whenever the user's community list changes
+  useEffect(() => {
+    if (userCommunities.length > 0) {
+      fetchMemberCounts()
+    } else {
+      setMemberCountMap({})
+    }
+  }, [userCommunities])
 
   const fetchUserCommunities = async () => {
     if (!user) return
@@ -151,7 +161,9 @@ export default function MyCommunitiesPage() {
         console.error('Error fetching memberships:', membershipError)
         toast.error('Failed to load communities')
       } else {
-        const userComms = memberships?.map(m => m.communities).filter(Boolean) || []
+        const userComms = (memberships || [])
+          .map((m: any) => m?.communities)
+          .filter(Boolean) as Community[]
         setUserCommunities(userComms)
         setCommunities(userComms)
       }
@@ -160,6 +172,36 @@ export default function MyCommunitiesPage() {
       toast.error('Failed to load communities')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchMemberCounts = async () => {
+    try {
+      const supabase = getSupabaseClient()
+      const communityIds = userCommunities.map(c => c.id)
+      if (communityIds.length === 0) {
+        setMemberCountMap({})
+        return
+      }
+
+      const { data: memberRows, error } = await supabase
+        .from('community_members')
+        .select('community_id')
+        .in('community_id', communityIds)
+
+      if (error) {
+        console.error('Error fetching member counts:', error)
+        return
+      }
+
+      const counts: Record<string, number> = {}
+      memberRows?.forEach((row: { community_id: string }) => {
+        counts[row.community_id] = (counts[row.community_id] || 0) + 1
+      })
+
+      setMemberCountMap(counts)
+    } catch (err) {
+      console.error('Failed to compute member counts:', err)
     }
   }
 
@@ -226,7 +268,15 @@ export default function MyCommunitiesPage() {
           return
         }
 
-        setRecentPosts(posts || [])
+        const normalizedPosts: CommunityPost[] = (posts || []).map((p: any) => ({
+          id: p.id,
+          content: p.content,
+          created_at: p.created_at,
+          user_id: p.user_id,
+          profile: Array.isArray(p.profiles) ? p.profiles[0] : p.profiles
+        }))
+
+        setRecentPosts(normalizedPosts)
       } else {
         setRecentPosts([])
       }
@@ -262,13 +312,14 @@ export default function MyCommunitiesPage() {
           .limit(10)
 
         if (!postsError && posts) {
-          posts.forEach(post => {
+          posts.forEach((post: any) => {
+            const profile = Array.isArray(post.profiles) ? post.profiles[0] : post.profiles
             activities.push({
               id: post.id,
               type: 'post',
               created_at: post.created_at,
               user_id: post.user_id,
-              profile: post.profile,
+              profile,
               content: post.content,
               post_content: post.content
             })
@@ -298,15 +349,19 @@ export default function MyCommunitiesPage() {
           .limit(10)
 
         if (!joinsError && joins) {
-          joins.forEach(join => {
+          joins.forEach((join: any) => {
+            const profile = Array.isArray(join.profiles) ? join.profiles[0] : join.profiles
+            const communityName = Array.isArray(join.communities)
+              ? join.communities[0]?.name
+              : join.communities?.name
             activities.push({
               id: join.id,
               type: 'join',
               created_at: join.joined_at,
               user_id: join.user_id,
-              profile: join.profile,
-              community_name: join.communities?.name,
-              content: `joined ${join.communities?.name || 'a community'}`
+              profile,
+              community_name: communityName,
+              content: `joined ${communityName || 'a community'}`
             })
           })
         }
@@ -486,7 +541,7 @@ export default function MyCommunitiesPage() {
                     <div className="space-y-3">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Users className="h-4 w-4" />
-                        <span>{community.member_count} members</span>
+                        <span>{(memberCountMap[community.id] ?? community.member_count ?? 0)} members</span>
                       </div>
                       
                       {community.category && (

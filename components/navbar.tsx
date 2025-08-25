@@ -378,7 +378,7 @@ export function Navbar() {
   <span className="text-amber-400 text-2xl font-extrabold">
     Alkebulan
   </span>
-</div>
+              </div>
 
             </button>
           </div>
