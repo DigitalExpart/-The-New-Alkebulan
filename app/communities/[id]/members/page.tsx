@@ -91,145 +91,74 @@ export default function CommunityMembersPage() {
 
   const fetchMembers = async () => {
     try {
-      console.log('Fetching members for community ID:', communityId)
       const supabase = getSupabaseClient()
-      
-      // First get community members
-      const { data: membersData, error: membersError } = await supabase
+
+      // Fetch members with their profile (first_name, last_name, avatar_url)
+      const { data: rows, error } = await supabase
         .from('community_members')
-        .select('id, user_id, role, joined_at')
+        .select(`
+          id,
+          user_id,
+          role,
+          joined_at,
+          profiles:profiles!community_members_user_id_fkey (
+            id,
+            first_name,
+            last_name,
+            avatar_url
+          )
+        `)
         .eq('community_id', communityId)
         .order('joined_at', { ascending: true })
 
-      if (membersError) {
-        console.log('Supabase members query error:', membersError)
-        console.log('Error details:', JSON.stringify(membersError, null, 2))
-        throw membersError
-      }
+      if (error) throw error
 
-      console.log('Raw members data:', membersData)
-
-      if (!membersData || membersData.length === 0) {
-        console.log('No members found, creating fallback owner entry')
+      if (!rows || rows.length === 0) {
+        // Fallback: show owner as the only member if table is empty
         if (community?.created_by) {
-          const fallbackOwner = {
-            id: 'fallback-owner',
-            user_id: community.created_by,
-            role: 'owner',
-            joined_at: community.created_at,
-            user: {
-              id: community.created_by,
-              first_name: 'Community',
-              last_name: 'Owner',
-              avatar_url: null,
-              bio: null,
-              location: null,
-              company: null,
-              job_title: null,
-              email: null
+          setMembers([
+            {
+              id: 'fallback-owner',
+              user_id: community.created_by,
+              role: 'owner',
+              joined_at: community.created_at,
+              user: {
+                first_name: 'Community',
+                last_name: 'Owner',
+                avatar_url: null,
+                bio: null,
+                location: null,
+                company: null,
+                job_title: null
+              }
             }
-          }
-          setMembers([fallbackOwner])
+          ])
         } else {
           setMembers([])
         }
         return
       }
 
-      // Then get profiles for each member
-      const userIds = membersData.map(member => member.user_id)
-      console.log('Fetching profiles for user IDs:', userIds)
-      
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, avatar_url, bio, location, company, job_title, email')
-        .in('id', userIds)
-
-      if (profilesError) {
-        console.log('Profiles query error:', profilesError)
-        console.log('Error details:', JSON.stringify(profilesError, null, 2))
-        // Continue with basic member data if profiles fail
-      }
-
-      console.log('Profiles data:', profilesData)
-
-      // Transform the data to match our interface
-      const transformedMembers = membersData.map(member => {
-        const profile = profilesData?.find(p => p.id === member.user_id) || null
-        
-        if (profile) {
-          // Use real profile data
-          return {
-            id: member.id,
-            user_id: member.user_id,
-            role: member.role,
-            joined_at: member.joined_at,
-            user: {
-              id: profile.id,
-              first_name: profile.first_name || 'User',
-              last_name: profile.last_name || '',
-              avatar_url: profile.avatar_url || null,
-              bio: profile.bio || null,
-              location: profile.location || null,
-              company: profile.company || null,
-              job_title: profile.job_title || null,
-              email: profile.email || null
-            }
-          }
-        } else {
-          // Fallback for members without profiles
-          const userId = member.user_id
-          const firstName = `User_${userId.slice(0, 4)}`
-          const lastName = userId.slice(4, 8)
-          
-          return {
-            id: member.id,
-            user_id: member.user_id,
-            role: member.role,
-            joined_at: member.joined_at,
-            user: {
-              id: member.user_id,
-              first_name: firstName,
-              last_name: lastName,
-              avatar_url: null,
-              bio: null,
-              location: null,
-              company: null,
-              job_title: null,
-              email: null
-            }
-          }
+      const mapped: CommunityMember[] = rows.map((r: any) => ({
+        id: r.id,
+        user_id: r.user_id,
+        role: r.role,
+        joined_at: r.joined_at,
+        user: {
+          first_name: r.profiles?.first_name ?? 'User',
+          last_name: r.profiles?.last_name ?? '',
+          avatar_url: r.profiles?.avatar_url ?? null,
+          bio: null,
+          location: null,
+          company: null,
+          job_title: null
         }
-      })
+      }))
 
-      console.log('Transformed members data:', transformedMembers)
-      setMembers(transformedMembers)
+      setMembers(mapped)
     } catch (error) {
       console.error('Error fetching members:', error)
-      console.error('Error details:', JSON.stringify(error, null, 2))
       toast.error('Failed to load community members')
-      
-      // Create fallback data even on error
-      if (community?.created_by) {
-        const fallbackOwner = {
-          id: 'error-fallback-owner',
-          user_id: community.created_by,
-          role: 'owner',
-          joined_at: community.created_at,
-          user: {
-            id: community.created_by,
-            first_name: 'Community',
-            last_name: 'Owner',
-            avatar_url: null,
-            bio: null,
-            location: null,
-            company: null,
-            job_title: null,
-            email: null
-          }
-        }
-        setMembers([fallbackOwner])
-      }
     } finally {
       setLoading(false)
     }
