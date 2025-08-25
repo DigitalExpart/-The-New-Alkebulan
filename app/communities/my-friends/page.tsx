@@ -222,12 +222,6 @@ export default function MyFriendsPage() {
             </div>
 
             <div className="flex items-center space-x-2 mt-4 lg:mt-0">
-              <Link href="/communities/my-friend-requests" passHref>
-                <Button variant="outline" size="sm">
-                  <Inbox className="w-4 h-4 mr-2" />
-                  Friend Requests
-                </Button>
-              </Link>
               <Button variant="outline" size="sm">
                 <UserPlus className="w-4 h-4 mr-2" />
                 Find Friends
@@ -354,12 +348,6 @@ export default function MyFriendsPage() {
                     : "Start building your network by connecting with people in the community."}
                 </p>
                 <div className="flex justify-center space-x-2">
-                  <Link href="/communities/my-friend-requests" passHref>
-                    <Button variant="outline">
-                      <Inbox className="w-4 h-4 mr-2" />
-                      View Friend Requests
-                    </Button>
-                  </Link>
                   {(searchQuery ||
                     Object.values(filters).some(
                       (f) =>

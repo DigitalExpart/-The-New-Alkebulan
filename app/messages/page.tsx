@@ -1,12 +1,18 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ConversationList } from "@/components/messages/conversation-list"
 import { ChatWindow } from "@/components/messages/chat-window"
+import { useSearchParams } from 'next/navigation'
 
 export default function MessagesPage() {
-  const [selectedConversationId, setSelectedConversationId] = useState<string>()
+  const [selectedConversationId, setSelectedConversationId] = useState<string | undefined>()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const searchParams = useSearchParams()
+  const chatPartnerId = searchParams.get('user') // This is a user ID, not a conversation ID
+
+  // selectedConversationId will be set by ConversationList's onSelectConversation callback
+  // after it finds or creates the actual conversation ID.
 
   const handleOpenSidebar = () => {
     setSidebarOpen(true)
@@ -24,6 +30,7 @@ export default function MessagesPage() {
           onSelectConversation={setSelectedConversationId}
           isOpen={sidebarOpen}
           onClose={handleCloseSidebar}
+          chatPartnerId={chatPartnerId}
         />
 
         {selectedConversationId ? (

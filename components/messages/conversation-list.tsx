@@ -42,6 +42,7 @@ interface ConversationListProps {
   onSelectConversation: (conversationId: string) => void
   isOpen: boolean
   onClose: () => void
+  chatPartnerId?: string // New prop to receive user ID from URL
 }
 
 export function ConversationList({
@@ -49,20 +50,92 @@ export function ConversationList({
   onSelectConversation,
   isOpen,
   onClose,
+  chatPartnerId, // Destructure new prop
 }: ConversationListProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
-  const searchParams = useSearchParams()
-  const selectedUserId = searchParams.get('user')
+  const supabase = getSupabaseClient()
+  // const searchParams = useSearchParams() // No longer directly used here for initial user ID
+  // const selectedUserId = searchParams.get('user') // No longer directly used here for initial user ID
 
+  // Effect to fetch all existing conversations for the current user
   useEffect(() => {
     fetchConversations()
-  }, [])
+  }, [supabase, chatPartnerId, onSelectConversation]) // Include onSelectConversation to ensure initial selection runs after fetch
+
+  // Effect to handle initial chat setup if a chatPartnerId is provided via URL
+  useEffect(() => {
+    const handleInitialChatSetup = async () => {
+      if (!chatPartnerId) return // Only run if a chat partner is specified
+
+      // Only run if a conversation is not already selected for this chatPartnerId
+      const isChatPartnerConversationSelected = conversations.some(conv => 
+        conv.participants.some(p => p.id === chatPartnerId) && conv.id === selectedConversationId
+      )
+      if (isChatPartnerConversationSelected) return
+
+      setLoading(true) // Start loading for initial chat setup
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          toast.error("Please sign in to view messages")
+          setLoading(false)
+          return
+        }
+
+        // Find if a conversation already exists with this chatPartnerId in the *current* conversations state
+        const existingConversation = conversations.find(conv => 
+          conv.participants.some(p => p.id === chatPartnerId)
+        )
+
+        if (existingConversation) {
+          // Only select if not already selected to prevent infinite loop
+          if (selectedConversationId !== existingConversation.id) {
+            onSelectConversation(existingConversation.id)
+          }
+        } else {
+          // Only create if not already creating (to prevent duplicate RPC calls for a new chat partner)
+          // Check if we're already in the process of creating for this specific chatPartnerId
+          const isCreatingForThisPartner = conversations.some(conv => conv.id === `creating-${chatPartnerId}`)
+          if (isCreatingForThisPartner) {
+            setLoading(false)
+            return
+          }
+
+          console.log(`Attempting to create conversation with ${chatPartnerId}`)
+          const { data: newConversationId, error: rpcError } = await supabase
+            .rpc('create_conversation_and_participants', { other_user_id: chatPartnerId })
+
+          if (rpcError) throw rpcError
+
+          if (newConversationId) {
+            console.log(`New conversation created: ${newConversationId}`)
+            // Explicitly set a temporary conversation to avoid immediate re-trigger and re-creation
+            // This temporary ID will be replaced once fetchConversations updates the list with the real one
+            setConversations(prev => [...prev, { id: `creating-${chatPartnerId}`, participants: [], lastMessage: { id: '', sender_id: '', content: 'Creating conversation...', timestamp: new Date(), is_read: false, type: 'text' }, unreadCount: 0, updatedAt: new Date(), isTyping: false }])
+
+            await fetchConversations() // Re-fetch to get the newly created conversation with full data
+            onSelectConversation(newConversationId) // Select the newly created one
+          }
+        }
+      } catch (error: any) {
+        console.error('Error during initial chat setup:', error)
+        toast.error(`Failed to start conversation: ${error.message || "Unknown error"}`)
+      } finally {
+        setLoading(false) // Always stop loading for this effect
+      }
+    }
+
+    handleInitialChatSetup()
+  }, [chatPartnerId, conversations, supabase, onSelectConversation, selectedConversationId]) // Removed `loading` from deps
 
   const fetchConversations = async () => {
     try {
-      setLoading(true)
+      if (!chatPartnerId) {
+        setLoading(true)
+      }
       const supabase = getSupabaseClient()
       
       // Get current user
@@ -72,69 +145,143 @@ export function ConversationList({
         return
       }
 
-      // Get all conversations where current user is a participant
-      const { data: conversationsData, error: conversationsError } = await supabase
-        .from('conversations')
-        .select(`
-          id,
-          created_at,
-          updated_at,
-          conversation_participants!inner(
-            user_id,
-            profiles(
-              id,
-              first_name,
-              last_name,
-              avatar_url
-            )
-          ),
-          messages(
-            id,
-            sender_id,
-            content,
-            timestamp,
-            is_read
-          )
-        `)
-        .eq('conversation_participants.user_id', user.id)
+      // Step 1: find conversation ids where user participates
+      const { data: myParticipantRows, error: partErr } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', user.id)
 
-      if (conversationsError) {
-        console.error('Error fetching conversations:', conversationsError)
-        toast.error('Failed to load conversations')
+      if (partErr) {
+        console.warn('Supabase Error (Step 1 - Fetching participant conversations):', partErr.message || partErr)
+        setLoading(false)
         return
       }
 
-      // Transform the data
-      const transformedConversations: Conversation[] = conversationsData.map(conv => {
-        const participants = conv.conversation_participants
-          .filter(p => p.user_id !== user.id)
-          .map(p => ({
-            id: p.user_id,
-            first_name: p.profiles?.first_name || 'User',
-            last_name: p.profiles?.last_name || '',
-            avatar_url: p.profiles?.avatar_url || null,
-            isOnline: Math.random() > 0.5, // TODO: Implement real online status
-            lastSeen: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000)
-          }))
+      const conversationIdsRaw = (myParticipantRows || []).map(r => r.conversation_id)
+      const conversationIds = Array.from(
+        new Set(
+          (conversationIdsRaw || []).filter((id: any) => typeof id === 'string' && id.length > 0)
+        )
+      )
 
-        const messages = conv.messages || []
-        const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null
-        
-        // Calculate unread count
-        const unreadCount = messages.filter(m => 
-          m.sender_id !== user.id && !m.is_read
-        ).length
+      // If no conversations found for the user and no specific chat partner is requested, return early.
+      if (conversationIds.length === 0 && !chatPartnerId) {
+        setConversations([])
+        setLoading(false)
+        return
+      }
+
+      // If there are no conversation IDs to fetch, and a chat partner is being set up,
+      // do not proceed with fetching conversations. The `handleInitialChatSetup`
+      // will take care of creating it and triggering a re-fetch.
+      if (conversationIds.length === 0 && chatPartnerId) {
+        setLoading(false)
+        return
+      }
+
+      // We try to fetch conversations meta, but if it fails we will synthesize records
+      let convs: any[] = []
+      const { data: convData, error: convErr } = await supabase
+        .from('conversations')
+        .select('id, created_at, updated_at')
+        .in('id', conversationIds)
+
+      if (convErr) {
+        console.warn('Skipping conversations meta due to error:', convErr.message || convErr)
+        // Synthesize minimal records to keep the UI working
+        convs = conversationIds.map(id => ({ id, created_at: null, updated_at: null }))
+      } else {
+        convs = convData || []
+      }
+
+      // Step 3: fetch all participants for those conversations
+      const { data: participantsRows, error: partsErr } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id, user_id')
+        .in('conversation_id', conversationIds)
+
+      if (partsErr) {
+        console.warn('Supabase Error (Step 3 - Fetching all participants):', partsErr.message || partsErr)
+      }
+
+      // Determine "other" user ids per conversation
+      const otherUserIdsByConv = new Map<string, string>()
+      ;(participantsRows || []).forEach(row => {
+        if (row.user_id !== user.id) {
+          otherUserIdsByConv.set(row.conversation_id, row.user_id)
+        }
+      })
+
+      // Fallback: if participants didn't return and we have a chatPartnerId, assume 1:1 with first conv id
+      if (otherUserIdsByConv.size === 0 && chatPartnerId && conversationIds.length > 0) {
+        otherUserIdsByConv.set(conversationIds[0], chatPartnerId)
+      }
+
+      let allOtherUserIds = Array.from(new Set(Array.from(otherUserIdsByConv.values())))
+
+      // Add the chatPartnerId if it's not already in the list of other user IDs
+      if (chatPartnerId && chatPartnerId !== user.id && !allOtherUserIds.includes(chatPartnerId)) {
+        allOtherUserIds.push(chatPartnerId)
+      }
+
+      // Step 4: fetch profiles for the other participants
+      const { data: profiles, error: profErr } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, avatar_url')
+        .in('id', allOtherUserIds)
+
+      if (profErr) {
+        console.warn('Supabase Error (Step 4 - Fetching profiles):', profErr.message || profErr)
+      }
+
+      // Step 5: fetch messages for those conversations to compute lastMessage and unread
+      const { data: msgs, error: msgErr } = await supabase
+        .from('messages')
+        .select('id, conversation_id, sender_id, content, timestamp, is_read, type')
+        .in('conversation_id', conversationIds)
+        .order('timestamp', { ascending: true })
+
+      let safeMsgs = msgs || []
+      if (msgErr) {
+        console.error('Supabase Error (Step 5 - Fetching messages):', msgErr.message || msgErr)
+        // Do not abort loading conversations if messages are not accessible.
+        // Fall back to an empty messages array; lastMessage becomes a default.
+        safeMsgs = []
+      }
+
+      const messagesByConv = new Map<string, any[]>()
+      ;(safeMsgs || []).forEach(m => {
+        const arr = messagesByConv.get(m.conversation_id) || []
+        arr.push(m)
+        messagesByConv.set(m.conversation_id, arr)
+      })
+
+      const transformedConversations: Conversation[] = (convs || []).map(conv => {
+        const otherId = otherUserIdsByConv.get(conv.id)
+        const prof = profiles?.find(p => p.id === otherId)
+        const displayUser: User = {
+          id: otherId || chatPartnerId || 'unknown',
+          first_name: prof?.first_name || 'User',
+          last_name: prof?.last_name || '',
+          avatar_url: prof?.avatar_url || null,
+          isOnline: false,
+          lastSeen: new Date()
+        }
+
+        const convMsgs = messagesByConv.get(conv.id) || []
+        const last = convMsgs.length > 0 ? convMsgs[convMsgs.length - 1] : null
+        const unreadCount = convMsgs.filter(m => m.sender_id !== user.id && !m.is_read).length
 
         return {
           id: conv.id,
-          participants,
-          lastMessage: lastMessage ? {
-            id: lastMessage.id,
-            sender_id: lastMessage.sender_id,
-            content: lastMessage.content,
-            timestamp: new Date(lastMessage.timestamp),
-            is_read: lastMessage.is_read,
-            type: lastMessage.type || 'text'
+          participants: [displayUser],
+          lastMessage: last ? {
+            id: last.id,
+            sender_id: last.sender_id,
+            content: last.content,
+            timestamp: new Date(last.timestamp),
+            is_read: last.is_read,
+            type: last.type || 'text'
           } : {
             id: 'no-message',
             sender_id: user.id,
@@ -149,22 +296,21 @@ export function ConversationList({
         }
       })
 
-      setConversations(transformedConversations)
-
-      // If a user is selected from URL, find or create conversation
-      if (selectedUserId && selectedUserId !== user.id) {
+      // Handle case where a user is selected from URL but no existing conversation
+      if (chatPartnerId && chatPartnerId !== user.id) {
         const existingConversation = transformedConversations.find(conv => 
-          conv.participants.some(p => p.id === selectedUserId)
+          conv.participants.some(p => p.id === chatPartnerId)
         )
 
-        if (existingConversation) {
+        if (!existingConversation) {
+          await createConversation(chatPartnerId)
+        } else if (selectedConversationId !== existingConversation.id) {
           onSelectConversation(existingConversation.id)
-        } else {
-          // Create new conversation
-          await createConversation(selectedUserId)
         }
       }
 
+      setConversations(transformedConversations)
+      
     } catch (error) {
       console.error('Error fetching conversations:', error)
       
@@ -199,34 +345,23 @@ export function ConversationList({
       
       if (!user) return
 
-      // Create new conversation
-      const { data: conversation, error: convError } = await supabase
-        .from('conversations')
-        .insert({
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select()
-        .single()
+      // Call the RPC function to create the conversation and add participants
+      const { data: newConversationId, error: rpcError } = await supabase
+        .rpc('create_conversation_and_participants', { other_user_id: otherUserId })
 
-      if (convError) throw convError
+      if (rpcError) throw rpcError
 
-      // Add participants
-      const { error: participantError } = await supabase
-        .from('conversation_participants')
-        .insert([
-          { conversation_id: conversation.id, user_id: user.id },
-          { conversation_id: conversation.id, user_id: otherUserId }
-        ])
-
-      if (participantError) throw participantError
-
-      // Refresh conversations
+      // Refresh conversations (which will now include the newly created one)
       await fetchConversations()
 
-    } catch (error) {
-      console.error('Error creating conversation:', error)
-      toast.error('Failed to create conversation')
+      // Explicitly select the newly created conversation
+      if (newConversationId) {
+        onSelectConversation(newConversationId)
+      }
+
+    } catch (error: any) {
+      console.error('Error creating conversation via RPC:', error)
+      toast.error(`Failed to create conversation: ${error.message || "Unknown error"}`)
     }
   }
 
