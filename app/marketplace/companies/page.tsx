@@ -100,55 +100,55 @@ export default function CompaniesPage() {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-4">All Companies</h1>
-          <p className="text-green-100 text-lg max-w-2xl mx-auto">
+          <h1 className="text-4xl font-bold dark:text-white mb-4 text-black">All Companies</h1>
+          <p className="dark:text-green-100 text-lg max-w-2xl mx-auto text-gray-800/60">
             Discover innovative companies within the Alkebulan community driving economic growth and social impact.
           </p>
         </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-white/10 backdrop-blur-sm border-white/20">
+          <Card className="dark:bg-white/10 dark:backdrop-blur-sm dark:border-white/20 bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-white">Total Companies</CardTitle>
-              <Building2 className="h-4 w-4 text-yellow-400" />
+              <CardTitle className="text-sm font-medium dark:text-white text-black">Total Companies</CardTitle>
+              <Building2 className="h-4 w-4 dark:text-yellow-400 text-gold-dark" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">{stats.total}</div>
-              <p className="text-xs text-green-100">Active businesses</p>
+              <div className="text-2xl font-bold dark:text-white text-black">{stats.total}</div>
+              <p className="text-xs dark:text-green-100 text-black">Active businesses</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/10 backdrop-blur-sm border-white/20">
+          <Card className="dark:bg-white/10 backdrop-blur-sm dark:border-white/20  bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-white">Featured</CardTitle>
-              <TrendingUp className="h-4 w-4 text-yellow-400" />
+              <CardTitle className="text-sm font-medium dark:text-white text-black">Featured</CardTitle>
+              <TrendingUp className="h-4 w-4 dark:text-yellow-400 text-gold-dark" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">{stats.featured}</div>
-              <p className="text-xs text-green-100">Highlighted companies</p>
+              <div className="text-2xl font-bold dark:text-white text-black">{stats.featured}</div>
+              <p className="text-xs dark:text-green-100 text-black">Highlighted companies</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/10 backdrop-blur-sm border-white/20">
+          <Card className="dark:bg-white/10 dark:backdrop-blur-sm dark:border-white/20 bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-white">Industries</CardTitle>
-              <Users className="h-4 w-4 text-yellow-400" />
+              <CardTitle className="text-sm font-medium dark:text-white text-black">Industries</CardTitle>
+              <Users className="h-4 w-4 dark:text-yellow-400 text-gold-dark" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">{stats.industries}</div>
-              <p className="text-xs text-green-100">Different sectors</p>
+              <div className="text-2xl font-bold dark:text-white text-black">{stats.industries}</div>
+              <p className="text-xs dark:text-green-100 text-black">Different sectors</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/10 backdrop-blur-sm border-white/20">
+          <Card className="dark:bg-white/10 dark:backdrop-blur-sm dark:border-white/20 bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-white">Locations</CardTitle>
-              <MapPin className="h-4 w-4 text-yellow-400" />
+              <CardTitle className="text-sm font-medium dark:text-white">Locations</CardTitle>
+              <MapPin className="h-4 w-4 dark:text-yellow-400 text-gold-dark" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">{stats.locations}</div>
-              <p className="text-xs text-green-100">Global presence</p>
+              <div className="text-2xl font-bold dark:text-white">{stats.locations}</div>
+              <p className="text-xs dark:text-green-100">Global presence</p>
             </CardContent>
           </Card>
         </div>
@@ -158,9 +158,9 @@ export default function CompaniesPage() {
 
         {/* Results Count */}
         <div className="flex items-center justify-between mb-6">
-          <div className="text-white">
+          <div className="dark:text-white">
             <span className="text-lg font-semibold">{filteredCompanies.length}</span>
-            <span className="text-green-100 ml-2">
+            <span className="dark:text-green-100 ml-2">
               {filteredCompanies.length === 1 ? "company" : "companies"} found
             </span>
           </div>
@@ -173,7 +173,7 @@ export default function CompaniesPage() {
 
         {/* Companies Grid */}
         {loading ? (
-          <div className="text-green-100">Loading companies...</div>
+          <div className="darktext-green-100">Loading companies...</div>
         ) : filteredCompanies.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredCompanies.map((company) => (
@@ -181,7 +181,7 @@ export default function CompaniesPage() {
             ))}
           </div>
         ) : (
-          <Card className="bg-white/10 backdrop-blur-sm border-white/20">
+          <Card className="dark:bg-white/10 dark:backdrop-blur-sm dark:border-white/20">
             <CardContent className="text-center py-12">
               <Building2 className="h-12 w-12 text-white/50 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-white mb-2">No companies found</h3>

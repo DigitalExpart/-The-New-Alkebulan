@@ -54,9 +54,9 @@ export function NotificationsDropdown() {
         <Button
           variant="ghost"
           size="sm"
-          className="text-[hsl(var(--navbar-text))] hover:bg-[hsl(var(--navbar-hover))] relative p-2"
+          className="text-[hsl(var(--navbar-text))] relative p-2 dark:hover:bg-gold"
         >
-          <Bell className="w-4 h-4" />
+          <Bell className="w-4 h-4 text-white" />
           {unreadCount > 0 && (
             <Badge className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-500 text-white text-xs w-5 h-5 rounded-full p-0 flex items-center justify-center border-2 border-[hsl(var(--navbar-bg))]">
               {unreadCount > 9 ? "9+" : unreadCount}

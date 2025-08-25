@@ -35,30 +35,30 @@ export function CompanyFilters({ filters, onFiltersChange, industries, locations
   const hasActiveFilters = filters.search || filters.industry || filters.location || filters.size || filters.featured
 
   return (
-    <Card className="bg-white/10 backdrop-blur-sm border-white/20 mb-8">
+    <Card className="dark:bg-white/10 dark:backdrop-blur-sm dark:border-white/20 mb-8 bg-card shadow-sm shadow-outline">
       <CardContent className="p-6">
         <div className="space-y-4">
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-green-100" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 dark:text-green-100" />
             <Input
               placeholder="Search companies, descriptions, or tags..."
               value={filters.search}
               onChange={(e) => updateFilter("search", e.target.value)}
-              className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-green-100 focus:border-yellow-400"
+              className="pl-10 dark:bg-white/10 dark:border-white/20 dark:text-white dark:placeholder:text-green-100 focus:border-yellow-400"
             />
           </div>
 
           {/* Filter Row */}
           <div className="flex flex-wrap gap-4 items-center">
-            <div className="flex items-center gap-2 text-white">
+            <div className="flex items-center gap-2 dark:text-white">
               <Filter className="h-4 w-4" />
               <span className="text-sm font-medium">Filters:</span>
             </div>
 
             {/* Industry Filter */}
             <Select value={filters.industry} onValueChange={(value) => updateFilter("industry", value)}>
-              <SelectTrigger className="w-[180px] bg-white/10 border-white/20 text-white">
+              <SelectTrigger className="w-[180px] dark:bg-white/10 dark:border-white/20 dark:text-white">
                 <SelectValue placeholder="Industry" />
               </SelectTrigger>
               <SelectContent>
@@ -73,7 +73,7 @@ export function CompanyFilters({ filters, onFiltersChange, industries, locations
 
             {/* Location Filter */}
             <Select value={filters.location} onValueChange={(value) => updateFilter("location", value)}>
-              <SelectTrigger className="w-[180px] bg-white/10 border-white/20 text-white">
+              <SelectTrigger className="w-[180px] dark:bg-white/10 dark:border-white/20 dark:text-white">
                 <SelectValue placeholder="Location" />
               </SelectTrigger>
               <SelectContent>
@@ -88,7 +88,7 @@ export function CompanyFilters({ filters, onFiltersChange, industries, locations
 
             {/* Size Filter */}
             <Select value={filters.size} onValueChange={(value) => updateFilter("size", value)}>
-              <SelectTrigger className="w-[180px] bg-white/10 border-white/20 text-white">
+              <SelectTrigger className="w-[180px] dark:bg-white/10 dark:border-white/20 dark:text-white">
                 <SelectValue placeholder="Company Size" />
               </SelectTrigger>
               <SelectContent>
@@ -109,7 +109,7 @@ export function CompanyFilters({ filters, onFiltersChange, industries, locations
               className={
                 filters.featured
                   ? "bg-yellow-400 hover:bg-yellow-500 text-green-900"
-                  : "bg-white/10 border-white/20 text-white hover:bg-white/20"
+                  : "dark:bg-white/10 dark:border-white/20 dark:text-white hover:bg-white/20"
               }
             >
               <Star className="h-3 w-3 mr-1" />
@@ -129,7 +129,7 @@ export function CompanyFilters({ filters, onFiltersChange, industries, locations
           {hasActiveFilters && (
             <div className="flex flex-wrap gap-2">
               {filters.search && (
-                <Badge variant="secondary" className="bg-yellow-400/20 text-yellow-400 border-yellow-400/30">
+                <Badge variant="secondary" className="dark:bg-yellow-400/20 bg-dark-border text-yellow-400 border-yellow-400/30">
                   Search: "{filters.search}"
                   <button onClick={() => updateFilter("search", "")} className="ml-1 hover:text-yellow-300">
                     <X className="h-3 w-3" />

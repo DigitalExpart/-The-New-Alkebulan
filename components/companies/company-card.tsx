@@ -16,23 +16,23 @@ export function CompanyCard({ company }: CompanyCardProps) {
   const tags: string[] = Array.isArray((company as any).tags) ? (company as any).tags : []
   const initials = ((company?.name ?? "C").split(" ").map((word) => word?.[0] || "").join("") || "C").slice(0, 2)
   return (
-    <Card className="bg-white/10 backdrop-blur-sm border-white/20 hover:bg-white/15 transition-all duration-300 group">
+    <Card className="dark:bg-white/10 dark:backdrop-blur-sm dark:border-white/20 hover:bg-white/15 transition-all duration-300 group">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <Avatar className="h-12 w-12 border-2 border-white/20">
+            <Avatar className="h-12 w-12 dark:border-2 dark:border-white/20 border-2 border-dark-border">
               <AvatarImage src={company?.logo || "/placeholder.svg"} alt={`${company?.name || "Company"} logo`} />
-              <AvatarFallback className="bg-green-600 text-white font-bold">{initials}</AvatarFallback>
+              <AvatarFallback className="dark:bg-green-600 dark:text-white font-bold text-black">{initials}</AvatarFallback>
             </Avatar>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-white group-hover:text-yellow-400 transition-colors">
+                <h3 className="font-semibold dark:text-white group-hover:text-yellow-400 transition-colors">
                   {company?.name || "Company"}
                 </h3>
-                {company?.verified && <Verified className="h-4 w-4 text-blue-400" />}
-                {company?.featured && <Star className="h-4 w-4 text-yellow-400 fill-current" />}
+                {company?.verified && <Verified className="h-4 w-4 dark:text-blue-400" />}
+                {company?.featured && <Star className="h-4 w-4 dark:text-yellow-400 fill-current" />}
               </div>
-              <div className="flex items-center gap-2 text-sm text-green-100">
+              <div className="flex items-center gap-2 text-sm dark:text-green-100">
                 <MapPin className="h-3 w-3" />
                 {company?.location || ""}
               </div>
@@ -43,10 +43,10 @@ export function CompanyCard({ company }: CompanyCardProps) {
 
       <CardContent className="space-y-4">
         {/* Description */}
-        <p className="text-sm text-green-100 line-clamp-3">{company?.description || ""}</p>
+        <p className="text-sm dark:text-green-100 line-clamp-3">{company?.description || ""}</p>
 
         {/* Industry & Size */}
-        <div className="flex items-center gap-4 text-sm text-green-100">
+        <div className="flex items-center gap-4 text-sm dark:text-green-100">
           <div className="flex items-center gap-1">
             <Building2 className="h-3 w-3" />
             {company?.industry || ""}
@@ -59,11 +59,11 @@ export function CompanyCard({ company }: CompanyCardProps) {
 
         {/* Stats */}
         <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-1 text-green-100">
+          <div className="flex items-center gap-1 dark:text-green-100">
             <Calendar className="h-3 w-3" />
             Founded {company?.founded || ""}
           </div>
-          <div className="flex items-center gap-1 text-yellow-400 font-semibold">
+          <div className="flex items-center gap-1 dark:text-yellow-400 font-semibold">
             <DollarSign className="h-3 w-3" />
             {company?.revenue || ""}
           </div>
@@ -75,7 +75,7 @@ export function CompanyCard({ company }: CompanyCardProps) {
             <Badge
               key={tag}
               variant="secondary"
-              className="text-xs bg-white/10 text-white border-white/20 hover:bg-white/20"
+              className="text-xs dark:bg-white/10 dark:text-white dark:border-white/20 hover:bg-white/20"
             >
               {tag}
             </Badge>
@@ -92,7 +92,7 @@ export function CompanyCard({ company }: CompanyCardProps) {
           <Button
             variant="outline"
             size="sm"
-            className="flex-1 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
+            className="flex-1 dark:bg-white/10 dark:border-white/20 dark:text-white border-dark-card/70 hover:bg-white/20 dark:hover:text-white hover:text-gold-dark"
             asChild
           >
             <a href={company.website} target="_blank" rel="noopener noreferrer">
