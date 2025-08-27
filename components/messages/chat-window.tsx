@@ -4,7 +4,39 @@ import { useState, useEffect, useRef } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Send, MoreVertical, Paperclip, Smile, Loader2, Menu } from "lucide-react"
+import {
+  Send,
+  MoreVertical,
+  Paperclip,
+  Smile,
+  Loader2,
+  Menu,
+  Search as SearchIcon,
+  Trash2,
+  Lock,
+  Unlock,
+  Palette,
+  Bell,
+  BellOff,
+  Archive,
+  UserX,
+  UserCheck
+} from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem
+} from "@/components/ui/dropdown-menu"
+import { usePathname, useRouter } from "next/navigation"
 import { getSupabaseClient } from "@/lib/supabase"
 import { toast } from "sonner"
 import { format } from "date-fns"
@@ -39,7 +71,21 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
   const [conversationParticipants, setConversationParticipants] = useState<User[]>([])
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const supabase = getSupabaseClient()
+  const router = useRouter()
+  const pathname = usePathname()
+
+  // Local UI states for chat actions
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [isLocked, setIsLocked] = useState(false)
+  const [isMuted, setIsMuted] = useState(false)
+  const [notificationLevel, setNotificationLevel] = useState<"all" | "mentions" | "none">("all")
+  const [chatTheme, setChatTheme] = useState<"default" | "gold" | "forest" | "contrast">("default")
+  const [isArchived, setIsArchived] = useState(false)
+  const [clearedAfter, setClearedAfter] = useState<Date | null>(null)
+  const [isBlocked, setIsBlocked] = useState(false)
 
   useEffect(() => {
     const fetchChatData = async () => {
@@ -56,7 +102,7 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
         // Fetch conversation details and participants
         const { data: participantsData, error: participantsError } = await supabase
           .from('conversation_participants')
-          .select('user_id, profiles(id, first_name, last_name, avatar_url)')
+          .select('user_id, is_muted, notification_level, theme, is_archived, is_locked, cleared_at, profiles(id, first_name, last_name, avatar_url)')
           .eq('conversation_id', conversationId)
 
         if (participantsError) throw participantsError
@@ -69,12 +115,44 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
         }))
         setConversationParticipants(participantUsers)
 
+        // Apply current user's per-conversation settings
+        const meParticipant = (participantsData || []).find((p: any) => p.user_id === authUser.id)
+        if (meParticipant) {
+          setIsMuted(Boolean(meParticipant.is_muted))
+          setNotificationLevel((meParticipant.notification_level as any) || 'all')
+          setChatTheme((meParticipant.theme as any) || 'default')
+          setIsArchived(Boolean(meParticipant.is_archived))
+          setIsLocked(Boolean(meParticipant.is_locked))
+          setClearedAfter(meParticipant.cleared_at ? new Date(meParticipant.cleared_at) : null)
+        }
+
+        // Determine if current user has blocked the other user
+        const other = (participantsData || []).find((p: any) => p.user_id !== authUser.id)
+        if (other) {
+          const { data: blockedRow, error: blockErr } = await supabase
+            .from('user_blocks')
+            .select('blocker_id, blocked_id')
+            .eq('blocker_id', authUser.id)
+            .eq('blocked_id', other.user_id)
+            .maybeSingle()
+          if (!blockErr) {
+            setIsBlocked(Boolean(blockedRow))
+          }
+        }
+
         // Fetch messages
-        const { data: messagesData, error: messagesError } = await supabase
+        let messagesQuery = supabase
           .from('messages')
           .select('id, sender_id, content, timestamp, is_read, type')
           .eq('conversation_id', conversationId)
           .order('timestamp', { ascending: true })
+
+        const clearedAfterLocal = meParticipant?.cleared_at ? new Date(meParticipant.cleared_at) : null
+        if (clearedAfterLocal) {
+          messagesQuery = messagesQuery.gte('timestamp', clearedAfterLocal.toISOString())
+        }
+
+        const { data: messagesData, error: messagesError } = await messagesQuery
 
         if (messagesError) throw messagesError
 
@@ -96,8 +174,11 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
         (payload) => {
-          const newMessage = payload.new as Message
-          setMessages((prevMessages) => [...prevMessages, newMessage])
+          const newMessage = payload.new as any
+          setMessages((prevMessages) => {
+            if (prevMessages.some(m => m.id === newMessage.id)) return prevMessages
+            return [...prevMessages, newMessage]
+          })
         }
       )
       .subscribe()
@@ -111,18 +192,24 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
+  useEffect(() => {
+    if (isSearchOpen) {
+      setTimeout(() => searchInputRef.current?.focus(), 0)
+    }
+  }, [isSearchOpen])
+
   const handleSendMessage = async () => {
     if (newMessage.trim() === "" || !currentUser) return
 
     try {
-      const { error } = await supabase.from('messages').insert({
+      const { data, error } = await supabase.from('messages').insert({
         conversation_id: conversationId,
         sender_id: currentUser.id,
         content: newMessage,
         timestamp: new Date().toISOString(),
         is_read: false,
         type: 'text'
-      })
+      }).select('id, sender_id, content, timestamp, is_read, type').single()
 
       if (error) {
         console.error("Supabase error sending message:", error)
@@ -131,11 +218,10 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
 
       // Optimistically add the message to the UI
       const optimisticMessage: Message = {
-        id: `optimistic-${Date.now()}`,
-        conversation_id: conversationId,
+        id: data?.id || `optimistic-${Date.now()}`,
         sender_id: currentUser.id,
         content: newMessage,
-        timestamp: new Date(),
+        timestamp: new Date(data?.timestamp || new Date()),
         is_read: false,
         type: 'text'
       }
@@ -154,6 +240,86 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
 
   const otherUser = conversationParticipants.find(p => p.id !== currentUser?.id)
   const otherUserName = otherUser ? `${otherUser.first_name} ${otherUser.last_name}`.trim() : 'Unknown User'
+
+  const displayedMessages = searchQuery.trim()
+    ? messages.filter(m => m.content?.toLowerCase().includes(searchQuery.toLowerCase()))
+    : messages
+
+  const containerThemeClass =
+    chatTheme === 'gold' ? 'bg-yellow-50 dark:bg-[#12100b]'
+    : chatTheme === 'forest' ? 'bg-emerald-50 dark:bg-[#0f1a14]'
+    : chatTheme === 'contrast' ? 'bg-white text-black dark:bg-black dark:text-white'
+    : 'bg-background'
+
+  const handleClearChat = async () => {
+    if (!conversationId) return
+    const confirmed = window.confirm('Clear all messages in this chat?')
+    if (!confirmed) return
+    try {
+      const nowIso = new Date().toISOString()
+      if (!currentUser) return
+      const { error } = await supabase
+        .from('conversation_participants')
+        .update({ cleared_at: nowIso })
+        .eq('conversation_id', conversationId)
+        .eq('user_id', currentUser.id)
+      if (error) throw error
+      setClearedAfter(new Date(nowIso))
+      setMessages(prev => prev.filter(m => new Date(m.timestamp) >= new Date(nowIso)))
+      toast.success('Chat cleared for you')
+    } catch (err: any) {
+      console.error('Failed to clear chat:', err?.message)
+      toast.error('Failed to clear chat')
+    }
+  }
+
+  const handleArchiveChat = async () => {
+    try {
+      if (!currentUser) return
+      const next = !isArchived
+      const { error } = await supabase
+        .from('conversation_participants')
+        .update({ is_archived: next })
+        .eq('conversation_id', conversationId)
+        .eq('user_id', currentUser.id)
+      if (error) throw error
+      setIsArchived(next)
+      toast.success(next ? 'Chat archived' : 'Chat unarchived')
+      // If we unarchive while on the archived page, send the user back to inbox
+      if (!next && pathname?.startsWith('/messages/archived')) {
+        router.push('/messages')
+      }
+    } catch (err: any) {
+      console.error('Failed to toggle archive:', err?.message)
+      toast.error('Failed to update archive state')
+    }
+  }
+
+  const handleToggleBlockUser = async () => {
+    try {
+      if (!currentUser || !otherUser) return
+      if (isBlocked) {
+        const { error } = await supabase
+          .from('user_blocks')
+          .delete()
+          .eq('blocker_id', currentUser.id)
+          .eq('blocked_id', otherUser.id)
+        if (error) throw error
+        setIsBlocked(false)
+        toast.success(`Unblocked ${otherUser.first_name}`)
+      } else {
+        const { error } = await supabase
+          .from('user_blocks')
+          .upsert({ blocker_id: currentUser.id, blocked_id: otherUser.id }, { onConflict: 'blocker_id,blocked_id' })
+        if (error) throw error
+        setIsBlocked(true)
+        toast.success(`Blocked ${otherUser.first_name}`)
+      }
+    } catch (err: any) {
+      console.error('Failed to toggle block:', err?.message)
+      toast.error('Failed to update block state')
+    }
+  }
 
   if (loading) {
     return (
@@ -179,7 +345,7 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
   }
 
   return (
-    <div className="flex flex-col flex-1 bg-background">
+    <div className={`flex flex-col flex-1 ${containerThemeClass}`}>
       {/* Chat Header */}
       <div className="flex items-center justify-between p-4 border-b border-border bg-card">
         <div className="flex items-center space-x-3">
@@ -195,14 +361,167 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
             {/* <p className="text-sm text-muted-foreground">Online</p> */}
           </div>
         </div>
-        <Button variant="ghost" size="icon">
-          <MoreVertical className="h-5 w-5" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <MoreVertical className="h-5 w-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>Conversation</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => setIsSearchOpen(true)} className="cursor-pointer">
+              <SearchIcon className="w-4 h-4" />
+              Search in chat
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleClearChat} className="cursor-pointer">
+              <Trash2 className="w-4 h-4" />
+              Clear chat
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="cursor-pointer"
+              onClick={async () => {
+                try {
+                  if (!currentUser) return
+                  const next = !isLocked
+                  const { error } = await supabase
+                    .from('conversation_participants')
+                    .update({ is_locked: next })
+                    .eq('conversation_id', conversationId)
+                    .eq('user_id', currentUser.id)
+                  if (error) throw error
+                  setIsLocked(next)
+                  toast.success(next ? 'Chat locked' : 'Chat unlocked')
+                } catch (err: any) {
+                  console.error('Failed to toggle lock:', err?.message)
+                  toast.error('Failed to update lock state')
+                }
+              }}
+            >
+              {isLocked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+              {isLocked ? 'Unlock chat' : 'Lock chat'}
+            </DropdownMenuItem>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <Palette className="w-4 h-4" />
+                Change chat theme
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-48">
+                <DropdownMenuRadioGroup
+                  value={chatTheme}
+                  onValueChange={async (v) => {
+                    try {
+                      if (!currentUser) return
+                      const { error } = await supabase
+                        .from('conversation_participants')
+                        .update({ theme: v })
+                        .eq('conversation_id', conversationId)
+                        .eq('user_id', currentUser.id)
+                      if (error) throw error
+                      setChatTheme(v as any)
+                    } catch (err: any) {
+                      console.error('Failed to update theme:', err?.message)
+                      toast.error('Failed to change theme')
+                    }
+                  }}
+                >
+                  <DropdownMenuRadioItem value="default">Default</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="gold">Gold</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="forest">Forest</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="contrast">High Contrast</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <Bell className="w-4 h-4" />
+                Notifications
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-48">
+                <DropdownMenuRadioGroup
+                  value={notificationLevel}
+                  onValueChange={async (v) => {
+                    try {
+                      if (!currentUser) return
+                      const { error } = await supabase
+                        .from('conversation_participants')
+                        .update({ notification_level: v, is_muted: v === 'none' })
+                        .eq('conversation_id', conversationId)
+                        .eq('user_id', currentUser.id)
+                      if (error) throw error
+                      setNotificationLevel(v as any)
+                      setIsMuted(v === 'none')
+                    } catch (err: any) {
+                      console.error('Failed to update notifications:', err?.message)
+                      toast.error('Failed to update notifications')
+                    }
+                  }}
+                >
+                  <DropdownMenuRadioItem value="all">All messages</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="mentions">Mentions only</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="none">None</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuItem
+              className="cursor-pointer"
+              onClick={async () => {
+                try {
+                  if (!currentUser) return
+                  const next = !isMuted
+                  const nextLevel = next ? 'none' : 'all'
+                  const { error } = await supabase
+                    .from('conversation_participants')
+                    .update({ is_muted: next, notification_level: nextLevel })
+                    .eq('conversation_id', conversationId)
+                    .eq('user_id', currentUser.id)
+                  if (error) throw error
+                  setIsMuted(next)
+                  setNotificationLevel(nextLevel as any)
+                  toast.success(next ? 'Chat muted' : 'Chat unmuted')
+                } catch (err: any) {
+                  console.error('Failed to toggle mute:', err?.message)
+                  toast.error('Failed to update mute state')
+                }
+              }}
+            >
+              <BellOff className="w-4 h-4" />
+              Mute chat
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleArchiveChat} className="cursor-pointer">
+              <Archive className="w-4 h-4" />
+              {isArchived ? 'Unarchive chat' : 'Archive chat'}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleToggleBlockUser} className="text-red-600 cursor-pointer">
+              {isBlocked ? <UserCheck className="w-4 h-4" /> : <UserX className="w-4 h-4" />}
+              {isBlocked ? 'Unblock user' : 'Block user'}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => {
+        {isSearchOpen && (
+          <div className="sticky top-0 z-10 mb-2 bg-card/80 backdrop-blur rounded-lg p-2 border border-border flex items-center gap-2">
+            <SearchIcon className="w-4 h-4 text-muted-foreground" />
+            <Input
+              ref={searchInputRef}
+              placeholder="Search in conversation"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 h-8"
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setIsSearchOpen(false); setSearchQuery("") }}
+            >
+              Clear
+            </Button>
+          </div>
+        )}
+        {displayedMessages.map((message) => {
           const sender = getParticipant(message.sender_id)
           const isCurrentUser = message.sender_id === currentUser?.id
           const senderName = isCurrentUser ? "You" : `${sender?.first_name || 'User'} ${sender?.last_name || ''}`.trim()
@@ -254,8 +573,9 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
               handleSendMessage()
             }
           }}
+          disabled={isLocked}
         />
-        <Button type="submit" onClick={handleSendMessage}>
+        <Button type="submit" onClick={handleSendMessage} disabled={isLocked}>
           <Send className="h-5 w-5" />
           <span className="sr-only">Send message</span>
         </Button>

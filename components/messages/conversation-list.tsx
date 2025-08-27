@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
+import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -43,6 +44,7 @@ interface ConversationListProps {
   isOpen: boolean
   onClose: () => void
   chatPartnerId?: string // New prop to receive user ID from URL
+  initialShowArchived?: boolean
 }
 
 export function ConversationList({
@@ -51,10 +53,12 @@ export function ConversationList({
   isOpen,
   onClose,
   chatPartnerId, // Destructure new prop
+  initialShowArchived = false,
 }: ConversationListProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
+  const [showArchived, setShowArchived] = useState(!!initialShowArchived)
   const supabase = getSupabaseClient()
   // const searchParams = useSearchParams() // No longer directly used here for initial user ID
   // const selectedUserId = searchParams.get('user') // No longer directly used here for initial user ID
@@ -62,12 +66,13 @@ export function ConversationList({
   // Effect to fetch all existing conversations for the current user
   useEffect(() => {
     fetchConversations()
-  }, [supabase, chatPartnerId, onSelectConversation]) // Include onSelectConversation to ensure initial selection runs after fetch
+  }, [supabase, chatPartnerId, onSelectConversation, showArchived]) // Refetch when switching inbox/archived
 
   // Effect to handle initial chat setup if a chatPartnerId is provided via URL
   useEffect(() => {
     const handleInitialChatSetup = async () => {
-      if (!chatPartnerId) return // Only run if a chat partner is specified
+      // Run only once for initial deep-link; don't override user's manual selection
+      if (!chatPartnerId || selectedConversationId) return
 
       // Only run if a conversation is not already selected for this chatPartnerId
       const isChatPartnerConversationSelected = conversations.some(conv => 
@@ -148,7 +153,7 @@ export function ConversationList({
       // Step 1: find conversation ids where user participates
       const { data: myParticipantRows, error: partErr } = await supabase
         .from('conversation_participants')
-        .select('conversation_id')
+        .select('conversation_id, is_archived')
         .eq('user_id', user.id)
 
       if (partErr) {
@@ -157,7 +162,9 @@ export function ConversationList({
         return
       }
 
-      const conversationIdsRaw = (myParticipantRows || []).map(r => r.conversation_id)
+      const conversationIdsRaw = (myParticipantRows || [])
+        .filter(r => (showArchived ? r.is_archived === true : r.is_archived !== true))
+        .map(r => r.conversation_id)
       const conversationIds = Array.from(
         new Set(
           (conversationIdsRaw || []).filter((id: any) => typeof id === 'string' && id.length > 0)
@@ -234,18 +241,27 @@ export function ConversationList({
         console.warn('Supabase Error (Step 4 - Fetching profiles):', profErr.message || profErr)
       }
 
-      // Step 5: fetch messages for those conversations to compute lastMessage and unread
-      const { data: msgs, error: msgErr } = await supabase
-        .from('messages')
-        .select('id, conversation_id, sender_id, content, timestamp, is_read, type')
-        .in('conversation_id', conversationIds)
-        .order('timestamp', { ascending: true })
+      // Step 5: fetch messages per conversation (parallel) to avoid large IN queries that can fail
+      let safeMsgs: any[] = []
+      try {
+        const results = await Promise.all(
+          conversationIds.map(async (cid: string) => {
+            const { data, error } = await supabase
+              .from('messages')
+              .select('id, conversation_id, sender_id, content, timestamp, is_read, type')
+              .eq('conversation_id', cid)
+              .order('timestamp', { ascending: true })
 
-      let safeMsgs = msgs || []
-      if (msgErr) {
-        console.error('Supabase Error (Step 5 - Fetching messages):', msgErr.message || msgErr)
-        // Do not abort loading conversations if messages are not accessible.
-        // Fall back to an empty messages array; lastMessage becomes a default.
+            if (error) {
+              console.warn(`Supabase Error (Step 5 - messages for ${cid}):`, error.message || error)
+              return []
+            }
+            return data || []
+          })
+        )
+        safeMsgs = results.flat()
+      } catch (e: any) {
+        console.error('Supabase Error (Step 5 - Fetching messages):', e?.message || e)
         safeMsgs = []
       }
 
@@ -256,58 +272,66 @@ export function ConversationList({
         messagesByConv.set(m.conversation_id, arr)
       })
 
-      const transformedConversations: Conversation[] = (convs || []).map(conv => {
-        const otherId = otherUserIdsByConv.get(conv.id)
-        const prof = profiles?.find(p => p.id === otherId)
-        const displayUser: User = {
-          id: otherId || chatPartnerId || 'unknown',
-          first_name: prof?.first_name || 'User',
-          last_name: prof?.last_name || '',
-          avatar_url: prof?.avatar_url || null,
-          isOnline: false,
-          lastSeen: new Date()
-        }
+      const transformedConversationsAll: Conversation[] = (convs || [])
+        .map(conv => {
+          const convMsgs = messagesByConv.get(conv.id) || []
+          const otherId = otherUserIdsByConv.get(conv.id)
+          if (!otherId) return null
+          const prof = profiles?.find(p => p.id === otherId)
+          if (!prof) return null
 
-        const convMsgs = messagesByConv.get(conv.id) || []
-        const last = convMsgs.length > 0 ? convMsgs[convMsgs.length - 1] : null
-        const unreadCount = convMsgs.filter(m => m.sender_id !== user.id && !m.is_read).length
+          const last = convMsgs.length > 0 ? convMsgs[convMsgs.length - 1] : null
+          const unreadCount = convMsgs.filter(m => m.sender_id !== user.id && !m.is_read).length
 
-        return {
-          id: conv.id,
-          participants: [displayUser],
-          lastMessage: last ? {
-            id: last.id,
-            sender_id: last.sender_id,
-            content: last.content,
-            timestamp: new Date(last.timestamp),
-            is_read: last.is_read,
-            type: last.type || 'text'
-          } : {
-            id: 'no-message',
-            sender_id: user.id,
-            content: 'No messages yet',
-            timestamp: new Date(conv.created_at),
-            is_read: true,
-            type: 'text'
-          },
-          unreadCount,
-          updatedAt: new Date(conv.updated_at || conv.created_at),
-          isTyping: false
-        }
-      })
+          const displayUser: User = {
+            id: otherId,
+            first_name: prof.first_name || 'User',
+            last_name: prof.last_name || '',
+            avatar_url: prof.avatar_url || null,
+            isOnline: false,
+            lastSeen: last ? new Date(last.timestamp) : new Date(conv.updated_at || conv.created_at || new Date())
+          }
 
-      // Handle case where a user is selected from URL but no existing conversation
-      if (chatPartnerId && chatPartnerId !== user.id) {
-        const existingConversation = transformedConversations.find(conv => 
-          conv.participants.some(p => p.id === chatPartnerId)
-        )
+          return {
+            id: conv.id,
+            participants: [displayUser],
+            lastMessage: last ? {
+              id: last.id,
+              sender_id: last.sender_id,
+              content: last.content,
+              timestamp: new Date(last.timestamp),
+              is_read: last.is_read,
+              type: last.type || 'text'
+            } : {
+              id: 'no-message',
+              sender_id: user.id,
+              content: 'No messages yet',
+              timestamp: new Date(conv.updated_at || conv.created_at || new Date()),
+              is_read: true,
+              type: 'text'
+            },
+            unreadCount,
+            updatedAt: new Date(last?.timestamp || conv.updated_at || conv.created_at || new Date()),
+            isTyping: false
+          }
+        })
+        .filter((c): c is Conversation => Boolean(c))
 
-        if (!existingConversation) {
-          await createConversation(chatPartnerId)
-        } else if (selectedConversationId !== existingConversation.id) {
-          onSelectConversation(existingConversation.id)
+      // Deduplicate by other participant id: keep the thread with more messages, then latest activity
+      const bestByPeer = new Map<string, { conv: Conversation; msgCount: number; lastTs: number }>()
+      for (const conv of transformedConversationsAll) {
+        const peerId = conv.participants[0]?.id
+        if (!peerId) continue
+        const msgCount = (messagesByConv.get(conv.id) || []).length
+        const lastTs = conv.lastMessage?.timestamp?.getTime?.() || conv.updatedAt.getTime()
+        const existing = bestByPeer.get(peerId)
+        if (!existing || msgCount > existing.msgCount || (msgCount === existing.msgCount && lastTs > existing.lastTs)) {
+          bestByPeer.set(peerId, { conv, msgCount, lastTs })
         }
       }
+      const transformedConversations = Array.from(bestByPeer.values())
+        .map(v => v.conv)
+        .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
 
       setConversations(transformedConversations)
       
@@ -443,6 +467,32 @@ export function ConversationList({
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
             />
+          </div>
+          <div className="mt-3 flex items-center justify-between">
+            <Link href="/messages">
+              <Button
+                variant="outline"
+                size="sm"
+                className={!showArchived ? 'bg-accent' : ''}
+                onClick={(e) => {
+                  // Let navigation occur; maintain visual state
+                }}
+              >
+                Inbox
+              </Button>
+            </Link>
+            <Link href="/messages/archived">
+              <Button
+                variant="outline"
+                size="sm"
+                className={showArchived ? 'bg-accent' : ''}
+                onClick={(e) => {
+                  // Let navigation occur; maintain visual state
+                }}
+              >
+                Archived chats
+              </Button>
+            </Link>
           </div>
         </div>
 
