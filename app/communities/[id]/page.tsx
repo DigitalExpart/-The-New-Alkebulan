@@ -53,8 +53,6 @@ export default function CommunityDetailPage() {
   const [isMember, setIsMember] = useState(false)
   const [memberCount, setMemberCount] = useState(0)
   
-  const [createPostVisible, setCreatePostVisible] = useState(false)
-
   const communityId = params.id as string
 
   useEffect(() => {
@@ -112,43 +110,156 @@ export default function CommunityDetailPage() {
 
   const fetchPosts = async () => {
     try {
-      const supabase = getSupabaseClient()
-      const { data, error } = await supabase
+      const sb = getSupabaseClient()
+      if (!sb) return
+
+      // Helper: load profiles for a set of user ids
+      const loadProfilesMap = async (ids: string[]) => {
+        const unique = Array.from(new Set(ids.filter(Boolean)))
+        if (unique.length === 0) return {} as Record<string, { first_name?: string; last_name?: string; avatar_url?: string }>
+        const { data } = await sb
+          .from('profiles')
+          .select('id, first_name, last_name, avatar_url')
+          .in('id', unique)
+        const map: Record<string, { first_name?: string; last_name?: string; avatar_url?: string }> = {}
+        ;(data || []).forEach((p: any) => { map[p.id] = { first_name: p.first_name, last_name: p.last_name, avatar_url: p.avatar_url } })
+        return map
+      }
+
+      // 1) New table: community_posts
+      const { data: cpData, error: cpError } = await sb
         .from('community_posts')
-        .select(`
-          *,
-          user:profiles!community_posts_user_id_fkey(
-            first_name,
-            last_name,
-            avatar_url
-          )
-        `)
+        .select('id, content, created_at, user_id, community_id, media_urls, media_type, location_name, feels_emoji, feels_description, likes_count, comments_count')
         .eq('community_id', communityId)
         .order('created_at', { ascending: false })
+        .limit(200)
 
-      if (error) throw error
-      
+      if (cpError) console.warn('community_posts fetch error:', cpError.message)
 
-      // If user is logged in, check which posts they've liked
-      if (user && data) {
-        const postIds = data.map(post => post.id)
-        const { data: userLikes } = await supabase
+      const cpUserIds = (cpData || []).map((p: any) => p.user_id)
+      const cpProfiles = await loadProfilesMap(cpUserIds)
+      const mappedCp: Post[] = (cpData || []).map((p: any) => ({
+        id: p.id,
+        content: p.content,
+        created_at: p.created_at,
+        user_id: p.user_id,
+        user: {
+          first_name: cpProfiles[p.user_id]?.first_name || 'User',
+          last_name: cpProfiles[p.user_id]?.last_name || '',
+          avatar_url: cpProfiles[p.user_id]?.avatar_url || ''
+        },
+        likes_count: p.likes_count || 0,
+        comments_count: p.comments_count || 0,
+        media_urls: p.media_urls || [],
+        media_type: p.media_type || undefined,
+        location_name: p.location_name || undefined,
+        feels_emoji: p.feels_emoji || undefined,
+        feels_description: p.feels_description || undefined
+      }))
+
+      // 2) Legacy table: posts with metadata.community_id
+      let mappedLegacy: Post[] = []
+      try {
+        const { data: legacy, error: legacyErr } = await sb
+          .from('posts')
+          .select('id, content, created_at, user_id, metadata, media_urls, media_type, location_name, feels_emoji, feels_description, likes_count, comments_count')
+          .not('metadata->>community_id', 'is', null)
+          .eq('metadata->>community_id', communityId)
+          .order('created_at', { ascending: false })
+
+        if (!legacyErr && legacy) {
+          const legacyUserIds = (legacy || []).map((p: any) => p.user_id)
+          const legacyProfiles = await loadProfilesMap(legacyUserIds)
+          mappedLegacy = legacy.map((p: any) => ({
+            id: p.id,
+            content: p.content,
+            created_at: p.created_at,
+            user_id: p.user_id,
+            user: {
+              first_name: legacyProfiles[p.user_id]?.first_name || 'User',
+              last_name: legacyProfiles[p.user_id]?.last_name || '',
+              avatar_url: legacyProfiles[p.user_id]?.avatar_url || ''
+            },
+            likes_count: p.likes_count || 0,
+            comments_count: p.comments_count || 0,
+            media_urls: p.media_urls || [],
+            media_type: p.media_type || undefined,
+            location_name: p.location_name || undefined,
+            feels_emoji: p.feels_emoji || undefined,
+            feels_description: p.feels_description || undefined
+          }))
+        }
+      } catch (_) {}
+
+      // 3) Posts authored by community members anywhere (catch past posts that weren't tagged)
+      let mappedAuthored: Post[] = []
+      try {
+        const { data: members } = await sb
+          .from('community_members')
+          .select('user_id')
+          .eq('community_id', communityId)
+
+        const memberIds = (members || []).map((m: any) => m.user_id)
+        if (memberIds.length) {
+          const { data: authored } = await sb
+            .from('posts')
+            .select('id, content, created_at, user_id, media_urls, media_type, location_name, feels_emoji, feels_description, likes_count, comments_count')
+            .in('user_id', memberIds)
+            .order('created_at', { ascending: false })
+
+          const authoredUserIds = (authored || []).map((p: any) => p.user_id)
+          const authoredProfiles = await loadProfilesMap(authoredUserIds)
+          mappedAuthored = (authored || []).map((p: any) => ({
+            id: p.id,
+            content: p.content,
+            created_at: p.created_at,
+            user_id: p.user_id,
+            user: {
+              first_name: authoredProfiles[p.user_id]?.first_name || 'User',
+              last_name: authoredProfiles[p.user_id]?.last_name || '',
+              avatar_url: authoredProfiles[p.user_id]?.avatar_url || ''
+            },
+            likes_count: p.likes_count || 0,
+            comments_count: p.comments_count || 0,
+            media_urls: p.media_urls || [],
+            media_type: p.media_type || undefined,
+            location_name: p.location_name || undefined,
+            feels_emoji: p.feels_emoji || undefined,
+            feels_description: p.feels_description || undefined
+          }))
+        }
+      } catch (_) {}
+
+      // 4) Merge and sort (dedupe by id to avoid duplicates between sources)
+      const merged = [...mappedCp, ...mappedLegacy, ...mappedAuthored]
+      const uniqueById = new Map<string, Post>()
+      merged.forEach(p => { if (!uniqueById.has(p.id)) uniqueById.set(p.id, p) })
+      const mergedSorted = Array.from(uniqueById.values()).sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
+
+      // 5) Resolve public URLs for media
+      const resolvedPosts = await Promise.all(mergedSorted.map(async (p) => {
+        const resolvedMediaUrls = p.media_urls ? await Promise.all(
+          p.media_urls.map(async (path: string) => {
+            const { data } = sb.storage.from('post_media').getPublicUrl(path)
+            return data.publicUrl
+          })
+        ) : []
+        return { ...p, media_urls: resolvedMediaUrls }
+      }))
+
+      // 6) If logged in, mark liked posts
+      if (user && resolvedPosts.length) {
+        const { data: userLikes } = await sb
           .from('post_likes')
           .select('post_id')
           .eq('user_id', user.id)
-          .in('post_id', postIds)
-
-        const likedPostIds = new Set(userLikes?.map(like => like.post_id) || [])
-        
-        // Add like status to posts
-        const postsWithLikes = data.map(post => ({
-          ...post,
-          is_liked: likedPostIds.has(post.id)
-        }))
-        
-        setPosts(postsWithLikes)
+          .in('post_id', resolvedPosts.map(p => p.id))
+        const liked = new Set((userLikes || []).map((l: any) => l.post_id))
+        setPosts(resolvedPosts.map(p => ({ ...p, is_liked: liked.has(p.id) })))
       } else {
-        setPosts(data)
+        setPosts(resolvedPosts)
       }
     } catch (error) {
       console.error('Error fetching posts:', error)
@@ -304,130 +415,102 @@ export default function CommunityDetailPage() {
         {/* Community Header */}
         <div className="col-span-1">
           <Card className="mb-8">
-          <CardHeader>
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <Badge variant="secondary" className="mb-4">{community.category}</Badge>
-                <CardTitle className="text-3xl mb-2">{community.name}</CardTitle>
-                <p className="text-muted-foreground text-lg mb-4">{community.description}</p>
-                
-                <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
-                  <button
-                    onClick={handleViewMembers}
-                    className="flex items-center gap-2 hover:text-foreground transition-colors cursor-pointer group"
-                  >
-                    <Users className="h-4 w-4 group-hover:scale-110 transition-transform" />
-                    <span className="group-hover:underline">{memberCount} members</span>
-                    <ChevronRight className="h-3 w-3 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-                  </button>
-                  {community.location && (
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4" />
-                      <span>{community.location}</span>
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <Badge variant="secondary" className="mb-4">{community.category}</Badge>
+                  <CardTitle className="text-3xl mb-2">{community.name}</CardTitle>
+                  <p className="text-muted-foreground text-lg mb-4">{community.description}</p>
+
+                  <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
+                    <button
+                      onClick={handleViewMembers}
+                      className="flex items-center gap-2 hover:text-foreground transition-colors cursor-pointer group"
+                    >
+                      <Users className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                      <span className="group-hover:underline">{memberCount} members</span>
+                      <ChevronRight className="h-3 w-3 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                    </button>
+                    {community.location && (
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        <span>{community.location}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {community.tags && community.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-4">
+                      {community.tags.map((tag) => (
+                        <Badge key={tag} variant="outline">{tag}</Badge>
+                      ))}
                     </div>
                   )}
                 </div>
 
-                {community.tags && community.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-4">
-                    {community.tags.map((tag) => (
-                      <Badge key={tag} variant="outline">{tag}</Badge>
-                    ))}
-                  </div>
-                )}
+                <div className="flex flex-col gap-3">
+                  {!isMember ? (
+                    <Button onClick={handleJoinCommunity} disabled={loading}>
+                      Join Community
+                    </Button>
+                  ) : (
+                    <Badge variant="secondary" className="text-center py-2">Member</Badge>
+                  )}
+                </div>
               </div>
+            </CardHeader>
+          </Card>
 
-              <div className="flex flex-col gap-3">
-                {!isMember ? (
-                  <Button onClick={handleJoinCommunity} disabled={loading}>
-                    Join Community
-                  </Button>
-                ) : (
-                  <Badge variant="secondary" className="text-center py-2">Member</Badge>
-                )}
-              </div>
+          {/* Create Post section - always visible for members */}
+          {isMember && (
+            <div className="mt-8">
+              <h3 className="text-lg font-semibold mb-4">Create New Post</h3>
+              <CreatePost
+                communityId={communityId}
+                onPostCreated={fetchPosts}
+              />
             </div>
-          </CardHeader>
-        </Card>
+          )}
         </div>
 
-
-                 {/* Create Post */}
+        {/* Right column: posts feed */}
         <div className="flex flex-col col-span-2 gap-4">
-
-        {/* Posts */}
-        <div className="space-y-6">
           {posts.length === 0 ? (
-            // <Card>
-            //   <CardContent className="pt-6">
-            //     <div className="text-center py-12">
-            //       <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            //       <h3 className="text-lg font-semibold mb-2">No posts yet</h3>
-            //       <p className="text-muted-foreground">
-            //         {isMember 
-            //           ? "Be the first to share something with your community!"
-            //           : "Join the community to see posts and start conversations!"
-            //         }
-            //       </p>
-            //     </div>
-            //   </CardContent>
-            // </Card>
-
             <Card className="border-0 shadow-lg bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-950 dark:to-emerald-900 space-y-6">
-  <CardContent className="pt-8 pb-10">
-    <div className="text-center space-y-6">
-      {/* Animated Icon */}
-      <div className="relative mx-auto w-20 h-20">
-        <div className="absolute inset-0 bg-green-200 dark:bg-green-800 rounded-full opacity-50 animate-pulse flex items-center justify-center">
-          <MessageCircle className="h-12 w-12 text-green-600 dark:text-green-400 mx-auto relative z-10" />
-        </div>
-        
-      </div>
-      
-      {/* Text Content */}
-      <div className="space-y-3">
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-          {isMember ? "Start the Conversation!" : "Join the Community!"}
-        </h3>
-        <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto leading-relaxed">
-          {isMember 
-            ? "Be the first to share your thoughts and inspire others in your community!"
-            : "Become a member to discover posts, share ideas, and connect with like-minded people!"
-          }
-        </p>
-      </div>
-
-      {/* Action Button */}
-      {isMember ? (
-        <Button 
-          className="bg-green-600 hover:bg-green-700 text-white px-8 py-6 rounded-full font-semibold transition-all duration-200 hover:shadow-lg"
-          onClick={onCreatePost}
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          Create First Post
-        </Button>
-      ) : (
-        <Button 
-          className="bg-green-600 hover:bg-green-700 text-white px-8 py-6 rounded-full font-semibold transition-all duration-200 hover:shadow-lg"
-        >
-          <Users className="w-5 h-5 mr-2" />
-          Join Community
-        </Button>
-      )}
-
-      
-    </div>
-  </CardContent>
-  {isMember && createPostVisible && (
-           <CreatePost 
-             communityId={communityId} 
-             onPostCreated={fetchPosts}
-           />
-       )}
-</Card>
+              <CardContent className="pt-8 pb-10">
+                <div className="text-center space-y-6">
+                  <div className="relative mx-auto w-20 h-20">
+                    <div className="absolute inset-0 bg-green-200 dark:bg-green-800 rounded-full opacity-50 animate-pulse flex items-center justify-center">
+                      <MessageCircle className="h-12 w-12 text-green-600 dark:text-green-400 mx-auto relative z-10" />
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                      {isMember ? "Start the Conversation!" : "Join the Community!"}
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto leading-relaxed">
+                      {isMember
+                        ? "Be the first to share your thoughts and inspire others in your community!"
+                        : "Become a member to discover posts, share ideas, and connect with like-minded people!"
+                      }
+                    </p>
+                  </div>
+                  {!isMember && (
+                    <Button className="bg-green-600 hover:bg-green-700 text-white px-8 py-6 rounded-full font-semibold transition-all duration-200 hover:shadow-lg" onClick={handleJoinCommunity}>
+                      <Users className="w-5 h-5 mr-2" />
+                      Join Community
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           ) : (
             posts.map((post) => (
-              <Card key={post.id}>
+              <Card
+                key={post.id}
+                className="cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => router.push(`/posts/${post.id}`)}
+              >
                 <CardContent className="pt-6">
                   <div className="flex gap-3">
                     <Avatar className="h-10 w-10">
@@ -436,7 +519,6 @@ export default function CommunityDetailPage() {
                         {post.user.first_name[0]}{post.user.last_name[0]}
                       </AvatarFallback>
                     </Avatar>
-                    
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-semibold">
@@ -446,69 +528,61 @@ export default function CommunityDetailPage() {
                           {new Date(post.created_at).toLocaleDateString()}
                         </span>
                       </div>
-                      
-                                             <p className="text-foreground mb-4">{post.content}</p>
-                       
-                       {/* Media Display */}
-                       {post.media_urls && post.media_urls.length > 0 && (
-                         <div className="mb-4">
-                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                             {post.media_urls.map((url, index) => (
-                               <div key={index} className="relative aspect-video bg-muted rounded-lg overflow-hidden">
-                                 {post.media_type === 'video' ? (
-                                   <div className="w-full h-full flex items-center justify-center bg-muted">
-                                     <Play className="h-12 w-12 text-muted-foreground" />
-                                     <span className="text-sm text-muted-foreground ml-2">Video</span>
-                                   </div>
-                                 ) : (
-                                   <img
-                                     src={url}
-                                     alt={`Post media ${index + 1}`}
-                                     className="w-full h-full object-cover"
-                                   />
-                                 )}
-                               </div>
-                             ))}
-                           </div>
-                         </div>
-                       )}
-                       
-                       {/* Location and Feels */}
-                       <div className="flex items-center gap-4 mb-4 text-sm text-muted-foreground">
-                         {post.location_name && (
-                           <div className="flex items-center gap-1">
-                             <MapPin className="h-4 w-4" />
-                             <span>{post.location_name}</span>
-                           </div>
-                         )}
-                         {post.feels_emoji && (
-                           <div className="flex items-center gap-1">
-                             <span className="text-lg">{post.feels_emoji}</span>
-                             <span>{post.feels_description}</span>
-                           </div>
-                         )}
-                       </div>
-                       
-                       {/* Post Actions */}
-                       <div className="flex items-center gap-6">
+                      <p className="text-foreground mb-4">{post.content}</p>
+                      {post.media_urls && post.media_urls.length > 0 && (
+                        <div className="mb-4">
+                          {post.media_urls.map((url, index) => (
+                            <div key={index} className="relative aspect-video bg-muted rounded-lg overflow-hidden mb-2 last:mb-0">
+                              {post.media_type?.startsWith('video') ? (
+                                <video src={url} controls className="w-full h-full object-cover" />
+                              ) : (
+                                <img
+                                  src={url}
+                                  alt={`Post media ${index + 1}`}
+                                  className="w-full h-full object-cover"
+                                />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex items-center gap-4 mb-4 text-sm text-muted-foreground">
+                        {post.location_name && (
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-4 w-4" />
+                            <span>{post.location_name}</span>
+                          </div>
+                        )}
+                        {post.feels_emoji && (
+                          <div className="flex items-center gap-1">
+                            <span className="text-lg">{post.feels_emoji}</span>
+                            <span>{post.feels_description}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-6">
                         <button
-                          onClick={() => handleLikePost(post.id)}
+                          onClick={(e) => { e.stopPropagation(); handleLikePost(post.id) }}
                           className={`flex items-center gap-2 text-sm transition-colors ${
-                            post.is_liked 
-                              ? 'text-red-500' 
+                            post.is_liked
+                              ? 'text-red-500'
                               : 'text-muted-foreground hover:text-foreground'
                           }`}
                         >
                           <Heart className={`h-4 w-4 ${post.is_liked ? 'fill-current' : ''}`} />
                           <span>{post.likes_count}</span>
                         </button>
-                        
-                        <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); router.push(`/posts/${post.id}`) }}
+                          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        >
                           <MessageCircle className="h-4 w-4" />
                           <span>{post.comments_count}</span>
                         </button>
-                        
-                        <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                        <button
+                          onClick={(e) => e.stopPropagation()} // Prevent card click propagation
+                          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        >
                           <Share2 className="h-4 w-4" />
                           <span>Share</span>
                         </button>
@@ -520,8 +594,7 @@ export default function CommunityDetailPage() {
             ))
           )}
         </div>
-        </div>
-        </div>
+       </div>
       </div>
     </div>
   )

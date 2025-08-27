@@ -47,6 +47,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { getSupabaseClient } from "@/lib/supabase"
 import { toast } from "sonner"
 import { format } from "date-fns"
+import CallModal from "@/components/messages/call-modal"
 
 interface User {
   id: string
@@ -58,12 +59,15 @@ interface User {
 }
 
 interface Message {
-  id: string
-  sender_id: string
-  content: string
-  timestamp: Date
-  is_read: boolean
-  type: string
+  id: string;
+  sender_id: string;
+  content: string;
+  timestamp: Date;
+  is_read: boolean;
+  type: string;
+  message_type?: string; // Add message_type
+  media_url?: string; // Add media_url
+  file_extension?: string; // Add file_extension
 }
 
 interface ChatWindowProps {
@@ -100,12 +104,18 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
   const [recordingElapsedSec, setRecordingElapsedSec] = useState(0)
   const recordingTimerRef = useRef<any>(null)
   const BUCKETS: Record<'image' | 'video' | 'file' | 'audio', string> = {
-    image: 'chat-images',
-    video: 'chat-videos',
-    file: 'chat-docs',
-    audio: 'chat-audio',
+    image: 'chat_attachments',
+    video: 'chat_attachments',
+    file: 'chat_attachments',
+    audio: 'chat_attachments',
   }
   const [attachmentUrls, setAttachmentUrls] = useState<Record<string, string>>({})
+  const [optimisticAttachments, setOptimisticAttachments] = useState<Record<string, { url: string, type: string, filename: string, uploading: boolean }>>({})
+
+  // Call functionality states
+  const [callOpen, setCallOpen] = useState(false)
+  const [callMode, setCallMode] = useState<'audio' | 'video'>('audio')
+  const [callAutoStart, setCallAutoStart] = useState(false)
 
   useEffect(() => {
     const fetchChatData = async () => {
@@ -238,6 +248,36 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
   const otherUser = conversationParticipants.find(p => p.id !== currentUser?.id)
   const otherUserName = otherUser ? `${otherUser.first_name} ${otherUser.last_name}`.trim() : 'Unknown User'
 
+  // WebRTC signaling channel for incoming calls
+  useEffect(() => {
+    if (!supabase || !conversationId || !currentUser?.id) return
+ 
+    const rtcChannel = supabase.channel(`webrtc-${conversationId}`, { config: { broadcast: { self: false } } })
+ 
+    rtcChannel.on(
+      'broadcast',
+      { event: 'offer' },
+      (payload) => {
+        console.log("Received broadcast offer:", payload)
+        if (payload.payload.recipientId === currentUser.id) {
+          setCallMode(payload.payload.mode)
+          setCallAutoStart(false) // Don't auto-start incoming
+          setCallOpen(true)
+        }
+      }
+    )
+ 
+    rtcChannel.subscribe(status => {
+      if (status === 'SUBSCRIBED') {
+        console.log("WebRTC broadcast channel subscribed")
+      }
+    })
+ 
+    return () => {
+      rtcChannel.unsubscribe()
+    }
+  }, [conversationId, currentUser?.id, supabase])
+
   // Presence and last seen updater (read other user's presence)
   useEffect(() => {
     let presenceInterval: any
@@ -310,7 +350,8 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
         content: newMessage,
         timestamp: new Date().toISOString(),
         is_read: false,
-        type: 'text'
+        type: 'text',
+        message_type: 'text', // Ensure message_type is set for text messages
       }).select('id, sender_id, content, timestamp, is_read, type').single()
 
       if (error) {
@@ -325,7 +366,8 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
         content: newMessage,
         timestamp: new Date(data?.timestamp || new Date()),
         is_read: false,
-        type: 'text'
+        type: 'text',
+        message_type: 'text', // Ensure message_type is set for text messages
       }
       setMessages((prevMessages) => [...prevMessages, optimisticMessage])
 
@@ -339,23 +381,73 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
   // Attachments handling
   const uploadAndSend = async (blob: Blob, originalName: string, kind: 'image' | 'video' | 'audio' | 'file') => {
     if (!currentUser) return
-    const safeName = originalName.replace(/[^a-zA-Z0-9_.-]/g, '_')
-    const path = `${conversationId}/${currentUser.id}/${Date.now()}_${safeName}`
-    const contentType = (blob as any).type || (kind === 'audio' ? 'audio/webm' : undefined)
-    const bucket = BUCKETS[kind]
-    const { error: upErr } = await supabase.storage.from(bucket).upload(path, blob, { contentType })
-    if (upErr) throw upErr
-    // Store the storage object path in DB; we'll resolve to signed URL at render
-    const url = path
-    const { error: msgErr } = await supabase.from('messages').insert({
-      conversation_id: conversationId,
-      sender_id: currentUser.id,
-      content: url,
-      timestamp: new Date().toISOString(),
-      is_read: false,
-      type: kind
-    })
-    if (msgErr) throw msgErr
+    const fileExtension = originalName.split('.').pop() || '';
+    const fileName = `${conversationId}/${currentUser.id}/${Date.now()}_${originalName.replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
+    const bucketName = BUCKETS[kind];
+    const filePath = `${bucketName}/${fileName}`;
+ 
+    // Optimistic UI update
+    const optimisticId = `optimistic-${Date.now()}`;
+    const localUrl = URL.createObjectURL(blob);
+    setOptimisticAttachments(prev => ({
+      ...prev,
+      [optimisticId]: { url: localUrl, type: kind, filename: originalName, uploading: true }
+    }));
+ 
+    let publicUrl = localUrl; // Start with local URL for preview
+ 
+    try {
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('chat_attachments')
+        .upload(filePath, blob, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: blob.type,
+        });
+ 
+      if (uploadError) throw uploadError;
+ 
+      // Once uploaded, get the public URL for actual display
+      const { data: publicUrlData } = supabase.storage
+        .from('chat_attachments')
+        .getPublicUrl(filePath);
+      publicUrl = publicUrlData.publicUrl;
+ 
+      // Insert message into database
+      const { data: messageData, error: messageError } = await supabase.from('messages').insert({
+        conversation_id: conversationId,
+        sender_id: currentUser.id,
+        content: publicUrl, // Use public URL for content
+        message_type: kind, // Use message_type column
+        file_extension: fileExtension,
+        media_url: publicUrl, // Store public URL in media_url
+        created_at: new Date().toISOString(),
+      }).select().single();
+ 
+      if (messageError) throw messageError;
+ 
+      // Remove optimistic attachment and add real message
+      setOptimisticAttachments(prev => {
+        const newOptimistic = { ...prev };
+        delete newOptimistic[optimisticId];
+        return newOptimistic;
+      });
+ 
+      setMessages((prevMessages) => {
+        const newMessages = prevMessages.filter(msg => msg.id !== optimisticId); // Remove optimistic
+        return [...newMessages, messageData]; // Add real message
+      });
+ 
+    } catch (err) {
+      console.error("Upload and send failed:", err);
+      toast.error("Failed to send attachment.");
+      // Remove optimistic attachment if upload fails
+      setOptimisticAttachments(prev => {
+        const newOptimistic = { ...prev };
+        delete newOptimistic[optimisticId];
+        return newOptimistic;
+      });
+    }
   }
 
   const handleFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>, kind: 'image' | 'video' | 'file') => {
@@ -492,29 +584,31 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
   // Resolve signed URLs for attachments (images/videos/audio/files)
   useEffect(() => {
     const resolve = async () => {
-      const entries = await Promise.all(
-        displayedMessages.map(async (m) => {
-          if (!['image','video','audio','file'].includes(m.type)) return [m.id, ''] as const
-          const content = m.content || ''
-          if (content.startsWith('http')) return [m.id, content] as const
-          try {
-            const bucket = (m.type === 'image') ? BUCKETS.image
-              : (m.type === 'video') ? BUCKETS.video
-              : (m.type === 'audio') ? BUCKETS.audio
-              : BUCKETS.file
-            const { data, error } = await supabase.storage.from(bucket).createSignedUrl(content, 60 * 60)
-            if (error) return [m.id, ''] as const
-            return [m.id, data?.signedUrl || ''] as const
-          } catch {
-            return [m.id, ''] as const
+      // With direct public URLs in message content, explicit signed URL resolution is not needed here.
+      // However, if there are any old messages with non-public paths, this would still be useful.
+      // For now, this useEffect can be left as is or removed if all messages will have public URLs.
+      const resolveOldAttachments = async () => {
+        const urls: Record<string, string> = {};
+        for (const m of displayedMessages) {
+          if (['image', 'video', 'audio', 'file'].includes(m.type) && m.content && !m.content.startsWith('http')) {
+            const bucket = BUCKETS[m.type as keyof typeof BUCKETS];
+            try {
+              const { data, error } = await supabase.storage.from(bucket).getPublicUrl(m.content);
+              if (data?.publicUrl && !error) {
+                urls[m.id] = data.publicUrl;
+              }
+            } catch (e) {
+              console.warn(`Failed to get public URL for old attachment ${m.content}:`, e);
+            }
           }
-        })
-      )
-      const next: Record<string,string> = {}
-      for (const [id, url] of entries) { if (url) next[id] = url }
-      if (Object.keys(next).length) setAttachmentUrls(prev => ({ ...prev, ...next }))
+        }
+        if (Object.keys(urls).length > 0) {
+          setAttachmentUrls(prev => ({ ...prev, ...urls }));
+        }
+      };
+      resolveOldAttachments();
     }
-    resolve()
+    resolve();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displayedMessages.map(m => m.id + m.content).join('|')])
 
@@ -609,10 +703,10 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" onClick={() => toast.info('Voice call coming soon')}>
+          <Button variant="ghost" size="icon" onClick={() => { setCallMode('audio'); setCallAutoStart(true); setCallOpen(true) }}>
             <Phone className="h-5 w-5" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => toast.info('Video call coming soon')}>
+          <Button variant="ghost" size="icon" onClick={() => { setCallMode('video'); setCallAutoStart(true); setCallOpen(true) }}>
             <Video className="h-5 w-5" />
           </Button>
           <DropdownMenu>
@@ -782,6 +876,11 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
           const senderName = isCurrentUser ? "You" : `${sender?.first_name || 'User'} ${sender?.last_name || ''}`.trim()
           const senderAvatar = isCurrentUser ? currentUser?.avatar_url : sender?.avatar_url
 
+         const messageContent = message.content || ""
+         const mediaUrl = message.media_url || attachmentUrls[message.id] || messageContent; // Use media_url if available
+         const isOptimistic = message.id.startsWith('optimistic-');
+         const currentOptimisticAttachment = optimisticAttachments[message.id];
+ 
           return (
             <div key={message.id} className={`flex items-start gap-3 ${isCurrentUser ? "justify-end" : "justify-start"}`}>
               {!isCurrentUser && (
@@ -793,15 +892,45 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
               <div className={`flex flex-col max-w-[70%] ${isCurrentUser ? "items-end" : "items-start"}`}>
                 <div className={`rounded-lg px-3 py-2 ${isCurrentUser ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                   {message.type === 'image' ? (
-                    <img src={attachmentUrls[message.id] || message.content} alt="image" className="max-w-[260px] rounded" />
+                    <div className="relative">
+                      <img src={currentOptimisticAttachment?.url || mediaUrl} alt="image" className="max-w-[260px] rounded" />
+                      {isOptimistic && currentOptimisticAttachment?.uploading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded">
+                          <Loader2 className="h-8 w-8 animate-spin text-white" />
+                        </div>
+                      )}
+                    </div>
                   ) : message.type === 'video' ? (
-                    <video src={attachmentUrls[message.id] || message.content} controls className="max-w-[260px] rounded" />
+                    <div className="relative">
+                      <video src={currentOptimisticAttachment?.url || mediaUrl} controls className="max-w-[260px] rounded" />
+                      {isOptimistic && currentOptimisticAttachment?.uploading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded">
+                          <Loader2 className="h-8 w-8 animate-spin text-white" />
+                        </div>
+                      )}
+                    </div>
                   ) : message.type === 'audio' ? (
-                    <audio src={attachmentUrls[message.id] || message.content} controls />
+                    <div className="relative">
+                      <audio src={currentOptimisticAttachment?.url || mediaUrl} controls />
+                      {isOptimistic && currentOptimisticAttachment?.uploading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded">
+                          <Loader2 className="h-8 w-8 animate-spin text-white" />
+                        </div>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-1">Voice Note</p>
+                    </div>
                   ) : message.type === 'location' ? (
-                    <a href={message.content} target="_blank" rel="noreferrer" className="underline">View location</a>
+                    <a href={mediaUrl} target="_blank" rel="noreferrer" className="underline">View location</a>
                   ) : message.type === 'file' ? (
-                    <a href={attachmentUrls[message.id] || message.content} target="_blank" rel="noreferrer" className="underline">Download file</a>
+                    <div className="relative flex items-center gap-2">
+                      <FileIcon className="h-5 w-5" />
+                      <a href={mediaUrl} target="_blank" rel="noreferrer" className="underline">
+                        {currentOptimisticAttachment?.filename || 'Download file'}
+                      </a>
+                      {isOptimistic && currentOptimisticAttachment?.uploading && (
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
                   ) : (
                     <p className="text-sm">{message.content}</p>
                   )}
@@ -901,3 +1030,15 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
     </div>
   )
 }
+
+{callOpen && currentUser && otherUser && (
+  <CallModal
+    open={callOpen}
+    onOpenChange={setCallOpen}
+    conversationId={conversationId}
+    currentUserId={currentUser.id}
+    otherUserId={otherUser.id}
+    startAs={callMode}
+    autoStart={callAutoStart}
+  />
+)}

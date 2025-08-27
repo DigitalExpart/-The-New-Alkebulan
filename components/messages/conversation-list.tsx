@@ -27,6 +27,8 @@ interface Message {
   timestamp: Date
   is_read: boolean
   type: string
+  message_type?: string;
+  media_url?: string;
 }
 
 interface Conversation {
@@ -36,6 +38,12 @@ interface Conversation {
   unreadCount: number
   updatedAt: Date
   isTyping: boolean
+  isArchived: boolean
+  isLocked: boolean
+  isMuted: boolean
+  notificationLevel: "all" | "mentions" | "none"
+  theme: "default" | "gold" | "forest" | "contrast"
+  clearedAt: Date | null
 }
 
 interface ConversationListProps {
@@ -132,7 +140,23 @@ export function ConversationList({
             console.log(`New conversation created: ${newConversationId}`)
             // Explicitly set a temporary conversation to avoid immediate re-trigger and re-creation
             // This temporary ID will be replaced once fetchConversations updates the list with the real one
-            setConversations(prev => [...prev, { id: `creating-${chatPartnerId}`, participants: [], lastMessage: { id: '', sender_id: '', content: 'Creating conversation...', timestamp: new Date(), is_read: false, type: 'text' }, unreadCount: 0, updatedAt: new Date(), isTyping: false }])
+            setConversations(prev => [
+              ...prev,
+              {
+                id: `creating-${chatPartnerId}`,
+                participants: [],
+                lastMessage: { id: '', sender_id: '', content: 'Creating conversation...', timestamp: new Date(), is_read: false, type: 'text' },
+                unreadCount: 0,
+                updatedAt: new Date(),
+                isTyping: false,
+                isArchived: false,
+                isLocked: false,
+                isMuted: false,
+                notificationLevel: "all",
+                theme: "default",
+                clearedAt: null,
+              },
+            ])
 
             await fetchConversations() // Re-fetch to get the newly created conversation with full data
             onSelectConversation(newConversationId) // Select the newly created one
@@ -166,7 +190,7 @@ export function ConversationList({
       // Step 1: find conversation ids where user participates
       const { data: myParticipantRows, error: partErr } = await supabase
         .from('conversation_participants')
-        .select('conversation_id, is_archived')
+        .select('conversation_id, is_archived, is_locked, is_muted, notification_level, theme, cleared_at')
         .eq('user_id', user.id)
 
       if (partErr) {
@@ -261,7 +285,7 @@ export function ConversationList({
           conversationIds.map(async (cid: string) => {
             const { data, error } = await supabase
               .from('messages')
-              .select('id, conversation_id, sender_id, content, timestamp, is_read, type')
+              .select('id, conversation_id, sender_id, content, timestamp, is_read, type, message_type, media_url')
               .eq('conversation_id', cid)
               .order('timestamp', { ascending: true })
 
@@ -285,15 +309,15 @@ export function ConversationList({
         messagesByConv.set(m.conversation_id, arr)
       })
 
-      const transformedConversationsAll: Conversation[] = (convs || [])
-        .map(conv => {
+      const transformedConversationsAll: (Conversation | null)[] = (convs || [])
+        .map((conv: any) => {
           const convMsgs = messagesByConv.get(conv.id) || []
           const otherId = otherUserIdsByConv.get(conv.id)
-          if (!otherId) return null
+          if (!otherId) return null // Return null here
           const prof = profiles?.find(p => p.id === otherId)
-          if (!prof) return null
+          if (!prof) return null // Return null here
 
-          const last = convMsgs.length > 0 ? convMsgs[convMsgs.length - 1] : null
+          const last = convMsgs.length > 0 ? convMsgs[convMsgs.length - 1] as Message : null;
           const unreadCount = convMsgs.filter(m => m.sender_id !== user.id && !m.is_read).length
 
           const displayUser: User = {
@@ -308,27 +332,28 @@ export function ConversationList({
           return {
             id: conv.id,
             participants: [displayUser],
-            lastMessage: last ? {
-              id: last.id,
-              sender_id: last.sender_id,
-              content: last.content,
-              timestamp: new Date(last.timestamp),
-              is_read: last.is_read,
-              type: last.type || 'text'
-            } : {
-              id: 'no-message',
-              sender_id: user.id,
-              content: 'No messages yet',
-              timestamp: new Date(conv.updated_at || conv.created_at || new Date()),
-              is_read: true,
-              type: 'text'
-            },
+            lastMessage: {
+              id: last?.id || 'no-message',
+              sender_id: last?.sender_id || user.id,
+              content: last?.content || 'No messages yet',
+              timestamp: new Date(last?.timestamp || conv.updated_at || conv.created_at || new Date()),
+              is_read: last?.is_read || true,
+              type: last?.type || 'text',
+              message_type: last?.message_type ?? 'text',
+              media_url: last?.media_url ?? null,
+            } as Message,
             unreadCount,
             updatedAt: new Date(last?.timestamp || conv.updated_at || conv.created_at || new Date()),
-            isTyping: false
+            isTyping: false,
+            isArchived: myParticipantRows?.find((p: any) => p.conversation_id === conv.id)?.is_archived || false,
+            isLocked: myParticipantRows?.find((p: any) => p.conversation_id === conv.id)?.is_locked || false,
+            isMuted: myParticipantRows?.find((p: any) => p.conversation_id === conv.id)?.is_muted || false,
+            notificationLevel: myParticipantRows?.find((p: any) => p.conversation_id === conv.id)?.notification_level || 'all',
+            theme: myParticipantRows?.find((p: any) => p.conversation_id === conv.id)?.theme || 'default',
+            clearedAt: myParticipantRows?.find((p: any) => p.conversation_id === conv.id)?.cleared_at ? new Date(myParticipantRows.find((p: any) => p.conversation_id === conv.id)?.cleared_at) : null,
           }
         })
-        .filter((c): c is Conversation => Boolean(c))
+        .filter((c): c is Conversation => c !== null)
 
       // Deduplicate by other participant id: keep the thread with more messages, then latest activity
       const bestByPeer = new Map<string, { conv: Conversation; msgCount: number; lastTs: number }>()

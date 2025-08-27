@@ -1,53 +1,54 @@
--- Conversations between a user and a company
-create table if not exists public.company_conversations (
-  id uuid primary key default gen_random_uuid(),
-  company_id uuid not null references public.companies(id) on delete cascade,
-  user_id uuid not null references auth.users(id) on delete cascade,
-  last_message text,
-  last_message_at timestamptz default now(),
-  created_at timestamptz not null default now()
+-- Create the company_conversations table
+CREATE TABLE IF NOT EXISTS public.company_conversations (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE, -- Assuming a businesses table exists
+    user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    UNIQUE (company_id, user_id)
 );
 
-create table if not exists public.company_messages (
-  id uuid primary key default gen_random_uuid(),
-  conversation_id uuid not null references public.company_conversations(id) on delete cascade,
-  sender_type text not null check (sender_type in ('user','company')),
-  sender_id uuid not null,
-  content text not null,
-  created_at timestamptz not null default now()
+-- Create index on company_id and user_id for faster lookups
+CREATE INDEX IF NOT EXISTS idx_company_conversations_company_id ON public.company_conversations(company_id);
+CREATE INDEX IF NOT EXISTS idx_company_conversations_user_id ON public.company_conversations(user_id);
+
+-- Create the company_messages table
+CREATE TABLE IF NOT EXISTS public.company_messages (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    conversation_id uuid NOT NULL REFERENCES public.company_conversations(id) ON DELETE CASCADE,
+    sender_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE, -- Can be user or company rep
+    content text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_from_company BOOLEAN DEFAULT FALSE -- true if sender is a company representative
 );
 
-alter table public.company_conversations enable row level security;
-alter table public.company_messages enable row level security;
+-- Create index on conversation_id for faster message retrieval
+CREATE INDEX IF NOT EXISTS idx_company_messages_conversation_id ON public.company_messages(conversation_id);
 
--- Policies: allow any authenticated user to read/write their own conversations
-create policy if not exists "conv-select"
-on public.company_conversations for select to authenticated
-using (user_id = auth.uid());
-
-create policy if not exists "conv-insert"
-on public.company_conversations for insert to authenticated
-with check (user_id = auth.uid());
-
-create policy if not exists "msg-select"
-on public.company_messages for select to authenticated
-using (
-  exists (
-    select 1 from public.company_conversations c
-    where c.id = company_messages.conversation_id and c.user_id = auth.uid()
-  )
+-- Enable Row Level Security (RLS) for company_conversations
+ALTER TABLE public.company_conversations ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable read access for participants" ON public.company_conversations;
+CREATE POLICY "Enable read access for participants" ON public.company_conversations
+FOR SELECT USING (
+  (auth.uid() = user_id) OR (EXISTS (SELECT 1 FROM public.business_profiles WHERE business_id = company_id AND profile_id = auth.uid())) -- Assuming business_profiles links users to companies
 );
+DROP POLICY IF EXISTS "Enable insert for authenticated users" ON public.company_conversations;
+CREATE POLICY "Enable insert for authenticated users" ON public.company_conversations
+FOR INSERT WITH CHECK ((auth.uid() = user_id) OR (EXISTS (SELECT 1 FROM public.business_profiles WHERE business_id = company_id AND profile_id = auth.uid())));
 
-create policy if not exists "msg-insert"
-on public.company_messages for insert to authenticated
-with check (
-  exists (
-    select 1 from public.company_conversations c
-    where c.id = company_messages.conversation_id and c.user_id = auth.uid()
-  )
+-- Enable RLS for company_messages
+ALTER TABLE public.company_messages ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable read access for participants" ON public.company_messages;
+CREATE POLICY "Enable read access for participants" ON public.company_messages
+FOR SELECT USING (
+  EXISTS (SELECT 1 FROM public.company_conversations WHERE id = conversation_id AND user_id = auth.uid()) OR
+  EXISTS (SELECT 1 FROM public.company_conversations cc JOIN public.business_profiles bp ON cc.company_id = bp.business_id WHERE cc.id = conversation_id AND bp.profile_id = auth.uid())
 );
-
-create index if not exists company_messages_conversation_id_idx on public.company_messages(conversation_id);
-create index if not exists company_conversations_company_id_user_id_idx on public.company_conversations(company_id, user_id);
+DROP POLICY IF EXISTS "Enable insert for authenticated users" ON public.company_messages;
+CREATE POLICY "Enable insert for authenticated users" ON public.company_messages
+FOR INSERT WITH CHECK (
+  (auth.uid() = sender_id AND is_from_company = FALSE AND EXISTS (SELECT 1 FROM public.company_conversations WHERE id = conversation_id AND user_id = auth.uid())) OR
+  (is_from_company = TRUE AND EXISTS (SELECT 1 FROM public.company_conversations cc JOIN public.business_profiles bp ON cc.company_id = bp.business_id WHERE cc.id = conversation_id AND bp.profile_id = auth.uid()))
+);
 
 
