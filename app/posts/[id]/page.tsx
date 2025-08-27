@@ -218,6 +218,34 @@ export default function PostDetailPage() {
     }
   }
 
+  const handleSharePost = async () => {
+    if (!post) return
+    const postUrl = `${window.location.origin}/posts/${post.id}`
+    const postTitle = post.content.substring(0, 50) + "..."
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: postTitle,
+          url: postUrl,
+        })
+        toast.success("Post shared successfully!")
+      } catch (error) {
+        console.error('Error sharing:', error)
+        toast.error("Failed to share post.")
+      }
+    } else {
+      // Fallback for browsers that do not support Web Share API
+      try {
+        await navigator.clipboard.writeText(postUrl)
+        toast.success("Post link copied to clipboard!")
+      } catch (error) {
+        console.error('Error copying to clipboard:', error)
+        toast.error("Failed to copy post link.")
+      }
+    }
+  }
+
   const renderMedia = (media_urls: string[], media_type?: string) => {
     if (!media_urls || media_urls.length === 0) return null
 
@@ -334,7 +362,7 @@ export default function PostDetailPage() {
                 <span>{post.comments_count} Comments</span>
               </Button>
               <Button variant="ghost" size="sm" className="flex items-center gap-2">
-                <Share2 className="h-5 w-5" />
+                <Share2 className="h-5 w-5" onClick={handleSharePost} />
                 <span>Share</span>
               </Button>
             </div>
