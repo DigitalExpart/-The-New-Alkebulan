@@ -96,7 +96,16 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
   const [isRecording, setIsRecording] = useState(false)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const recordedChunksRef = useRef<Blob[]>([])
-  const STORAGE_BUCKET = 'chat-uploads'
+  const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(null)
+  const [recordingElapsedSec, setRecordingElapsedSec] = useState(0)
+  const recordingTimerRef = useRef<any>(null)
+  const BUCKETS: Record<'image' | 'video' | 'file' | 'audio', string> = {
+    image: 'chat-images',
+    video: 'chat-videos',
+    file: 'chat-docs',
+    audio: 'chat-audio',
+  }
+  const [attachmentUrls, setAttachmentUrls] = useState<Record<string, string>>({})
 
   useEffect(() => {
     const fetchChatData = async () => {
@@ -108,7 +117,23 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
           setLoading(false)
           return
         }
-        setCurrentUser({ id: authUser.id, first_name: authUser.user_metadata.first_name, last_name: authUser.user_metadata.last_name, avatar_url: authUser.user_metadata.avatar_url })
+        // Ensure we use the profile avatar image (fallback to auth metadata)
+        let profileFirst = authUser.user_metadata.first_name
+        let profileLast = authUser.user_metadata.last_name
+        let profileAvatar = authUser.user_metadata.avatar_url
+        try {
+          const { data: myProfile } = await supabase
+            .from('profiles')
+            .select('first_name, last_name, avatar_url')
+            .eq('id', authUser.id)
+            .maybeSingle()
+          if (myProfile) {
+            profileFirst = myProfile.first_name || profileFirst
+            profileLast = myProfile.last_name || profileLast
+            profileAvatar = myProfile.avatar_url || profileAvatar
+          }
+        } catch {}
+        setCurrentUser({ id: authUser.id, first_name: profileFirst, last_name: profileLast, avatar_url: profileAvatar })
 
         // Fetch conversation details and participants
         const { data: participantsData, error: participantsError } = await supabase
@@ -317,10 +342,11 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
     const safeName = originalName.replace(/[^a-zA-Z0-9_.-]/g, '_')
     const path = `${conversationId}/${currentUser.id}/${Date.now()}_${safeName}`
     const contentType = (blob as any).type || (kind === 'audio' ? 'audio/webm' : undefined)
-    const { error: upErr } = await supabase.storage.from(STORAGE_BUCKET).upload(path, blob, { contentType })
+    const bucket = BUCKETS[kind]
+    const { error: upErr } = await supabase.storage.from(bucket).upload(path, blob, { contentType })
     if (upErr) throw upErr
-    const { data: pub } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path)
-    const url = pub?.publicUrl || ''
+    // Store the storage object path in DB; we'll resolve to signed URL at render
+    const url = path
     const { error: msgErr } = await supabase.from('messages').insert({
       conversation_id: conversationId,
       sender_id: currentUser.id,
@@ -343,7 +369,7 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
       e.target.value = ''
     } catch (err: any) {
       console.error('Attachment send failed:', err?.message)
-      toast.error('Failed to send attachment')
+      toast.error(`Failed to send attachment: ${err?.message || 'Unknown error'}`)
     }
   }
 
@@ -391,13 +417,22 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
           toast.success('Voice note sent')
         } catch (err: any) {
           console.error('Voice note send failed:', err?.message)
-          toast.error('Failed to send voice note')
+          toast.error(`Failed to send voice note: ${err?.message || 'Unknown error'}`)
         } finally {
           setIsRecording(false)
+          setRecordingStartedAt(null)
+          setRecordingElapsedSec(0)
+          if (recordingTimerRef.current) clearInterval(recordingTimerRef.current)
         }
       }
       mediaRecorder.start()
       setIsRecording(true)
+      setRecordingStartedAt(Date.now())
+      setRecordingElapsedSec(0)
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current)
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingElapsedSec((s) => s + 1)
+      }, 1000)
     } catch (err: any) {
       console.error('Recording start failed:', err?.message)
       toast.error('Cannot start recording')
@@ -409,6 +444,13 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
       const mr = mediaRecorderRef.current
       if (mr && mr.state !== 'inactive') mr.stop()
     } catch {}
+  }
+
+  const formatDuration = (ms: number) => {
+    const total = Math.floor(ms / 1000)
+    const m = Math.floor(total / 60).toString().padStart(1, '0')
+    const s = (total % 60).toString().padStart(2, '0')
+    return `${m}:${s}`
   }
 
   const getParticipant = (userId: string) => {
@@ -446,6 +488,35 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
       toast.error('Failed to clear chat')
     }
   }
+
+  // Resolve signed URLs for attachments (images/videos/audio/files)
+  useEffect(() => {
+    const resolve = async () => {
+      const entries = await Promise.all(
+        displayedMessages.map(async (m) => {
+          if (!['image','video','audio','file'].includes(m.type)) return [m.id, ''] as const
+          const content = m.content || ''
+          if (content.startsWith('http')) return [m.id, content] as const
+          try {
+            const bucket = (m.type === 'image') ? BUCKETS.image
+              : (m.type === 'video') ? BUCKETS.video
+              : (m.type === 'audio') ? BUCKETS.audio
+              : BUCKETS.file
+            const { data, error } = await supabase.storage.from(bucket).createSignedUrl(content, 60 * 60)
+            if (error) return [m.id, ''] as const
+            return [m.id, data?.signedUrl || ''] as const
+          } catch {
+            return [m.id, ''] as const
+          }
+        })
+      )
+      const next: Record<string,string> = {}
+      for (const [id, url] of entries) { if (url) next[id] = url }
+      if (Object.keys(next).length) setAttachmentUrls(prev => ({ ...prev, ...next }))
+    }
+    resolve()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayedMessages.map(m => m.id + m.content).join('|')])
 
   const handleArchiveChat = async () => {
     try {
@@ -722,15 +793,15 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
               <div className={`flex flex-col max-w-[70%] ${isCurrentUser ? "items-end" : "items-start"}`}>
                 <div className={`rounded-lg px-3 py-2 ${isCurrentUser ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                   {message.type === 'image' ? (
-                    <img src={message.content} alt="image" className="max-w-[260px] rounded" />
+                    <img src={attachmentUrls[message.id] || message.content} alt="image" className="max-w-[260px] rounded" />
                   ) : message.type === 'video' ? (
-                    <video src={message.content} controls className="max-w-[260px] rounded" />
+                    <video src={attachmentUrls[message.id] || message.content} controls className="max-w-[260px] rounded" />
                   ) : message.type === 'audio' ? (
-                    <audio src={message.content} controls />
+                    <audio src={attachmentUrls[message.id] || message.content} controls />
                   ) : message.type === 'location' ? (
                     <a href={message.content} target="_blank" rel="noreferrer" className="underline">View location</a>
                   ) : message.type === 'file' ? (
-                    <a href={message.content} target="_blank" rel="noreferrer" className="underline">Download file</a>
+                    <a href={attachmentUrls[message.id] || message.content} target="_blank" rel="noreferrer" className="underline">Download file</a>
                   ) : (
                     <p className="text-sm">{message.content}</p>
                   )}
@@ -790,22 +861,30 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
         <Button variant="ghost" size="icon">
           <Smile className="h-5 w-5 text-muted-foreground" />
         </Button>
-        <Input
-          placeholder="Type your message..."
-          className="flex-1"
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyPress={(e) => {
-            if (e.key === 'Enter') {
-              handleSendMessage()
-            }
-          }}
-          disabled={isLocked}
-        />
-        <Button type="submit" onClick={handleSendMessage} disabled={isLocked}>
-          <Send className="h-5 w-5" />
-          <span className="sr-only">Send message</span>
-        </Button>
+        <div className="flex-1 relative">
+          <Input
+            placeholder="Type your message..."
+            className={`w-full pr-24 ${isRecording ? 'pl-28' : ''}`}
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                handleSendMessage()
+              }
+            }}
+            disabled={isLocked}
+          />
+          {isRecording && (
+            <div className="absolute inset-y-0 left-2 flex items-center gap-2 text-red-500">
+              <span className="flex items-center">
+                <span className="inline-block w-1.5 h-4 bg-red-500 animate-pulse mr-0.5"></span>
+                <span className="inline-block w-1.5 h-6 bg-red-500 animate-pulse mr-0.5"></span>
+                <span className="inline-block w-1.5 h-5 bg-red-500 animate-pulse"></span>
+              </span>
+              <span className="text-xs">REC {recordingStartedAt ? `${Math.floor(recordingElapsedSec/60)}:${(recordingElapsedSec%60).toString().padStart(2,'0')}` : ''}</span>
+            </div>
+          )}
+        </div>
         <Button
           variant={isRecording ? "destructive" : "default"}
           onClick={isRecording ? stopRecording : startRecording}
@@ -813,6 +892,10 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
         >
           {isRecording ? <Square className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
           <span className="sr-only">{isRecording ? 'Stop recording' : 'Record voice note'}</span>
+        </Button>
+        <Button type="submit" onClick={handleSendMessage} disabled={isLocked}>
+          <Send className="h-5 w-5" />
+          <span className="sr-only">Send message</span>
         </Button>
       </div>
     </div>
