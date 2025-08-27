@@ -96,6 +96,7 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
   const [isRecording, setIsRecording] = useState(false)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const recordedChunksRef = useRef<Blob[]>([])
+  const STORAGE_BUCKET = 'chat-uploads'
 
   useEffect(() => {
     const fetchChatData = async () => {
@@ -311,23 +312,34 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
   }
 
   // Attachments handling
+  const uploadAndSend = async (blob: Blob, originalName: string, kind: 'image' | 'video' | 'audio' | 'file') => {
+    if (!currentUser) return
+    const safeName = originalName.replace(/[^a-zA-Z0-9_.-]/g, '_')
+    const path = `${conversationId}/${currentUser.id}/${Date.now()}_${safeName}`
+    const contentType = (blob as any).type || (kind === 'audio' ? 'audio/webm' : undefined)
+    const { error: upErr } = await supabase.storage.from(STORAGE_BUCKET).upload(path, blob, { contentType })
+    if (upErr) throw upErr
+    const { data: pub } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path)
+    const url = pub?.publicUrl || ''
+    const { error: msgErr } = await supabase.from('messages').insert({
+      conversation_id: conversationId,
+      sender_id: currentUser.id,
+      content: url,
+      timestamp: new Date().toISOString(),
+      is_read: false,
+      type: kind
+    })
+    if (msgErr) throw msgErr
+  }
+
   const handleFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>, kind: 'image' | 'video' | 'file') => {
     try {
       if (!e.target.files || !currentUser) return
       const files = Array.from(e.target.files)
       for (const file of files) {
-        // For demo: send a placeholder message with file name
-        const { error } = await supabase.from('messages').insert({
-          conversation_id: conversationId,
-          sender_id: currentUser.id,
-          content: `${kind.toUpperCase()}: ${file.name}`,
-          timestamp: new Date().toISOString(),
-          is_read: false,
-          type: kind === 'file' ? 'file' : kind
-        })
-        if (error) throw error
+        await uploadAndSend(file, file.name, kind === 'file' ? 'file' : (kind as any))
       }
-      toast.success('Attachment queued')
+      toast.success('Attachment sent')
       e.target.value = ''
     } catch (err: any) {
       console.error('Attachment send failed:', err?.message)
@@ -375,16 +387,7 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
         try {
           if (!currentUser) return
           const blob = new Blob(recordedChunksRef.current, { type: 'audio/webm' })
-          // For demo: just send a placeholder message. Hook up storage upload later.
-          const { error } = await supabase.from('messages').insert({
-            conversation_id: conversationId,
-            sender_id: currentUser.id,
-            content: `VOICE_NOTE (${Math.round(blob.size / 1024)} KB)`,
-            timestamp: new Date().toISOString(),
-            is_read: false,
-            type: 'audio'
-          })
-          if (error) throw error
+          await uploadAndSend(blob, `voice_${Date.now()}.webm`, 'audio')
           toast.success('Voice note sent')
         } catch (err: any) {
           console.error('Voice note send failed:', err?.message)
@@ -717,8 +720,20 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
                 </Avatar>
               )}
               <div className={`flex flex-col max-w-[70%] ${isCurrentUser ? "items-end" : "items-start"}`}>
-                <div className={`rounded-lg px-4 py-2 ${isCurrentUser ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                  <p className="text-sm">{message.content}</p>
+                <div className={`rounded-lg px-3 py-2 ${isCurrentUser ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                  {message.type === 'image' ? (
+                    <img src={message.content} alt="image" className="max-w-[260px] rounded" />
+                  ) : message.type === 'video' ? (
+                    <video src={message.content} controls className="max-w-[260px] rounded" />
+                  ) : message.type === 'audio' ? (
+                    <audio src={message.content} controls />
+                  ) : message.type === 'location' ? (
+                    <a href={message.content} target="_blank" rel="noreferrer" className="underline">View location</a>
+                  ) : message.type === 'file' ? (
+                    <a href={message.content} target="_blank" rel="noreferrer" className="underline">Download file</a>
+                  ) : (
+                    <p className="text-sm">{message.content}</p>
+                  )}
                 </div>
                 <span className="text-xs text-muted-foreground mt-1">
                   {format(new Date(message.timestamp), 'h:mm a')}

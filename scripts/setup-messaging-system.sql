@@ -142,6 +142,7 @@ CREATE TRIGGER update_conversation_on_message
 GRANT ALL ON public.conversations TO authenticated;
 GRANT ALL ON public.conversation_participants TO authenticated;
 GRANT ALL ON public.messages TO authenticated;
+-- Storage permissions are managed separately in Supabase dashboard; ensure bucket exists
 
 -- Add comments for documentation
 COMMENT ON TABLE public.conversations IS 'Chat conversations between users';
