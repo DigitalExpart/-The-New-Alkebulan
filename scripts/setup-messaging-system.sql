@@ -163,3 +163,21 @@ COMMENT ON COLUMN public.conversations.is_group IS 'Whether this is a group chat
 
 -- Show success message
 SELECT 'Messaging system tables created successfully!' as status;
+
+-- Presence support additions (safe to re-run)
+alter table if exists public.profiles
+  add column if not exists is_online boolean default false,
+  add column if not exists last_seen timestamptz;
+
+create or replace function public.set_presence(online boolean)
+returns void
+language plpgsql
+security definer
+as $$
+begin
+  update public.profiles
+    set is_online = online,
+        last_seen = now()
+  where id = auth.uid();
+end;
+$$;

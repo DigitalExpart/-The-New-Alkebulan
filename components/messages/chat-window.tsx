@@ -198,6 +198,72 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
     }
   }, [isSearchOpen])
 
+  // Identify other user early so effects below can reference it
+  const otherUser = conversationParticipants.find(p => p.id !== currentUser?.id)
+  const otherUserName = otherUser ? `${otherUser.first_name} ${otherUser.last_name}`.trim() : 'Unknown User'
+
+  // Presence and last seen updater (read other user's presence)
+  useEffect(() => {
+    let presenceInterval: any
+    const presenceEl = typeof document !== 'undefined' ? document.getElementById('chat-presence-line') : null
+
+    const updatePresence = async () => {
+      try {
+        const other = otherUser?.id
+        if (!other) return
+        // Read online flag and last_seen from profiles if present
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, is_online, last_seen')
+          .eq('id', other)
+          .maybeSingle()
+        if (error || !data) return
+        const isOnline = Boolean((data as any).is_online)
+        const lastSeenTs = (data as any).last_seen ? new Date((data as any).last_seen) : null
+        if (presenceEl) {
+          if (isOnline) {
+            presenceEl.textContent = 'Online'
+          } else if (lastSeenTs) {
+            const hm = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(lastSeenTs)
+            presenceEl.textContent = `Last seen ${hm}`
+          } else {
+            presenceEl.textContent = 'Offline'
+          }
+        }
+      } catch {}
+    }
+
+    updatePresence()
+    presenceInterval = setInterval(updatePresence, 20000)
+
+    return () => {
+      if (presenceInterval) clearInterval(presenceInterval)
+    }
+  }, [otherUser?.id, supabase])
+
+  // Heartbeat for current user's presence
+  useEffect(() => {
+    if (!currentUser?.id) return
+    let hb: any
+    const markOnline = async (online: boolean) => {
+      try {
+        await supabase
+          .from('profiles')
+          .update({ is_online: online, last_seen: new Date().toISOString() })
+          .eq('id', currentUser.id)
+      } catch {}
+    }
+    markOnline(true)
+    hb = setInterval(() => markOnline(true), 60000)
+    const beforeUnload = () => { markOnline(false) }
+    window.addEventListener('beforeunload', beforeUnload)
+    return () => {
+      if (hb) clearInterval(hb)
+      window.removeEventListener('beforeunload', beforeUnload)
+      markOnline(false)
+    }
+  }, [currentUser?.id, supabase])
+
   const handleSendMessage = async () => {
     if (newMessage.trim() === "" || !currentUser) return
 
@@ -237,9 +303,6 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
   const getParticipant = (userId: string) => {
     return conversationParticipants.find(p => p.id === userId)
   }
-
-  const otherUser = conversationParticipants.find(p => p.id !== currentUser?.id)
-  const otherUserName = otherUser ? `${otherUser.first_name} ${otherUser.last_name}`.trim() : 'Unknown User'
 
   const displayedMessages = searchQuery.trim()
     ? messages.filter(m => m.content?.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -289,6 +352,8 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
       if (!next && pathname?.startsWith('/messages/archived')) {
         router.push('/messages')
       }
+      // Notify conversation list to refresh so the chat moves between sections
+      try { window.dispatchEvent(new Event('conversations:refresh')) } catch {}
     } catch (err: any) {
       console.error('Failed to toggle archive:', err?.message)
       toast.error('Failed to update archive state')
@@ -358,7 +423,7 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
           </Avatar>
           <div>
             <h3 className="font-semibold text-lg">{otherUserName}</h3>
-            {/* <p className="text-sm text-muted-foreground">Online</p> */}
+            <p className="text-sm text-muted-foreground" id="chat-presence-line"></p>
           </div>
         </div>
         <DropdownMenu>

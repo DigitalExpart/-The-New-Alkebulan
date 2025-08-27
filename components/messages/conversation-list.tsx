@@ -68,6 +68,19 @@ export function ConversationList({
     fetchConversations()
   }, [supabase, chatPartnerId, onSelectConversation, showArchived]) // Refetch when switching inbox/archived
 
+  // Listen for global refresh events (e.g., archive/unarchive from ChatWindow)
+  useEffect(() => {
+    const handler = () => {
+      fetchConversations()
+    }
+    // @ts-ignore - CustomEvent type in browser
+    window.addEventListener('conversations:refresh', handler)
+    return () => {
+      // @ts-ignore
+      window.removeEventListener('conversations:refresh', handler)
+    }
+  }, [])
+
   // Effect to handle initial chat setup if a chatPartnerId is provided via URL
   useEffect(() => {
     const handleInitialChatSetup = async () => {
