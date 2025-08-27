@@ -20,7 +20,14 @@ import {
   BellOff,
   Archive,
   UserX,
-  UserCheck
+  UserCheck,
+  Phone,
+  Video,
+  Mic,
+  Square,
+  Image as ImageIcon,
+  File as FileIcon,
+  MapPin
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -86,6 +93,9 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
   const [isArchived, setIsArchived] = useState(false)
   const [clearedAfter, setClearedAfter] = useState<Date | null>(null)
   const [isBlocked, setIsBlocked] = useState(false)
+  const [isRecording, setIsRecording] = useState(false)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const recordedChunksRef = useRef<Blob[]>([])
 
   useEffect(() => {
     const fetchChatData = async () => {
@@ -300,6 +310,104 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
     }
   }
 
+  // Attachments handling
+  const handleFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>, kind: 'image' | 'video' | 'file') => {
+    try {
+      if (!e.target.files || !currentUser) return
+      const files = Array.from(e.target.files)
+      for (const file of files) {
+        // For demo: send a placeholder message with file name
+        const { error } = await supabase.from('messages').insert({
+          conversation_id: conversationId,
+          sender_id: currentUser.id,
+          content: `${kind.toUpperCase()}: ${file.name}`,
+          timestamp: new Date().toISOString(),
+          is_read: false,
+          type: kind === 'file' ? 'file' : kind
+        })
+        if (error) throw error
+      }
+      toast.success('Attachment queued')
+      e.target.value = ''
+    } catch (err: any) {
+      console.error('Attachment send failed:', err?.message)
+      toast.error('Failed to send attachment')
+    }
+  }
+
+  const handleShareLocation = async () => {
+    try {
+      if (!navigator.geolocation || !currentUser) {
+        toast.error('Location not available')
+        return
+      }
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        const { latitude, longitude } = pos.coords
+        const url = `https://maps.google.com/?q=${latitude},${longitude}`
+        const { error } = await supabase.from('messages').insert({
+          conversation_id: conversationId,
+          sender_id: currentUser.id,
+          content: url,
+          timestamp: new Date().toISOString(),
+          is_read: false,
+          type: 'location'
+        })
+        if (error) throw error
+        toast.success('Location shared')
+      })
+    } catch (err: any) {
+      console.error('Share location failed:', err?.message)
+      toast.error('Failed to share location')
+    }
+  }
+
+  // Voice note recording (simplified)
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mediaRecorder = new MediaRecorder(stream)
+      mediaRecorderRef.current = mediaRecorder
+      recordedChunksRef.current = []
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) recordedChunksRef.current.push(e.data)
+      }
+      mediaRecorder.onstop = async () => {
+        try {
+          if (!currentUser) return
+          const blob = new Blob(recordedChunksRef.current, { type: 'audio/webm' })
+          // For demo: just send a placeholder message. Hook up storage upload later.
+          const { error } = await supabase.from('messages').insert({
+            conversation_id: conversationId,
+            sender_id: currentUser.id,
+            content: `VOICE_NOTE (${Math.round(blob.size / 1024)} KB)`,
+            timestamp: new Date().toISOString(),
+            is_read: false,
+            type: 'audio'
+          })
+          if (error) throw error
+          toast.success('Voice note sent')
+        } catch (err: any) {
+          console.error('Voice note send failed:', err?.message)
+          toast.error('Failed to send voice note')
+        } finally {
+          setIsRecording(false)
+        }
+      }
+      mediaRecorder.start()
+      setIsRecording(true)
+    } catch (err: any) {
+      console.error('Recording start failed:', err?.message)
+      toast.error('Cannot start recording')
+    }
+  }
+
+  const stopRecording = () => {
+    try {
+      const mr = mediaRecorderRef.current
+      if (mr && mr.state !== 'inactive') mr.stop()
+    } catch {}
+  }
+
   const getParticipant = (userId: string) => {
     return conversationParticipants.find(p => p.id === userId)
   }
@@ -412,7 +520,7 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
   return (
     <div className={`flex flex-col flex-1 ${containerThemeClass}`}>
       {/* Chat Header */}
-      <div className="flex items-center justify-between p-4 border-b border-border bg-card">
+      <div className="flex items-center justify-between py-5 px-4 border-b border-border bg-card">
         <div className="flex items-center space-x-3">
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={onOpenSidebar}>
             <Menu className="h-5 w-5" />
@@ -426,7 +534,14 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
             <p className="text-sm text-muted-foreground" id="chat-presence-line"></p>
           </div>
         </div>
-        <DropdownMenu>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" onClick={() => toast.info('Voice call coming soon')}>
+            <Phone className="h-5 w-5" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => toast.info('Video call coming soon')}>
+            <Video className="h-5 w-5" />
+          </Button>
+          <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon">
               <MoreVertical className="h-5 w-5" />
@@ -563,6 +678,7 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </div>
 
       {/* Chat Messages */}
@@ -622,9 +738,40 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
 
       {/* Chat Input */}
       <div className="border-t border-border bg-card p-4 flex items-center space-x-2">
-        <Button variant="ghost" size="icon">
-          <Paperclip className="h-5 w-5 text-muted-foreground" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <Paperclip className="h-5 w-5 text-muted-foreground" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuItem asChild>
+              <label className="w-full flex items-center gap-2 cursor-pointer">
+                <ImageIcon className="w-4 h-4" />
+                <span>Image</span>
+                <input type="file" accept="image/*" multiple hidden onChange={(e) => handleFilesSelected(e, 'image')} />
+              </label>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <label className="w-full flex items-center gap-2 cursor-pointer">
+                <Video className="w-4 h-4" />
+                <span>Video</span>
+                <input type="file" accept="video/*" multiple hidden onChange={(e) => handleFilesSelected(e, 'video')} />
+              </label>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <label className="w-full flex items-center gap-2 cursor-pointer">
+                <FileIcon className="w-4 h-4" />
+                <span>Document</span>
+                <input type="file" multiple hidden onChange={(e) => handleFilesSelected(e, 'file')} />
+              </label>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleShareLocation} className="cursor-pointer">
+              <MapPin className="w-4 h-4" />
+              Share location
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button variant="ghost" size="icon">
           <Smile className="h-5 w-5 text-muted-foreground" />
         </Button>
@@ -643,6 +790,14 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
         <Button type="submit" onClick={handleSendMessage} disabled={isLocked}>
           <Send className="h-5 w-5" />
           <span className="sr-only">Send message</span>
+        </Button>
+        <Button
+          variant={isRecording ? "destructive" : "default"}
+          onClick={isRecording ? stopRecording : startRecording}
+          disabled={isLocked}
+        >
+          {isRecording ? <Square className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+          <span className="sr-only">{isRecording ? 'Stop recording' : 'Record voice note'}</span>
         </Button>
       </div>
     </div>

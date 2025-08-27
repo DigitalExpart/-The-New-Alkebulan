@@ -43,7 +43,7 @@ CREATE TABLE public.messages (
     content TEXT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     is_read BOOLEAN DEFAULT FALSE,
-    type TEXT DEFAULT 'text' CHECK (type IN ('text', 'image', 'file', 'system')),
+    type TEXT DEFAULT 'text' CHECK (type IN ('text', 'image', 'file', 'system', 'video', 'audio', 'location')),
     reply_to_id UUID REFERENCES public.messages(id), -- For reply functionality
     edited_at TIMESTAMP WITH TIME ZONE,
     deleted_at TIMESTAMP WITH TIME ZONE
