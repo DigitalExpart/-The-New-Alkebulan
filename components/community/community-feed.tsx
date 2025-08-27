@@ -45,7 +45,6 @@ interface CommunityPost {
 
 
 
-
 export function CommunityFeed() {
   const { user } = useAuth()
   const [posts, setPosts] = useState<CommunityPost[]>([])
@@ -217,6 +216,11 @@ export function CommunityFeed() {
     )
   }
 
+  const handleRefresh = async () => {
+    setLoading(true)
+    await fetchAllPosts()
+  }
+
   const renderPost = (post: CommunityPost) => (
     <Card
       key={post.id}
@@ -246,8 +250,8 @@ export function CommunityFeed() {
                 </>
               )}
             </div>
-            <p className="text-foreground mb-3">{post.content}</p>
             {renderMedia(post.media_urls, post.media_type)}
+            <p className="text-foreground mb-3">{post.content}</p>
             <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
               <button
                 onClick={(e) => { e.stopPropagation(); /* handleLikePost(post.id) */ }}
@@ -260,15 +264,15 @@ export function CommunityFeed() {
                 onClick={(e) => { e.stopPropagation(); router.push(`/posts/${post.id}`) }}
                 className="flex items-center gap-1 hover:text-primary transition-colors"
               >
-                <MessageCircle className="w-4 h-4" />
+                <MessageCircle className="h-4 w-4" />
                 {post.comments_count}
               </button>
               <button
                 onClick={(e) => e.stopPropagation()} // Prevent card click propagation
                 className="flex items-center gap-1 hover:text-primary transition-colors"
               >
-                <Share2 className="w-4 h-4" />
-                {post.shares_count}
+                <Share2 className="h-4 w-4" />
+                <span>Share</span>
               </button>
             </div>
           </div>
@@ -276,11 +280,6 @@ export function CommunityFeed() {
       </CardContent>
     </Card>
   )
-
-  const handleRefresh = async () => {
-    setLoading(true)
-    await fetchAllPosts()
-  }
 
   if (loading) {
     return (

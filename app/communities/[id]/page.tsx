@@ -53,7 +53,7 @@ export default function CommunityDetailPage() {
   const [isMember, setIsMember] = useState(false)
   const [memberCount, setMemberCount] = useState(0)
   
-  const communityId = params.id as string
+  const communityId = (params?.id as string) || ''; // Add null check and default to empty string
 
   useEffect(() => {
     fetchCommunity()
@@ -268,6 +268,30 @@ export default function CommunityDetailPage() {
     }
   }
 
+  const renderMedia = (media_urls?: string[], media_type?: string) => {
+    if (!media_urls || media_urls.length === 0) return null
+
+    const isVideo = (type?: string, url?: string) => type?.startsWith('video') || /\.(mp4|webm|ogg)$/i.test(url || '')
+
+    return (
+      <div className="mb-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+        {media_urls.map((url, index) => (
+          <div key={index} className="relative aspect-square bg-muted rounded-lg overflow-hidden">
+            {isVideo(media_type, url) ? (
+              <video src={url} controls className="w-full h-full object-cover" />
+            ) : (
+              <img
+                src={url}
+                alt={`Post media ${index + 1}`}
+                className="w-full h-full object-cover"
+              />
+            )}
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   const checkMembership = async () => {
     if (!user) return
     try {
@@ -373,10 +397,6 @@ export default function CommunityDetailPage() {
       console.error('Error toggling like:', error)
       toast.error("Failed to update like")
     }
-  }
-
-  const onCreatePost = () => {
-  setCreatePostVisible(!createPostVisible)
 }
 
   const handleViewMembers = () => {
@@ -415,51 +435,51 @@ export default function CommunityDetailPage() {
         {/* Community Header */}
         <div className="col-span-1">
           <Card className="mb-8">
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <Badge variant="secondary" className="mb-4">{community.category}</Badge>
-                  <CardTitle className="text-3xl mb-2">{community.name}</CardTitle>
-                  <p className="text-muted-foreground text-lg mb-4">{community.description}</p>
-
-                  <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
-                    <button
-                      onClick={handleViewMembers}
-                      className="flex items-center gap-2 hover:text-foreground transition-colors cursor-pointer group"
-                    >
-                      <Users className="h-4 w-4 group-hover:scale-110 transition-transform" />
-                      <span className="group-hover:underline">{memberCount} members</span>
-                      <ChevronRight className="h-3 w-3 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-                    </button>
-                    {community.location && (
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4" />
-                        <span>{community.location}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {community.tags && community.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-4">
-                      {community.tags.map((tag) => (
-                        <Badge key={tag} variant="outline">{tag}</Badge>
-                      ))}
+          <CardHeader>
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <Badge variant="secondary" className="mb-4">{community.category}</Badge>
+                <CardTitle className="text-3xl mb-2">{community.name}</CardTitle>
+                <p className="text-muted-foreground text-lg mb-4">{community.description}</p>
+                
+                <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
+                  <button
+                    onClick={handleViewMembers}
+                    className="flex items-center gap-2 hover:text-foreground transition-colors cursor-pointer group"
+                  >
+                    <Users className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                    <span className="group-hover:underline">{memberCount} members</span>
+                    <ChevronRight className="h-3 w-3 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                  </button>
+                  {community.location && (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      <span>{community.location}</span>
                     </div>
                   )}
                 </div>
 
-                <div className="flex flex-col gap-3">
-                  {!isMember ? (
-                    <Button onClick={handleJoinCommunity} disabled={loading}>
-                      Join Community
-                    </Button>
-                  ) : (
-                    <Badge variant="secondary" className="text-center py-2">Member</Badge>
-                  )}
-                </div>
+                {community.tags && community.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    {community.tags.map((tag) => (
+                      <Badge key={tag} variant="outline">{tag}</Badge>
+                    ))}
+                  </div>
+                )}
               </div>
-            </CardHeader>
-          </Card>
+
+              <div className="flex flex-col gap-3">
+                {!isMember ? (
+                  <Button onClick={handleJoinCommunity} disabled={loading}>
+                    Join Community
+                  </Button>
+                ) : (
+                  <Badge variant="secondary" className="text-center py-2">Member</Badge>
+                )}
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
 
           {/* Create Post section - always visible for members */}
           {isMember && (
@@ -477,33 +497,33 @@ export default function CommunityDetailPage() {
         <div className="flex flex-col col-span-2 gap-4">
           {posts.length === 0 ? (
             <Card className="border-0 shadow-lg bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-950 dark:to-emerald-900 space-y-6">
-              <CardContent className="pt-8 pb-10">
-                <div className="text-center space-y-6">
-                  <div className="relative mx-auto w-20 h-20">
-                    <div className="absolute inset-0 bg-green-200 dark:bg-green-800 rounded-full opacity-50 animate-pulse flex items-center justify-center">
-                      <MessageCircle className="h-12 w-12 text-green-600 dark:text-green-400 mx-auto relative z-10" />
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                      {isMember ? "Start the Conversation!" : "Join the Community!"}
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto leading-relaxed">
-                      {isMember
-                        ? "Be the first to share your thoughts and inspire others in your community!"
-                        : "Become a member to discover posts, share ideas, and connect with like-minded people!"
-                      }
-                    </p>
-                  </div>
+  <CardContent className="pt-8 pb-10">
+    <div className="text-center space-y-6">
+      <div className="relative mx-auto w-20 h-20">
+        <div className="absolute inset-0 bg-green-200 dark:bg-green-800 rounded-full opacity-50 animate-pulse flex items-center justify-center">
+          <MessageCircle className="h-12 w-12 text-green-600 dark:text-green-400 mx-auto relative z-10" />
+        </div>
+      </div>
+      <div className="space-y-3">
+        <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+          {isMember ? "Start the Conversation!" : "Join the Community!"}
+        </h3>
+        <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto leading-relaxed">
+          {isMember 
+            ? "Be the first to share your thoughts and inspire others in your community!"
+            : "Become a member to discover posts, share ideas, and connect with like-minded people!"
+          }
+        </p>
+      </div>
                   {!isMember && (
                     <Button className="bg-green-600 hover:bg-green-700 text-white px-8 py-6 rounded-full font-semibold transition-all duration-200 hover:shadow-lg" onClick={handleJoinCommunity}>
-                      <Users className="w-5 h-5 mr-2" />
-                      Join Community
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+          <Users className="w-5 h-5 mr-2" />
+          Join Community
+        </Button>
+      )}
+    </div>
+  </CardContent>
+</Card>
           ) : (
             posts.map((post) => (
               <Card
@@ -528,44 +548,28 @@ export default function CommunityDetailPage() {
                           {new Date(post.created_at).toLocaleDateString()}
                         </span>
                       </div>
-                      <p className="text-foreground mb-4">{post.content}</p>
-                      {post.media_urls && post.media_urls.length > 0 && (
-                        <div className="mb-4">
-                          {post.media_urls.map((url, index) => (
-                            <div key={index} className="relative aspect-video bg-muted rounded-lg overflow-hidden mb-2 last:mb-0">
-                              {post.media_type?.startsWith('video') ? (
-                                <video src={url} controls className="w-full h-full object-cover" />
-                              ) : (
-                                <img
-                                  src={url}
-                                  alt={`Post media ${index + 1}`}
-                                  className="w-full h-full object-cover"
-                                />
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      <div className="flex items-center gap-4 mb-4 text-sm text-muted-foreground">
-                        {post.location_name && (
-                          <div className="flex items-center gap-1">
-                            <MapPin className="h-4 w-4" />
-                            <span>{post.location_name}</span>
-                          </div>
-                        )}
-                        {post.feels_emoji && (
-                          <div className="flex items-center gap-1">
-                            <span className="text-lg">{post.feels_emoji}</span>
-                            <span>{post.feels_description}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-6">
+                      {renderMedia(post.media_urls, post.media_type)}
+                                             <p className="text-foreground mb-4">{post.content}</p>
+                       <div className="flex items-center gap-4 mb-4 text-sm text-muted-foreground">
+                         {post.location_name && (
+                           <div className="flex items-center gap-1">
+                             <MapPin className="h-4 w-4" />
+                             <span>{post.location_name}</span>
+                           </div>
+                         )}
+                         {post.feels_emoji && (
+                           <div className="flex items-center gap-1">
+                             <span className="text-lg">{post.feels_emoji}</span>
+                             <span>{post.feels_description}</span>
+                           </div>
+                         )}
+                       </div>
+                       <div className="flex items-center gap-6">
                         <button
                           onClick={(e) => { e.stopPropagation(); handleLikePost(post.id) }}
                           className={`flex items-center gap-2 text-sm transition-colors ${
-                            post.is_liked
-                              ? 'text-red-500'
+                            post.is_liked 
+                              ? 'text-red-500' 
                               : 'text-muted-foreground hover:text-foreground'
                           }`}
                         >
@@ -594,7 +598,7 @@ export default function CommunityDetailPage() {
             ))
           )}
         </div>
-       </div>
+        </div>
       </div>
     </div>
   )
