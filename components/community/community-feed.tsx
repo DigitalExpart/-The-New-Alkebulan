@@ -19,6 +19,7 @@ import {
 import { useAuth } from "@/hooks/use-auth"
 import { getSupabaseClient } from "@/lib/supabase"
 import { formatDistanceToNow } from "date-fns"
+import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel"
 
 interface CommunityPost {
   id: string
@@ -198,21 +199,31 @@ export function CommunityFeed() {
     const isVideo = (type?: string, url?: string) => type?.startsWith('video') || /\.(mp4|webm|ogg)$/i.test(url || '')
 
     return (
-      <div className="mb-3 grid grid-cols-1 md:grid-cols-2 gap-2">
-        {media_urls.map((url, index) => (
-          <div key={index} className="relative aspect-video bg-muted rounded-lg overflow-hidden">
-            {isVideo(media_type, url) ? (
-              <video src={url} controls className="w-full h-full object-cover" />
-            ) : (
-              <img
-                src={url}
-                alt={`Post media ${index + 1}`}
-                className="w-full h-full object-cover"
-              />
-            )}
-          </div>
-        ))}
-      </div>
+      <Carousel className="w-full max-w-full relative group">
+        <CarouselContent className="-ml-2 md:-ml-4">
+          {media_urls.map((url, index) => (
+            <CarouselItem key={index} className="pl-2 md:pl-4 basis-1/3">
+              <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
+                {isVideo(media_type, url) ? (
+                  <video src={url} controls className="w-full h-full object-cover" />
+                ) : (
+                  <img
+                    src={url}
+                    alt={`Post media ${index + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                )}
+              </div>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+        {media_urls.length > 3 && (
+          <>
+            <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </>
+        )}
+      </Carousel>
     )
   }
 
