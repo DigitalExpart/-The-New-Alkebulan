@@ -34,12 +34,13 @@ export function PostCard({ post, onPostUpdated, onPostDeleted }: PostCardProps) 
   const sb = getSupabaseClient();
 
   const renderMedia = (media_urls?: string[], media_type?: string) => {
+    console.log('renderMedia called with:', { media_urls, media_type });
     if (!media_urls || media_urls.length === 0) return null;
 
     const isVideo = (type?: string, url?: string) => type?.startsWith('video') || /\.(mp4|webm|ogg)$/i.test(url || '');
 
     return (
-      <Carousel className="w-full max-w-full relative group">
+      <Carousel className="w-full max-w-full relative group mb-3">
         <CarouselContent className="-ml-2 md:-ml-4">
           {media_urls.map((url, index) => (
             <CarouselItem key={index} className="pl-2 md:pl-4 basis-1/3">
@@ -51,6 +52,10 @@ export function PostCard({ post, onPostUpdated, onPostDeleted }: PostCardProps) 
                     src={url}
                     alt={`Post media ${index + 1}`}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      console.warn('Failed to load image:', url);
+                      e.currentTarget.style.display = 'none';
+                    }}
                   />
                 )}
               </div>
@@ -59,8 +64,8 @@ export function PostCard({ post, onPostUpdated, onPostDeleted }: PostCardProps) 
         </CarouselContent>
         {media_urls.length > 3 && (
           <>
-            <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity" />
-            <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-2 transform opacity-0 group-hover:opacity-100 transition-opacity" />
+            <CarouselNext className="absolute right-2 top-1/2 -translate-y-2 transform opacity-0 group-hover:opacity-100 transition-opacity" />
           </>
         )}
       </Carousel>
@@ -171,7 +176,10 @@ export function PostCard({ post, onPostUpdated, onPostDeleted }: PostCardProps) 
     <Card
       key={post.id}
       className="mb-4 cursor-pointer hover:bg-muted/50 transition-colors"
-      onClick={() => router.push(`/posts/${post.id}`)}
+      onClick={() => {
+        console.log('Navigating to post:', post.id);
+        router.push(`/posts/${post.id}`);
+      }}
     >
       <CardContent className="p-4">
         <div className="flex items-start gap-3">

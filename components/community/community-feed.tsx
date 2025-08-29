@@ -106,13 +106,13 @@ export function CommunityFeed({ communityIds = [] }: CommunityFeedProps) {
       // Helper: load profiles for a set of user ids
       const loadProfilesMap = async (ids: string[]) => {
         const unique = Array.from(new Set(ids.filter(Boolean)))
-        if (unique.length === 0) return {} as Record<string, { full_name?: string; avatar_url?: string }>
+        if (unique.length === 0) return {} as Record<string, { first_name?: string; last_name?: string; full_name?: string; avatar_url?: string }>
         
         try {
           console.log("Fetching profiles for user IDs:", unique);
           const { data, error } = await sb
             .from('profiles')
-            .select('id, full_name, avatar_url')
+            .select('id, first_name, last_name, full_name, avatar_url')
             .in('id', unique)
           
           if (error) {
@@ -120,8 +120,15 @@ export function CommunityFeed({ communityIds = [] }: CommunityFeedProps) {
             return {};
           }
           
-          const map: Record<string, { full_name?: string; avatar_url?: string }> = {}
-          ;(data || []).forEach((p: any) => { map[p.id] = { full_name: p.full_name, avatar_url: p.avatar_url } })
+          const map: Record<string, { first_name?: string; last_name?: string; full_name?: string; avatar_url?: string }> = {}
+          ;(data || []).forEach((p: any) => { 
+            map[p.id] = { 
+              first_name: p.first_name, 
+              last_name: p.last_name, 
+              full_name: p.full_name, 
+              avatar_url: p.avatar_url 
+            } 
+          })
           console.log("Profiles loaded:", Object.keys(map).length);
           return map
         } catch (profileError) {
@@ -210,72 +217,98 @@ export function CommunityFeed({ communityIds = [] }: CommunityFeedProps) {
         return;
       }
 
-      // TEMPORARILY SKIP profile and community fetching to debug the issue
-      console.log("Skipping profile/community fetching for now to debug timeout issue");
-      const profilesMap: Record<string, { full_name?: string; avatar_url?: string }> = {};
-      const communitiesMap: Record<string, { name?: string; description?: string; avatar_url?: string }> = {};
+      // Fetch user profiles and communities
+      console.log("Fetching user profiles and communities...");
+      const authorIds = Array.from(new Set((cpData || []).map(p => p.user_id).filter(Boolean)));
+      console.log("Author IDs to fetch:", authorIds);
+      const profilesMap = await loadProfilesMap(authorIds);
       
-      // We'll add this back once we fix the timeout issue
-      // const authorIds = Array.from(new Set((cpData || []).map(p => p.user_id).filter(Boolean)));
-      // console.log("Author IDs to fetch:", authorIds);
-      // const profilesMap = await loadProfilesMap(authorIds);
-      
-      // const communityIdsToLoad = Array.from(new Set((cpData || []).map(p => p.community_id).filter(Boolean)));
-      // console.log("Community IDs to fetch:", communityIdsToLoad);
-      // const communitiesMap = await loadCommunitiesMap(communityIdsToLoad);
+      const communityIdsToLoad = Array.from(new Set((cpData || []).map(p => p.community_id).filter(Boolean)));
+      console.log("Community IDs to fetch:", communityIdsToLoad);
+      const communitiesMap = await loadCommunitiesMap(communityIdsToLoad);
 
-      // TEMPORARILY SKIP user likes check to debug timeout issue
-      console.log("Skipping user likes check for now to debug timeout issue");
+      // Fetch user likes
+      console.log("Fetching user likes...");
       let userLikedPosts = new Set<string>();
       
-      // We'll add this back once we fix the timeout issue
-      // if (user?.id && cpData && cpData.length > 0) {
-      //   const postIds = cpData.map(p => p.id);
-      //   try {
-      //     const { data: likes } = await sb
-      //       .from('post_likes')
-      //       .select('post_id')
-      //       .eq('user_id', user.id)
-      //       .in('post_id', postIds);
-      //   
-      //     if (likes) {
-      //       userLikedPosts = new Set(likes.map(l => l.post_id));
-      //     }
-      //   } catch (likesError) {
-      //     console.warn('Error fetching user likes:', likesError);
-      //   }
-      // }
+      if (user?.id && cpData && cpData.length > 0) {
+        const postIds = cpData.map(p => p.id);
+        try {
+          const { data: likes } = await sb
+            .from('post_likes')
+            .select('post_id')
+            .eq('user_id', user.id)
+            .in('post_id', postIds);
+          
+          if (likes) {
+            userLikedPosts = new Set(likes.map(l => l.post_id));
+          }
+        } catch (likesError) {
+          console.warn('Error fetching user likes:', likesError);
+        }
+      }
 
-      console.log("Creating mapped posts with basic data only");
+      console.log("Creating mapped posts with profile and community data");
       
-      const mappedCp: CommunityPost[] = (cpData || []).map((p: any) => ({
-        id: p.id || '',
-        user_id: p.user_id || '',
-        content: p.content || '',
-        image_url: p.media_urls?.[0] || null,
-        post_type: p.media_type === 'text' ? 'text' : (p.media_type === 'image' ? 'image' : 'text'),
-        privacy: 'public',
-        metadata: p.metadata || {},
-        is_pinned: false, // Default value
-        is_archived: false, // Default value
-        created_at: p.created_at || new Date().toISOString(),
-        updated_at: p.updated_at || p.created_at || new Date().toISOString(),
-        author_name: `User ${p.user_id?.slice(0, 8) || 'Unknown'}`,
-        author_avatar: '',
-        // Map database column names to interface property names, with fallbacks
-        like_count: p.likes_count || p.like_count || 0,
-        comment_count: p.comments_count || p.comment_count || 0,
-        share_count: p.shares_count || p.share_count || 0,
-        user_has_liked: false, // Skip likes check for now
-        user_has_shared: false,
-        community_id: p.community_id || '',
-        community: {
-          name: `Community ${p.community_id?.slice(0, 8) || 'Unknown'}`,
-          description: '',
-          avatar_url: '',
-        },
-        media_urls: p.media_urls || [],
-        media_type: p.media_type || undefined,
+      // Resolve media URLs to public URLs
+      const resolveMediaUrls = async (mediaUrls: string[]) => {
+        if (!mediaUrls || mediaUrls.length === 0) return [];
+        
+        try {
+          const resolvedUrls = await Promise.all(
+            mediaUrls.map(async (path: string) => {
+              try {
+                const { data } = sb.storage.from('post_media').getPublicUrl(path);
+                return data.publicUrl;
+              } catch (error) {
+                console.warn('Error resolving media URL:', path, error);
+                return path; // Fallback to original path
+              }
+            })
+          );
+          return resolvedUrls;
+        } catch (error) {
+          console.warn('Error resolving media URLs:', error);
+          return mediaUrls; // Fallback to original URLs
+        }
+      };
+      
+      const mappedCp: CommunityPost[] = await Promise.all((cpData || []).map(async (p: any) => {
+        const profile = profilesMap[p.user_id];
+        const community = communitiesMap[p.community_id];
+        const resolvedMediaUrls = await resolveMediaUrls(p.media_urls);
+        
+        return {
+          id: p.id || '',
+          user_id: p.user_id || '',
+          content: p.content || '',
+          image_url: resolvedMediaUrls?.[0] || null,
+          post_type: p.media_type === 'text' ? 'text' : (p.media_type === 'image' ? 'image' : 'text'),
+          privacy: 'public',
+          metadata: p.metadata || {},
+          is_pinned: false, // Default value
+          is_archived: false, // Default value
+          created_at: p.created_at || new Date().toISOString(),
+          updated_at: p.updated_at || p.created_at || new Date().toISOString(),
+          author_name: profile?.first_name && profile?.last_name 
+            ? `${profile.first_name} ${profile.last_name}` 
+            : profile?.full_name || `User ${p.user_id?.slice(0, 8) || 'Unknown'}`,
+          author_avatar: profile?.avatar_url || '',
+          // Map database column names to interface property names, with fallbacks
+          like_count: p.likes_count || p.like_count || 0,
+          comment_count: p.comments_count || p.comment_count || 0,
+          share_count: p.shares_count || p.share_count || 0,
+          user_has_liked: userLikedPosts.has(p.id),
+          user_has_shared: false,
+          community_id: p.community_id || '',
+          community: {
+            name: community?.name || `Community ${p.community_id?.slice(0, 8) || 'Unknown'}`,
+            description: community?.description || '',
+            avatar_url: community?.avatar_url || '',
+          },
+          media_urls: resolvedMediaUrls,
+          media_type: p.media_type || undefined,
+        };
       }));
 
       // Sort posts by created_at
