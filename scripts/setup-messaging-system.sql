@@ -124,42 +124,31 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Add conversation_id as parameter to rpc function to avoid overloading
+-- Wrapper for legacy/frontend RPC signature: accepts a single other_user_id
+-- and builds the sorted participants array using the current auth user
 DROP FUNCTION IF EXISTS public.create_conversation_and_participants(uuid);
 CREATE OR REPLACE FUNCTION public.create_conversation_and_participants(
-    p_user_ids uuid[]
+    other_user_id uuid
 )
 RETURNS uuid AS $$
 DECLARE
+    current_user_id uuid := auth.uid();
     v_conversation_id uuid;
-    v_existing_conversation_id uuid;
+    ids uuid[];
 BEGIN
-    -- Sort the user IDs to ensure consistent ordering for conversation lookup
-    SELECT ARRAY(SELECT unnest(p_user_ids) ORDER BY 1) INTO p_user_ids;
+    IF current_user_id IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated';
+    END IF;
 
-    -- Check if a conversation with these exact participants already exists
-    SELECT cp.conversation_id
-    INTO v_existing_conversation_id
-    FROM public.conversation_participants cp
-    WHERE cp.user_id = p_user_ids[1] -- Assuming 1:1 chat for simplicity initially
-    GROUP BY cp.conversation_id
-    HAVING COUNT(cp.user_id) = 2 AND -- Assuming 2 participants for 1:1 chat
-           ARRAY(SELECT user_id FROM public.conversation_participants WHERE conversation_id = cp.conversation_id ORDER BY user_id) = p_user_ids;
+    -- Build and sort ids for consistent lookup
+    ids := ARRAY[current_user_id, other_user_id];
+    SELECT ARRAY(SELECT unnest(ids) ORDER BY 1) INTO ids;
 
-    IF v_existing_conversation_id IS NOT NULL THEN
-        RETURN v_existing_conversation_id;
-  END IF;
-  
-    -- If no existing conversation, create a new one
-    INSERT INTO public.conversations DEFAULT VALUES RETURNING id INTO v_conversation_id;
-
-    -- Add participants to the new conversation
-    INSERT INTO public.conversation_participants (conversation_id, user_id)
-    SELECT v_conversation_id, unnest(p_user_ids);
-  
-  RETURN v_conversation_id;
+    -- Delegate to the array-based implementation
+    v_conversation_id := public.create_conversation_and_participants(ids);
+    RETURN v_conversation_id;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Add RPC function for sending voice note
 CREATE OR REPLACE FUNCTION public.send_voice_note(
