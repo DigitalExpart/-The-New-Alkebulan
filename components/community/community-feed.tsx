@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -32,108 +32,247 @@ interface CommunityFeedProps {
 export function CommunityFeed({ communityIds = [] }: CommunityFeedProps) {
   const { user } = useAuth()
   const [posts, setPosts] = useState<CommunityPost[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false) // Start with false, not true
   const router = useRouter()
 
-  useEffect(() => {
-    fetchAllPosts()
-  }, [user, communityIds]) // Add communityIds to dependency array
-
-  const fetchAllPosts = async () => {
+  const fetchAllPosts = useCallback(async () => {
+    console.log("=== fetchAllPosts START ===");
+    
+    // Prevent multiple simultaneous calls or unnecessary reloads
+    console.log("Current loading state:", loading, "Current posts count:", posts.length);
+    if (loading) {
+      console.log("fetchAllPosts already running, skipping...");
+      return;
+    }
+    
+    // If we already have posts and this isn't a refresh, skip
+    if (posts.length > 0 && !loading) {
+      console.log("Posts already loaded, skipping fetch...");
+      return;
+    }
+    
+    console.log("Setting loading state to true...");
+    setLoading(true);
+    console.log("Loading state set to true");
+    
+    console.log("Creating timeout...");
+    // Add timeout protection
+    const timeoutId = setTimeout(() => {
+      console.error('Fetch timeout - taking too long');
+      setLoading(false);
+      toast.error("Request timed out. Please refresh the page.");
+    }, 15000); // Reduced to 15 seconds
+    
     try {
-      setLoading(true)
-      const sb = getSupabaseClient()
-      if (!sb) return
+      console.log("Getting Supabase client...");
+      let sb;
+      try {
+        sb = getSupabaseClient()
+        console.log("Supabase client received:", !!sb);
+      } catch (clientError) {
+        console.error("Error getting Supabase client:", clientError);
+        throw new Error(`Failed to get Supabase client: ${clientError}`);
+      }
+      
+      if (!sb) {
+        console.error('No Supabase client available')
+        clearTimeout(timeoutId);
+        setLoading(false)
+        return
+      }
       console.log("Fetching all posts with communityIds:", communityIds);
+      
+      // Test Supabase connection first
+      try {
+        console.log("Testing Supabase connection...");
+        const testPromise = sb
+          .from('community_posts')
+          .select('id')
+          .limit(1);
+        
+        // Add individual timeout for connection test
+        const testTimeout = setTimeout(() => {
+          console.error('Connection test timed out after 10 seconds');
+        }, 10000);
+        
+        const { data: testData, error: testError } = await testPromise;
+        clearTimeout(testTimeout);
+        console.log("Connection test result:", testData, testError);
+      } catch (testError) {
+        console.error("Supabase connection test failed:", testError);
+        throw new Error(`Supabase connection failed: ${testError}`);
+      }
 
       // Helper: load profiles for a set of user ids
       const loadProfilesMap = async (ids: string[]) => {
         const unique = Array.from(new Set(ids.filter(Boolean)))
         if (unique.length === 0) return {} as Record<string, { full_name?: string; avatar_url?: string }>
-        const { data } = await sb
-          .from('profiles')
-          .select('id, full_name, avatar_url')
-          .in('id', unique)
-        const map: Record<string, { full_name?: string; avatar_url?: string }> = {}
-        ;(data || []).forEach((p: any) => { map[p.id] = { full_name: p.full_name, avatar_url: p.avatar_url } })
-        return map
+        
+        try {
+          console.log("Fetching profiles for user IDs:", unique);
+          const { data, error } = await sb
+            .from('profiles')
+            .select('id, full_name, avatar_url')
+            .in('id', unique)
+          
+          if (error) {
+            console.warn('Error fetching profiles:', error);
+            return {};
+          }
+          
+          const map: Record<string, { full_name?: string; avatar_url?: string }> = {}
+          ;(data || []).forEach((p: any) => { map[p.id] = { full_name: p.full_name, avatar_url: p.avatar_url } })
+          console.log("Profiles loaded:", Object.keys(map).length);
+          return map
+        } catch (profileError) {
+          console.warn('Exception fetching profiles:', profileError);
+          return {};
+        }
       }
 
       // Helper: load communities for a set of community ids
       const loadCommunitiesMap = async (ids: string[]) => {
         const unique = Array.from(new Set(ids.filter(Boolean)))
         if (unique.length === 0) return {} as Record<string, { name?: string; description?: string; avatar_url?: string }>
-        const { data } = await sb
-          .from('communities')
-          .select('id, name, description, avatar_url')
-          .in('id', unique)
-        const map: Record<string, { name?: string; description?: string; avatar_url?: string }> = {}
-        ;(data || []).forEach((c: any) => { map[c.id] = { name: c.name, description: c.description, avatar_url: c.avatar_url } })
-        return map
+        
+        try {
+          console.log("Fetching communities for community IDs:", unique);
+          const { data, error } = await sb
+            .from('communities')
+            .select('id, name, description, avatar_url')
+            .in('id', unique)
+          
+          if (error) {
+            console.warn('Error fetching communities:', error);
+            return {};
+          }
+          
+          const map: Record<string, { name?: string; description?: string; avatar_url?: string }> = {}
+          ;(data || []).forEach((c: any) => { map[c.id] = { name: c.name, description: c.description, avatar_url: c.avatar_url } })
+          console.log("Communities loaded:", Object.keys(map).length);
+          return map
+        } catch (communityError) {
+          console.warn('Exception fetching communities:', communityError);
+          return {};
+        }
       }
 
       let query = sb.from('community_posts')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(100);
+      
+      console.log("Query built, about to execute...");
 
       if (communityIds.length > 0) {
         query = query.in('community_id', communityIds);
       }
 
-      const { data: cpData, error: cpError } = await query;
-
-      if (cpError) console.warn('community_posts fetch error:', cpError.message)
-      console.log("community_posts data:", cpData);
-      console.log("community_posts error:", cpError);
-
-      // Fetch profiles for all post authors
-      const authorIds = Array.from(new Set((cpData || []).map(p => p.user_id).filter(Boolean)));
-      const profilesMap = await loadProfilesMap(authorIds);
+      console.log("Executing query...");
+      console.log("Query object:", query);
       
-      // Fetch communities for all posts
-      const communityIdsToLoad = Array.from(new Set((cpData || []).map(p => p.community_id).filter(Boolean)));
-      const communitiesMap = await loadCommunitiesMap(communityIdsToLoad);
+      let cpData: any[] = [];
+      let cpError: any = null;
+      
+      try {
+        const result = await query;
+        cpData = result.data || [];
+        cpError = result.error;
+        console.log("Query completed. Data:", cpData, "Error:", cpError);
 
-      // Check which posts the user has liked (if user is logged in)
-      let userLikedPosts = new Set<string>();
-      if (user?.id && cpData && cpData.length > 0) {
-        const postIds = cpData.map(p => p.id);
-        const { data: likes } = await sb
-          .from('post_likes')
-          .select('post_id')
-          .eq('user_id', user.id)
-          .in('post_id', postIds);
-        
-        if (likes) {
-          userLikedPosts = new Set(likes.map(l => l.post_id));
+        if (cpError) {
+          console.error('community_posts fetch error:', cpError);
+          throw new Error(`Failed to fetch posts: ${cpError.message}`);
         }
+      } catch (queryError) {
+        console.error('Query execution failed:', queryError);
+        throw new Error(`Query execution failed: ${queryError}`);
+      }
+      
+      console.log("community_posts data:", cpData);
+      console.log("Number of posts fetched:", cpData?.length || 0);
+      
+      // Debug: Log the first post structure
+      if (cpData && cpData.length > 0) {
+        console.log("First post structure:", cpData[0]);
+        console.log("Available columns:", Object.keys(cpData[0]));
+        console.log("First post likes_count:", cpData[0].likes_count);
+        console.log("First post comments_count:", cpData[0].comments_count);
+        console.log("First post shares_count:", cpData[0].shares_count);
+        console.log("First post metadata:", cpData[0].metadata);
       }
 
+      // If no posts, return empty array
+      if (!cpData || cpData.length === 0) {
+        setPosts([]);
+        clearTimeout(timeoutId);
+        console.log("No posts found - showing empty state");
+        return;
+      }
+
+      // TEMPORARILY SKIP profile and community fetching to debug the issue
+      console.log("Skipping profile/community fetching for now to debug timeout issue");
+      const profilesMap: Record<string, { full_name?: string; avatar_url?: string }> = {};
+      const communitiesMap: Record<string, { name?: string; description?: string; avatar_url?: string }> = {};
+      
+      // We'll add this back once we fix the timeout issue
+      // const authorIds = Array.from(new Set((cpData || []).map(p => p.user_id).filter(Boolean)));
+      // console.log("Author IDs to fetch:", authorIds);
+      // const profilesMap = await loadProfilesMap(authorIds);
+      
+      // const communityIdsToLoad = Array.from(new Set((cpData || []).map(p => p.community_id).filter(Boolean)));
+      // console.log("Community IDs to fetch:", communityIdsToLoad);
+      // const communitiesMap = await loadCommunitiesMap(communityIdsToLoad);
+
+      // TEMPORARILY SKIP user likes check to debug timeout issue
+      console.log("Skipping user likes check for now to debug timeout issue");
+      let userLikedPosts = new Set<string>();
+      
+      // We'll add this back once we fix the timeout issue
+      // if (user?.id && cpData && cpData.length > 0) {
+      //   const postIds = cpData.map(p => p.id);
+      //   try {
+      //     const { data: likes } = await sb
+      //       .from('post_likes')
+      //       .select('post_id')
+      //       .eq('user_id', user.id)
+      //       .in('post_id', postIds);
+      //   
+      //     if (likes) {
+      //       userLikedPosts = new Set(likes.map(l => l.post_id));
+      //     }
+      //   } catch (likesError) {
+      //     console.warn('Error fetching user likes:', likesError);
+      //   }
+      // }
+
+      console.log("Creating mapped posts with basic data only");
+      
       const mappedCp: CommunityPost[] = (cpData || []).map((p: any) => ({
-        id: p.id,
-        user_id: p.user_id,
+        id: p.id || '',
+        user_id: p.user_id || '',
         content: p.content || '',
         image_url: p.media_urls?.[0] || null,
         post_type: p.media_type === 'text' ? 'text' : (p.media_type === 'image' ? 'image' : 'text'),
         privacy: 'public',
         metadata: p.metadata || {},
-        is_pinned: p.is_pinned || false,
-        is_archived: p.is_archived || false,
-        created_at: p.created_at,
-        updated_at: p.updated_at || p.created_at,
-        author_name: profilesMap[p.user_id]?.full_name || 'User',
-        author_avatar: profilesMap[p.user_id]?.avatar_url || '',
-        like_count: p.likes_count || 0,
-        comment_count: p.comments_count || 0,
-        share_count: p.shares_count || 0,
-        user_has_liked: userLikedPosts.has(p.id),
+        is_pinned: false, // Default value
+        is_archived: false, // Default value
+        created_at: p.created_at || new Date().toISOString(),
+        updated_at: p.updated_at || p.created_at || new Date().toISOString(),
+        author_name: `User ${p.user_id?.slice(0, 8) || 'Unknown'}`,
+        author_avatar: '',
+        // Map database column names to interface property names, with fallbacks
+        like_count: p.likes_count || p.like_count || 0,
+        comment_count: p.comments_count || p.comment_count || 0,
+        share_count: p.shares_count || p.share_count || 0,
+        user_has_liked: false, // Skip likes check for now
         user_has_shared: false,
-        community_id: p.community_id,
+        community_id: p.community_id || '',
         community: {
-          name: communitiesMap[p.community_id]?.name || 'Community',
-          description: communitiesMap[p.community_id]?.description || '',
-          avatar_url: communitiesMap[p.community_id]?.avatar_url || '',
+          name: `Community ${p.community_id?.slice(0, 8) || 'Unknown'}`,
+          description: '',
+          avatar_url: '',
         },
         media_urls: p.media_urls || [],
         media_type: p.media_type || undefined,
@@ -144,13 +283,26 @@ export function CommunityFeed({ communityIds = [] }: CommunityFeedProps) {
 
       setPosts(sortedPosts)
       console.log("Resolved posts for CommunityFeed:", sortedPosts);
-    } catch (error) {
+      clearTimeout(timeoutId);
+      console.log("=== fetchAllPosts SUCCESS ===");
+    } catch (error: any) {
       console.error('Error fetching all posts:', error)
-      toast.error("Failed to load community feed.")
+      toast.error("Failed to load community feed: " + (error?.message || "Unknown error"))
+      clearTimeout(timeoutId);
+      console.log("=== fetchAllPosts ERROR ===");
     } finally {
+      console.log("Setting loading state to false...");
       setLoading(false)
+      console.log("Loading state set to false");
+      console.log("=== fetchAllPosts FINALLY ===");
     }
-  }
+  }, []) // No dependencies - make function completely stable
+
+  useEffect(() => {
+    console.log("useEffect triggered, calling fetchAllPosts...");
+    // Only call once when component mounts
+    fetchAllPosts()
+  }, []) // Empty dependency array - only run once
 
   const handleLikePost = async (postId: string) => {
     if (!user) {
@@ -199,7 +351,8 @@ export function CommunityFeed({ communityIds = [] }: CommunityFeedProps) {
         }
         toast.success("Post liked!");
       }
-      fetchAllPosts(); // Refresh posts after like/unlike
+      // Don't call fetchAllPosts here to prevent infinite loops
+      // The PostCard will handle its own state updates
     } catch (error) {
       console.error("Error in handleLikePost:", error);
       toast.error("Failed to like post.");
@@ -236,7 +389,8 @@ export function CommunityFeed({ communityIds = [] }: CommunityFeedProps) {
       if (error) {
         console.error("Error logging share in DB:", error);
       }
-      fetchAllPosts(); // Refresh posts after share
+      // Don't call fetchAllPosts here to prevent infinite loops
+      // The PostCard will handle its own state updates
     } catch (error) {
       console.error("Error in handleSharePost:", error);
       if (error instanceof DOMException && error.name === "AbortError") {
@@ -281,7 +435,11 @@ export function CommunityFeed({ communityIds = [] }: CommunityFeedProps) {
             <PostCard 
               key={post.id} 
               post={post} 
-              onPostUpdated={fetchAllPosts}
+              onPostUpdated={() => {
+                // Only refresh if really needed, prevent infinite loops
+                console.log("Post updated, refreshing feed...");
+                fetchAllPosts();
+              }}
               onPostDeleted={() => {
                 setPosts(posts.filter(p => p.id !== post.id));
               }}
