@@ -34,6 +34,24 @@ export function CommunityFeed({ communityIds = [] }: CommunityFeedProps) {
   const [posts, setPosts] = useState<CommunityPost[]>([])
   const [loading, setLoading] = useState(false) // Start with false, not true
   const router = useRouter()
+  
+  console.log("CommunityFeed render - user:", user?.id, "authenticated:", !!user);
+  
+  // Quick test to see if we can access Supabase
+  useEffect(() => {
+    const testSupabase = async () => {
+      try {
+        const sb = getSupabaseClient();
+        console.log("Testing Supabase connection...");
+        const { data, error } = await sb.from('profiles').select('id').limit(1);
+        console.log("Supabase test result:", { data, error });
+      } catch (err) {
+        console.error("Supabase test failed:", err);
+      }
+    };
+    
+    testSupabase();
+  }, []);
 
   const fetchAllPosts = useCallback(async () => {
     console.log("=== fetchAllPosts START ===");
@@ -106,33 +124,62 @@ export function CommunityFeed({ communityIds = [] }: CommunityFeedProps) {
       // Helper: load profiles for a set of user ids
       const loadProfilesMap = async (ids: string[]) => {
         const unique = Array.from(new Set(ids.filter(Boolean)))
+        console.log("🔍 Unique user IDs to fetch:", unique);
+        
         if (unique.length === 0) return {} as Record<string, { first_name?: string; last_name?: string; full_name?: string; avatar_url?: string }>
         
         try {
-          console.log("Fetching profiles for user IDs:", unique);
+          console.log("🌐 Fetching profiles for user IDs:", unique);
+          
+          // Fetch all profiles with detailed logging
           const { data, error } = await sb
             .from('profiles')
-            .select('id, first_name, last_name, full_name, avatar_url')
-            .in('id', unique)
+            .select('id, user_id, first_name, last_name, avatar_url')
+            .in('id', unique);
+          
+          console.log("📊 Raw profile fetch result:", { 
+            data: data?.map(p => ({ 
+              id: p.id, 
+              user_id: p.user_id,
+              first_name: p.first_name, 
+              last_name: p.last_name
+            })), 
+            error 
+          });
           
           if (error) {
-            console.warn('Error fetching profiles:', error);
+            console.warn('❌ Error fetching profiles:', error);
             return {};
           }
           
           const map: Record<string, { first_name?: string; last_name?: string; full_name?: string; avatar_url?: string }> = {}
           ;(data || []).forEach((p: any) => { 
-            map[p.id] = { 
-              first_name: p.first_name, 
-              last_name: p.last_name, 
-              full_name: p.full_name, 
-              avatar_url: p.avatar_url 
-            } 
+            const firstName = p.first_name?.trim() || '';
+            const lastName = p.last_name?.trim() || '';
+            
+            console.log(`🧩 Processing profile for user ${p.id} / ${p.user_id}:`, {
+              firstName,
+              lastName
+            });
+            
+            const value = {
+              first_name: firstName, 
+              last_name: lastName, 
+              full_name: (firstName && lastName)
+                ? `${firstName} ${lastName}`
+                : (firstName || lastName || `User ${(p.id || p.user_id)?.slice(0, 8) || 'Unknown'}`),
+              avatar_url: p.avatar_url || '' 
+            } as { first_name?: string; last_name?: string; full_name?: string; avatar_url?: string };
+
+            // Map by both id and user_id to be robust against schema differences
+            if (p.id) map[p.id] = value;
+            if (p.user_id) map[p.user_id] = value;
           })
-          console.log("Profiles loaded:", Object.keys(map).length);
+          
+          console.log("🗺️ Final Profiles Map (keys):", Object.keys(map));
           return map
         } catch (profileError) {
-          console.warn('Exception fetching profiles:', profileError);
+          console.warn('❌ Exception fetching profiles:', profileError);
           return {};
         }
       }
@@ -219,6 +266,8 @@ export function CommunityFeed({ communityIds = [] }: CommunityFeedProps) {
 
       // Fetch user profiles and communities
       console.log("Fetching user profiles and communities...");
+      console.log("All posts data:", cpData);
+      console.log("All user_ids from posts:", (cpData || []).map(p => p.user_id));
       const authorIds = Array.from(new Set((cpData || []).map(p => p.user_id).filter(Boolean)));
       console.log("Author IDs to fetch:", authorIds);
       const profilesMap = await loadProfilesMap(authorIds);
@@ -278,6 +327,23 @@ export function CommunityFeed({ communityIds = [] }: CommunityFeedProps) {
         const community = communitiesMap[p.community_id];
         const resolvedMediaUrls = await resolveMediaUrls(p.media_urls);
         
+        console.log(`🔬 Mapping post ${p.id}:`, {
+          user_id: p.user_id,
+          profile: profile,
+          profile_first_name: profile?.first_name,
+          profile_last_name: profile?.last_name,
+          profile_full_name: profile?.full_name
+        });
+        
+        // Most robust method to get user's name
+        const authorName = 
+          (profile?.first_name && profile?.last_name 
+            ? `${profile.first_name} ${profile.last_name}` 
+            : profile?.full_name) 
+          || `User ${p.user_id?.slice(0, 8) || 'Unknown'}`;
+        
+        console.log(`👤 Author name for post ${p.id}:`, authorName);
+        
         return {
           id: p.id || '',
           user_id: p.user_id || '',
@@ -290,9 +356,7 @@ export function CommunityFeed({ communityIds = [] }: CommunityFeedProps) {
           is_archived: false, // Default value
           created_at: p.created_at || new Date().toISOString(),
           updated_at: p.updated_at || p.created_at || new Date().toISOString(),
-          author_name: profile?.first_name && profile?.last_name 
-            ? `${profile.first_name} ${profile.last_name}` 
-            : profile?.full_name || `User ${p.user_id?.slice(0, 8) || 'Unknown'}`,
+          author_name: authorName,
           author_avatar: profile?.avatar_url || '',
           // Map database column names to interface property names, with fallbacks
           like_count: p.likes_count || p.like_count || 0,
@@ -386,7 +450,7 @@ export function CommunityFeed({ communityIds = [] }: CommunityFeedProps) {
       }
       // Don't call fetchAllPosts here to prevent infinite loops
       // The PostCard will handle its own state updates
-    } catch (error) {
+      } catch (error) {
       console.error("Error in handleLikePost:", error);
       toast.error("Failed to like post.");
     }
@@ -462,8 +526,8 @@ export function CommunityFeed({ communityIds = [] }: CommunityFeedProps) {
         </Button>
       </div>
 
-      <div>
-        {posts.length > 0 ? (
+          <div>
+            {posts.length > 0 ? (
           posts.map((post) => (
             <PostCard 
               key={post.id} 
@@ -478,15 +542,15 @@ export function CommunityFeed({ communityIds = [] }: CommunityFeedProps) {
               }}
             />
           ))
-        ) : (
-          <Card>
-            <CardContent className="p-6 text-center">
-              <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            ) : (
+              <Card>
+                <CardContent className="p-6 text-center">
+                  <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">No posts to display.</p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
     </div>
   )
   }

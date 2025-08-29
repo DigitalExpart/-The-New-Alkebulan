@@ -181,16 +181,23 @@ export default function CommunityPage() {
 
       // Fetch author profiles  
       const authorIds = [...new Set((posts || []).map(p => p.user_id).filter(Boolean))];
-      const profilesMap: Record<string, any> = {};
+      const profilesMap: Record<string, { full_name: string; avatar_url: string | null }> = {};
       
       if (authorIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, full_name, avatar_url')
+          .select('id, user_id, first_name, last_name, avatar_url')
           .in('id', authorIds);
         
-        (profiles || []).forEach(p => {
-          profilesMap[p.id] = p;
+        (profiles || []).forEach((p: any) => {
+          const firstName = (p.first_name || '').trim();
+          const lastName = (p.last_name || '').trim();
+          const full_name = firstName && lastName
+            ? `${firstName} ${lastName}`
+            : (firstName || lastName || `User ${(p.id || p.user_id || '').slice(0, 8)}`);
+          const value = { full_name, avatar_url: p.avatar_url || '' };
+          if (p.id) profilesMap[p.id] = value;
+          if (p.user_id) profilesMap[p.user_id] = value;
         });
       }
 
