@@ -13,13 +13,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { 
-  Heart, 
-  MessageCircle, 
-  Share2, 
-  MoreHorizontal, 
-  Globe, 
-  Users, 
+import {
+  Heart,
+  MessageCircle,
+  Share2,
+  MoreHorizontal,
+  Globe,
+  Users,
   Lock,
   Image as ImageIcon,
   Link as LinkIcon,
@@ -36,15 +36,13 @@ import { formatDistanceToNow } from "date-fns"
 import type { PostWithStats } from "@/types/social-feed"
 
 interface PostCardProps {
-  post: PostWithStats
-  onPostUpdated?: () => void
-  onPostDeleted?: () => void
+  post: PostWithStats;
+  onPostUpdated?: () => void;
+  onPostDeleted?: () => void;
 }
 
 export function PostCard({ post, onPostUpdated, onPostDeleted }: PostCardProps) {
   const { user, profile } = useAuth()
-  const [isLiked, setIsLiked] = useState(post.user_has_liked || false)
-  const [likeCount, setLikeCount] = useState(post.like_count)
   const [showComments, setShowComments] = useState(false)
   const [commentText, setCommentText] = useState("")
   const [isSubmittingComment, setIsSubmittingComment] = useState(false)
@@ -58,7 +56,7 @@ export function PostCard({ post, onPostUpdated, onPostDeleted }: PostCardProps) 
 
     setIsLiking(true)
     try {
-      if (isLiked) {
+      if (post.user_has_liked) {
         // Unlike
         const { error } = await supabase
           .from('post_likes')
@@ -68,8 +66,6 @@ export function PostCard({ post, onPostUpdated, onPostDeleted }: PostCardProps) 
 
         if (error) throw error
 
-        setIsLiked(false)
-        setLikeCount(prev => Math.max(0, prev - 1))
         toast.success('Post unliked')
       } else {
         // Like
@@ -82,10 +78,9 @@ export function PostCard({ post, onPostUpdated, onPostDeleted }: PostCardProps) 
 
         if (error) throw error
 
-        setIsLiked(true)
-        setLikeCount(prev => prev + 1)
         toast.success('Post liked')
       }
+      onPostUpdated?.() // Notify parent component to refresh
     } catch (error) {
       console.error('Error toggling like:', error)
       toast.error('Failed to update like')
@@ -119,7 +114,7 @@ export function PostCard({ post, onPostUpdated, onPostDeleted }: PostCardProps) 
 
       setCommentText("")
       toast.success('Comment added')
-      onPostUpdated?.()
+      onPostUpdated?.() // Notify parent component to refresh
     } catch (error) {
       console.error('Error adding comment:', error)
       toast.error('Failed to add comment')
@@ -135,7 +130,7 @@ export function PostCard({ post, onPostUpdated, onPostDeleted }: PostCardProps) 
 
     try {
       const { error } = await supabase
-        .from('posts')
+        .from('community_posts') // Changed from 'posts' to 'community_posts'
         .delete()
         .eq('id', post.id)
         .eq('user_id', user.id)
@@ -264,8 +259,8 @@ export function PostCard({ post, onPostUpdated, onPostDeleted }: PostCardProps) 
         {/* Interaction Stats */}
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <div className="flex items-center space-x-4">
-            {likeCount > 0 && (
-              <span>{likeCount} {likeCount === 1 ? 'like' : 'likes'}</span>
+            {post.like_count > 0 && (
+              <span>{post.like_count} {post.like_count === 1 ? 'like' : 'likes'}</span>
             )}
             {post.comment_count > 0 && (
               <span>{post.comment_count} {post.comment_count === 1 ? 'comment' : 'comments'}</span>
@@ -285,10 +280,10 @@ export function PostCard({ post, onPostUpdated, onPostDeleted }: PostCardProps) 
             size="sm"
             onClick={handleLike}
             disabled={isLiking}
-            className={`flex-1 ${isLiked ? 'text-red-500' : ''}`}
+            className={`flex-1 ${post.user_has_liked ? 'text-red-500' : ''}`}
           >
-            <Heart className={`h-4 w-4 mr-2 ${isLiked ? 'fill-current' : ''}`} />
-            {isLiked ? 'Liked' : 'Like'}
+            <Heart className={`h-4 w-4 mr-2 ${post.user_has_liked ? 'fill-current' : ''}`} />
+            {post.user_has_liked ? 'Liked' : 'Like'}
           </Button>
 
           <Button
@@ -341,7 +336,7 @@ export function PostCard({ post, onPostUpdated, onPostDeleted }: PostCardProps) 
                 )}
               </Button>
             </div>
-            
+
             {/* TODO: Add comments list here */}
             <div className="text-center text-sm text-muted-foreground py-4">
               Comments feature coming soon...

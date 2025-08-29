@@ -33,6 +33,8 @@ import { CreatePostDialog } from "@/components/social-feed/create-post-dialog"
 import { getSupabaseClient } from "@/lib/supabase"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+import { CommunityPost } from "@/types"; // Import CommunityPost from shared types
+import { PostCard } from "@/components/social-feed/post-card"
 
 interface Community {
   id: string
@@ -47,6 +49,29 @@ interface Community {
   created_by: string
 }
 
+// No longer needed here, moved to @/types/index.ts
+// interface CommunityPost {
+//   id: string;
+//   content: string;
+//   user_id: string;
+//   community_id: string;
+//   created_at: string;
+//   likes_count: number;
+//   comments_count: number;
+//   shares_count: number;
+//   user: {
+//     full_name: string;
+//     avatar_url: string;
+//   };
+//   community: {
+//     name: string;
+//     description: string;
+//     avatar_url: string;
+//   };
+//   media_urls?: string[];
+//   media_type?: string;
+// }
+
 export default function CommunityPage() {
   const { user } = useAuth()
   const router = useRouter()
@@ -55,6 +80,7 @@ export default function CommunityPage() {
   const [loading, setLoading] = useState(true) // New state for loading
   const [userCommunities, setUserCommunities] = useState<Community[]>([]) // New state for user's communities
   const [memberCountMap, setMemberCountMap] = useState<Record<string, number>>({}) // New state for member counts
+  const [trendingPosts, setTrendingPosts] = useState<CommunityPost[]>([]) // New state for trending posts
 
   interface TrendingTopic {
     hashtag: string;
@@ -125,6 +151,58 @@ export default function CommunityPage() {
     }
   };
 
+  const fetchTrendingPosts = async () => {
+    try {
+      const supabase = getSupabaseClient();
+      const { data: posts, error } = await supabase
+        .from('community_posts')
+        .select('*, profiles!community_posts_user_id_fkey(*), communities(*)') // Select all columns and join profiles and communities
+        .order('likes_count', { ascending: false }) // Example: sort by likes_count
+        .order('comments_count', { ascending: false }) // Then by comments_count
+        .limit(10); // Limit to a reasonable number of trending posts
+
+      if (error) {
+        console.error('Error fetching trending posts:', error);
+        toast.error('Failed to load trending posts.');
+        return;
+      }
+
+      const mappedPosts: CommunityPost[] = (posts || []).map((p: any) => ({
+        id: p.id,
+        user_id: p.user_id,
+        content: p.content,
+        image_url: p.media_urls?.[0] || null,
+        post_type: p.media_type === 'text' ? 'text' : (p.media_type === 'image' ? 'image' : 'text'),
+        privacy: 'public',
+        metadata: p.metadata || {},
+        is_pinned: p.is_pinned || false,
+        is_archived: p.is_archived || false,
+        created_at: p.created_at,
+        updated_at: p.updated_at || p.created_at,
+        author_name: `${p.profiles?.full_name || 'User'}`.trim(),
+        author_avatar: p.profiles?.avatar_url || '',
+        like_count: p.likes_count || 0,
+        comment_count: p.comments_count || 0,
+        share_count: p.shares_count || 0,
+        user_has_liked: false,
+        user_has_shared: false,
+        community_id: p.community_id,
+        community: {
+          name: p.communities?.name || 'Community',
+          description: p.communities?.description || '',
+          avatar_url: p.communities?.avatar_url || '',
+        },
+        media_urls: p.media_urls || [],
+        media_type: p.media_type || undefined,
+      }));
+
+      setTrendingPosts(mappedPosts);
+    } catch (error) {
+      console.error('Error in fetchTrendingPosts:', error);
+      toast.error('Failed to load trending posts.');
+    }
+  };
+
   const fetchUserCommunities = async () => {
     if (!user) return
 
@@ -159,6 +237,7 @@ export default function CommunityPage() {
           .map((m: any) => m?.communities)
           .filter(Boolean) as Community[]
         setUserCommunities(userComms)
+        console.log("Fetched user communities:", userComms);
       }
     } catch (error) {
       console.error('Error fetching user communities:', error)
@@ -213,7 +292,8 @@ export default function CommunityPage() {
   useEffect(() => {
     if (user) {
       fetchUserCommunities()
-      fetchTrendingTopics() // Call fetchTrendingTopics here
+      fetchTrendingTopics()
+      fetchTrendingPosts() // Call fetchTrendingPosts here
       // Add a timeout to prevent infinite loading
       const timeout = setTimeout(() => {
         setLoading(false)
@@ -321,44 +401,30 @@ export default function CommunityPage() {
 
                 {/* Trending Tab */}
                 <TabsContent value="trending" className="mt-6">
-                  <div className="space-y-4">
+                  {trendingPosts.length > 0 ? (
+                    <div className="space-y-6">
+                      {trendingPosts.map(post => (
+                        <PostCard
+                          key={post.id}
+                          post={post}
+                        />
+                      ))}
+                    </div>
+                  ) : (
                     <Card>
-                      <CardContent className="p-6">
-                        <div className="text-center">
-                          <TrendingUp className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                          <h3 className="text-xl font-semibold mb-2">Trending Posts</h3>
-                          <p className="text-muted-foreground mb-6">
-                            Discover the most popular and engaging content from our community
-                          </p>
-                          <Button>
-                            <TrendingUp className="h-4 w-4 mr-2" />
-                            View Trending
-                          </Button>
-                        </div>
+                      <CardContent className="p-6 text-center">
+                        <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground">No trending posts to display.</p>
                       </CardContent>
                     </Card>
-                  </div>
+                  )}
                 </TabsContent>
 
                 {/* Following Tab */}
                 <TabsContent value="following" className="mt-6">
-                  <div className="space-y-4">
-                    <Card>
-                      <CardContent className="p-6">
-                        <div className="text-center">
-                          <Users className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                          <h3 className="text-xl font-semibold mb-2">Following Feed</h3>
-                          <p className="text-muted-foreground mb-6">
-                            See posts from people and communities you follow
-                          </p>
-                          <Button>
-                            <Users className="h-4 w-4 mr-2" />
-                            Find People to Follow
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
+                  <CommunityFeed 
+                    communityIds={userCommunities.map(c => c.id)}
+                  />
                 </TabsContent>
 
                 {/* Communities Tab */}
@@ -367,7 +433,7 @@ export default function CommunityPage() {
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {userCommunities.map((community) => (
                         <Card key={community.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push(`/communities/${community.id}`)}>
-                          <CardContent className="p-6">
+                      <CardContent className="p-6">
                             <div className="flex items-center justify-between mb-4">
                               <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
                                 <Globe className="h-6 w-6 text-primary" />
@@ -403,10 +469,10 @@ export default function CommunityPage() {
                               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                 <Clock className="h-4 w-4" />
                                 <span>Created {formatDate(community.created_at)}</span>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                       ))}
                     </div>
                   ) : (
@@ -423,7 +489,7 @@ export default function CommunityPage() {
                           <Search className="mr-2 h-4 w-4" />
                           Find Communities
                         </Button>
-                      </div>
+                  </div>
                     </Card>
                   )}
                 </TabsContent>

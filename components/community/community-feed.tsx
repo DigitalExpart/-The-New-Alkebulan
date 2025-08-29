@@ -19,202 +19,131 @@ import {
 import { useAuth } from "@/hooks/use-auth"
 import { getSupabaseClient } from "@/lib/supabase"
 import { formatDistanceToNow } from "date-fns"
-import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel"
 
-interface CommunityPost {
-  id: string
-  content: string
-  user_id: string
-  community_id: string
-  created_at: string
-  likes_count: number
-  comments_count: number
-  shares_count: number
-  user: {
-    full_name: string
-    avatar_url: string
-  }
-  community: {
-    name: string
-    description: string
-    avatar_url: string
-  }
-  media_urls?: string[]
-  media_type?: string
+import { CommunityPost } from "@/types"; // Import CommunityPost from shared types
+import { PostCard } from "@/components/social-feed/post-card"; // Import PostCard component
+import type { PostWithStats } from "@/types/social-feed";
+
+
+interface CommunityFeedProps {
+  communityIds?: string[]; // Optional: if provided, filters posts by these community IDs
 }
 
-// New interface for like status to manage optimistic updates
-interface PostLikeStatus {
-  [postId: string]: boolean;
-}
-
-export function CommunityFeed() {
+export function CommunityFeed({ communityIds = [] }: CommunityFeedProps) {
   const { user } = useAuth()
   const [posts, setPosts] = useState<CommunityPost[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
-  const [postLikeStatus, setPostLikeStatus] = useState<PostLikeStatus>({});
 
   useEffect(() => {
-    if (user) {
-      fetchAllPosts()
-      fetchPostLikeStatus()
-    }
-  }, [user])
-
-  const fetchPostLikeStatus = async () => {
-    if (!user) return;
-    const sb = getSupabaseClient();
-    if (!sb) return;
-
-    try {
-      const { data, error } = await sb
-        .from('post_likes')
-        .select('post_id')
-        .eq('user_id', user.id);
-
-      if (error) {
-        console.error("Error fetching user likes:", error);
-        return;
-      }
-
-      const likedPosts: PostLikeStatus = {};
-      data.forEach(like => {
-        likedPosts[like.post_id] = true;
-      });
-      setPostLikeStatus(likedPosts);
-    } catch (error) {
-      console.error("Error in fetchPostLikeStatus:", error);
-    }
-  }
+    fetchAllPosts()
+  }, [user, communityIds]) // Add communityIds to dependency array
 
   const fetchAllPosts = async () => {
     try {
       setLoading(true)
       const sb = getSupabaseClient()
       if (!sb) return
+      console.log("Fetching all posts with communityIds:", communityIds);
 
       // Helper: load profiles for a set of user ids
       const loadProfilesMap = async (ids: string[]) => {
         const unique = Array.from(new Set(ids.filter(Boolean)))
-        if (unique.length === 0) return {} as Record<string, { first_name?: string; last_name?: string; avatar_url?: string }>
+        if (unique.length === 0) return {} as Record<string, { full_name?: string; avatar_url?: string }>
         const { data } = await sb
           .from('profiles')
-          .select('id, first_name, last_name, avatar_url')
+          .select('id, full_name, avatar_url')
           .in('id', unique)
-        const map: Record<string, { first_name?: string; last_name?: string; avatar_url?: string }> = {}
-        ;(data || []).forEach((p: any) => { map[p.id] = { first_name: p.first_name, last_name: p.last_name, avatar_url: p.avatar_url } })
+        const map: Record<string, { full_name?: string; avatar_url?: string }> = {}
+        ;(data || []).forEach((p: any) => { map[p.id] = { full_name: p.full_name, avatar_url: p.avatar_url } })
         return map
       }
 
       // Helper: load communities for a set of community ids
       const loadCommunitiesMap = async (ids: string[]) => {
         const unique = Array.from(new Set(ids.filter(Boolean)))
-        if (unique.length === 0) return {} as Record<string, { name?: string; avatar_url?: string }>
+        if (unique.length === 0) return {} as Record<string, { name?: string; description?: string; avatar_url?: string }>
         const { data } = await sb
           .from('communities')
-          .select('id, name, avatar_url')
+          .select('id, name, description, avatar_url')
           .in('id', unique)
-        const map: Record<string, { name?: string; avatar_url?: string }> = {}
-        ;(data || []).forEach((c: any) => { map[c.id] = { name: c.name, avatar_url: c.avatar_url } })
+        const map: Record<string, { name?: string; description?: string; avatar_url?: string }> = {}
+        ;(data || []).forEach((c: any) => { map[c.id] = { name: c.name, description: c.description, avatar_url: c.avatar_url } })
         return map
       }
 
-      // 1) Fetch from community_posts
-      const { data: cpData, error: cpError } = await sb
-        .from('community_posts')
-        .select('id, content, created_at, user_id, community_id, media_urls, media_type, likes_count, comments_count')
+      let query = sb.from('community_posts')
+        .select('*')
         .order('created_at', { ascending: false })
-        .limit(100) // Limit to a reasonable number for a feed
+        .limit(100);
+
+      if (communityIds.length > 0) {
+        query = query.in('community_id', communityIds);
+      }
+
+      const { data: cpData, error: cpError } = await query;
 
       if (cpError) console.warn('community_posts fetch error:', cpError.message)
+      console.log("community_posts data:", cpData);
+      console.log("community_posts error:", cpError);
 
-      const cpUserIds = (cpData || []).map((p: any) => p.user_id)
-      const cpCommunityIds = (cpData || []).map((p: any) => p.community_id).filter(Boolean)
-      const [cpProfiles, cpCommunities] = await Promise.all([
-        loadProfilesMap(cpUserIds),
-        loadCommunitiesMap(cpCommunityIds)
-      ])
+      // Fetch profiles for all post authors
+      const authorIds = Array.from(new Set((cpData || []).map(p => p.user_id).filter(Boolean)));
+      const profilesMap = await loadProfilesMap(authorIds);
+      
+      // Fetch communities for all posts
+      const communityIdsToLoad = Array.from(new Set((cpData || []).map(p => p.community_id).filter(Boolean)));
+      const communitiesMap = await loadCommunitiesMap(communityIdsToLoad);
+
+      // Check which posts the user has liked (if user is logged in)
+      let userLikedPosts = new Set<string>();
+      if (user?.id && cpData && cpData.length > 0) {
+        const postIds = cpData.map(p => p.id);
+        const { data: likes } = await sb
+          .from('post_likes')
+          .select('post_id')
+          .eq('user_id', user.id)
+          .in('post_id', postIds);
+        
+        if (likes) {
+          userLikedPosts = new Set(likes.map(l => l.post_id));
+        }
+      }
 
       const mappedCp: CommunityPost[] = (cpData || []).map((p: any) => ({
         id: p.id,
-        content: p.content,
-        created_at: p.created_at,
         user_id: p.user_id,
+        content: p.content || '',
+        image_url: p.media_urls?.[0] || null,
+        post_type: p.media_type === 'text' ? 'text' : (p.media_type === 'image' ? 'image' : 'text'),
+        privacy: 'public',
+        metadata: p.metadata || {},
+        is_pinned: p.is_pinned || false,
+        is_archived: p.is_archived || false,
+        created_at: p.created_at,
+        updated_at: p.updated_at || p.created_at,
+        author_name: profilesMap[p.user_id]?.full_name || 'User',
+        author_avatar: profilesMap[p.user_id]?.avatar_url || '',
+        like_count: p.likes_count || 0,
+        comment_count: p.comments_count || 0,
+        share_count: p.shares_count || 0,
+        user_has_liked: userLikedPosts.has(p.id),
+        user_has_shared: false,
         community_id: p.community_id,
-        user: {
-          full_name: `${cpProfiles[p.user_id]?.first_name || 'User'} ${cpProfiles[p.user_id]?.last_name || ''}`.trim(),
-          avatar_url: cpProfiles[p.user_id]?.avatar_url || ''
-        },
         community: {
-          name: cpCommunities[p.community_id]?.name || 'Community',
-          description: '',
-          avatar_url: cpCommunities[p.community_id]?.avatar_url || '',
+          name: communitiesMap[p.community_id]?.name || 'Community',
+          description: communitiesMap[p.community_id]?.description || '',
+          avatar_url: communitiesMap[p.community_id]?.avatar_url || '',
         },
-        likes_count: p.likes_count || 0,
-        comments_count: p.comments_count || 0,
-        shares_count: 0,
         media_urls: p.media_urls || [],
         media_type: p.media_type || undefined,
-      }))
+      }));
 
-      // 2) Fetch from legacy posts table
-      const { data: legacyData, error: legacyError } = await sb
-        .from('posts')
-        .select('id, content, created_at, user_id, metadata, media_urls, media_type, likes_count, comments_count')
-        .order('created_at', { ascending: false })
-        .limit(100)
+      // Sort posts by created_at
+      const sortedPosts = mappedCp.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-      if (legacyError) console.warn('Legacy posts fetch error:', legacyError.message)
-
-      const legacyUserIds = (legacyData || []).map((p: any) => p.user_id)
-      const legacyCommunityIds = (legacyData || []).map((p: any) => p.metadata?.community_id).filter(Boolean)
-      const [legacyProfiles, legacyCommunities] = await Promise.all([
-        loadProfilesMap(legacyUserIds),
-        loadCommunitiesMap(legacyCommunityIds)
-      ])
-
-      const mappedLegacy: CommunityPost[] = (legacyData || []).map((p: any) => ({
-        id: p.id,
-        content: p.content,
-        created_at: p.created_at,
-        user_id: p.user_id,
-        community_id: p.metadata?.community_id,
-        user: {
-          full_name: `${legacyProfiles[p.user_id]?.first_name || 'User'} ${legacyProfiles[p.user_id]?.last_name || ''}`.trim(),
-          avatar_url: legacyProfiles[p.user_id]?.avatar_url || ''
-        },
-        community: p.metadata?.community_id ? {
-          name: legacyCommunities[p.metadata.community_id]?.name || 'Community',
-          description: '',
-          avatar_url: legacyCommunities[p.metadata.community_id]?.avatar_url || '',
-        } : { name: 'General', description: '', avatar_url: '' }, // Default community for posts without one
-        likes_count: p.likes_count || 0,
-        comments_count: p.comments_count || 0,
-        shares_count: 0,
-        media_urls: p.media_urls || [],
-        media_type: p.media_type || undefined,
-      }))
-
-      // Merge and deduplicate by ID
-      const mergedPosts = [...mappedCp, ...mappedLegacy];
-      const uniquePosts = Array.from(new Map(mergedPosts.map(post => [post.id, post])).values());
-
-      // Sort by creation date (most recent first)
-      const sortedPosts = uniquePosts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-      // Resolve public URLs for media
-      const resolvedPosts = await Promise.all(sortedPosts.map(async (p) => {
-        const resolvedMediaUrls = p.media_urls ? await Promise.all(
-          p.media_urls.map(async (path: string) => {
-            const { data } = sb.storage.from('post_media').getPublicUrl(path)
-            return data.publicUrl
-          })
-        ) : []
-        return { ...p, media_urls: resolvedMediaUrls }
-      }))
-
-      setPosts(resolvedPosts)
+      setPosts(sortedPosts)
+      console.log("Resolved posts for CommunityFeed:", sortedPosts);
     } catch (error) {
       console.error('Error fetching all posts:', error)
       toast.error("Failed to load community feed.")
@@ -226,8 +155,8 @@ export function CommunityFeed() {
   const handleLikePost = async (postId: string) => {
     if (!user) {
       toast.error("Please log in to like posts.");
-      return;
-    }
+        return;
+      }
 
     const sb = getSupabaseClient();
     if (!sb) return;
@@ -246,7 +175,6 @@ export function CommunityFeed() {
       }
 
       if (data && data.length > 0) {
-        // Unlike
         const { error: unlikeError } = await sb
           .from('post_likes')
           .delete()
@@ -256,12 +184,10 @@ export function CommunityFeed() {
         if (unlikeError) {
           console.error("Error unliking post:", unlikeError);
           toast.error("Failed to unlike post.");
-          return;
-        }
-        setPostLikeStatus(prev => ({ ...prev, [postId]: false }));
+        return;
+      }
         toast.success("Post unliked!");
       } else {
-        // Like
         const { error: likeError } = await sb
           .from('post_likes')
           .insert({ post_id: postId, user_id: user.id });
@@ -271,9 +197,9 @@ export function CommunityFeed() {
           toast.error("Failed to like post.");
           return;
         }
-        setPostLikeStatus(prev => ({ ...prev, [postId]: true }));
         toast.success("Post liked!");
       }
+      fetchAllPosts(); // Refresh posts after like/unlike
     } catch (error) {
       console.error("Error in handleLikePost:", error);
       toast.error("Failed to like post.");
@@ -290,120 +216,43 @@ export function CommunityFeed() {
     if (!sb) return;
 
     try {
+      if (navigator.share) {
+        await navigator.share({
+          title: post.content.substring(0, 50) + '...',
+          text: post.content,
+          url: `${window.location.origin}/posts/${post.id}`,
+        });
+        toast.success("Post shared!");
+      } else {
+        const postLink = `${window.location.origin}/posts/${post.id}`;
+        await navigator.clipboard.writeText(postLink);
+        toast.info("Post link copied to clipboard!");
+      }
+
       const { error } = await sb
         .from('post_shares')
         .insert({ post_id: post.id, user_id: user.id });
 
       if (error) {
-        console.error("Error sharing post:", error);
-        toast.error("Failed to share post.");
-        return;
+        console.error("Error logging share in DB:", error);
       }
-      toast.success("Post shared!");
+      fetchAllPosts(); // Refresh posts after share
     } catch (error) {
       console.error("Error in handleSharePost:", error);
-      toast.error("Failed to share post.");
+      if (error instanceof DOMException && error.name === "AbortError") {
+        console.log("Share cancelled by user.");
+      } else {
+        toast.error("Failed to share post.");
+      }
     }
   };
 
-  const renderMedia = (media_urls?: string[], media_type?: string) => {
-    if (!media_urls || media_urls.length === 0) return null
 
-    const isVideo = (type?: string, url?: string) => type?.startsWith('video') || /\.(mp4|webm|ogg)$/i.test(url || '')
-
-    return (
-      <Carousel className="w-full max-w-full relative group">
-        <CarouselContent className="-ml-2 md:-ml-4">
-          {media_urls.map((url, index) => (
-            <CarouselItem key={index} className="pl-2 md:pl-4 basis-1/3">
-              <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
-                {isVideo(media_type, url) ? (
-                  <video src={url} controls className="w-full h-full object-cover" />
-                ) : (
-                  <img
-                    src={url}
-                    alt={`Post media ${index + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                )}
-              </div>
-            </CarouselItem>
-          ))}
-        </CarouselContent>
-        {media_urls.length > 3 && (
-          <>
-            <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity" />
-            <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity" />
-          </>
-        )}
-      </Carousel>
-    )
-  }
 
   const handleRefresh = async () => {
     setLoading(true)
     await fetchAllPosts()
   }
-
-  const renderPost = (post: CommunityPost) => (
-    <Card
-      key={post.id}
-      className="mb-4 cursor-pointer hover:bg-muted/50 transition-colors"
-      onClick={() => router.push(`/posts/${post.id}`)}
-    >
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
-          <Avatar className="w-10 h-10">
-            <AvatarImage src={post.user.avatar_url} />
-            <AvatarFallback>{post.user.full_name.charAt(0)}</AvatarFallback>
-          </Avatar>
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="font-medium">{post.user.full_name}</span>
-              <span className="text-muted-foreground">•</span>
-              <span className="text-muted-foreground text-sm">
-                {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
-              </span>
-              {post.community?.name && (
-                <>
-                  <span className="text-muted-foreground">•</span>
-                  <Badge variant="outline" className="text-xs">
-                    <Globe className="w-3 h-3 mr-1" />
-                    {post.community.name}
-                  </Badge>
-                </>
-              )}
-            </div>
-            {renderMedia(post.media_urls, post.media_type)}
-            <p className="text-foreground mb-3">{post.content}</p>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
-              <button
-                onClick={(e) => { e.stopPropagation(); handleLikePost(post.id) }}
-                className={`flex items-center gap-1 transition-colors ${postLikeStatus[post.id] ? 'text-red-500' : 'hover:text-red-500'}`}
-              >
-                <Heart className="w-4 h-4" />
-                {post.likes_count}
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); router.push(`/posts/${post.id}`) }}
-                className="flex items-center gap-1 hover:text-primary transition-colors"
-              >
-                <MessageCircle className="h-4 w-4" />
-                {post.comments_count}
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); handleSharePost(post) }}
-                className="flex items-center gap-1 hover:text-primary transition-colors"
-              >
-                <Share2 className="h-4 w-4" />
-                <span>Share</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
 
   if (loading) {
     return (
@@ -427,19 +276,26 @@ export function CommunityFeed() {
       </div>
 
       <div>
-          {posts.length > 0 ? (
-           posts.map((post) => (
-             <div key={post.id}> {renderPost(post)} </div>
-           ))
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No posts to display.</p>
-              </CardContent>
-            </Card>
-          )}
-       </div>
+        {posts.length > 0 ? (
+          posts.map((post) => (
+            <PostCard 
+              key={post.id} 
+              post={post} 
+              onPostUpdated={fetchAllPosts}
+              onPostDeleted={() => {
+                setPosts(posts.filter(p => p.id !== post.id));
+              }}
+            />
+          ))
+        ) : (
+          <Card>
+            <CardContent className="p-6 text-center">
+              <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No posts to display.</p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   )
-}
+  }

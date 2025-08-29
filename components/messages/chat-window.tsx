@@ -117,6 +117,17 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
   const [callMode, setCallMode] = useState<'audio' | 'video'>('audio')
   const [callAutoStart, setCallAutoStart] = useState(false)
 
+  // Heartbeat for current user's presence
+  const markOnline = async (online: boolean) => {
+    try {
+      if (!currentUser?.id) return;
+      await supabase
+        .from('profiles')
+        .update({ is_online: online, last_seen: new Date().toISOString() })
+        .eq('id', currentUser.id)
+    } catch {}
+  };
+
   useEffect(() => {
     const fetchChatData = async () => {
       setLoading(true)
@@ -314,6 +325,7 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
 
     return () => {
       if (presenceInterval) clearInterval(presenceInterval)
+      markOnline(false)
     }
   }, [otherUser?.id, supabase])
 
@@ -321,14 +333,7 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
   useEffect(() => {
     if (!currentUser?.id) return
     let hb: any
-    const markOnline = async (online: boolean) => {
-      try {
-        await supabase
-          .from('profiles')
-          .update({ is_online: online, last_seen: new Date().toISOString() })
-          .eq('id', currentUser.id)
-      } catch {}
-    }
+    
     markOnline(true)
     hb = setInterval(() => markOnline(true), 60000)
     const beforeUnload = () => { markOnline(false) }
@@ -590,8 +595,8 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
           if (['image', 'video', 'audio', 'file'].includes(m.type) && m.content && !m.content.startsWith('http')) {
             const bucket = BUCKETS[m.type as keyof typeof BUCKETS];
             try {
-              const { data, error } = await supabase.storage.from(bucket).getPublicUrl(m.content);
-              if (data?.publicUrl && !error) {
+              const { data } = await supabase.storage.from(bucket).getPublicUrl(m.content);
+              if (data?.publicUrl) {
                 urls[m.id] = data.publicUrl;
               }
             } catch (e) {
@@ -708,9 +713,9 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
           </Button>
           <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <MoreVertical className="h-5 w-5" />
-            </Button>
+        <Button variant="ghost" size="icon">
+          <MoreVertical className="h-5 w-5" />
+        </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>Conversation</DropdownMenuLabel>
@@ -877,7 +882,7 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
          const mediaUrl = message.media_url || attachmentUrls[message.id] || messageContent; // Use media_url if available
          const isOptimistic = message.id.startsWith('optimistic-');
          const currentOptimisticAttachment = optimisticAttachments[message.id];
- 
+
           return (
             <div key={message.id} className={`flex items-start gap-3 ${isCurrentUser ? "justify-end" : "justify-start"}`}>
               {!isCurrentUser && (
@@ -929,7 +934,7 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
                       )}
                     </div>
                   ) : (
-                    <p className="text-sm">{message.content}</p>
+                  <p className="text-sm">{message.content}</p>
                   )}
                 </div>
                 <span className="text-xs text-muted-foreground mt-1">
@@ -952,9 +957,9 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
       <div className="border-t border-border bg-card p-4 flex items-center space-x-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <Paperclip className="h-5 w-5 text-muted-foreground" />
-            </Button>
+        <Button variant="ghost" size="icon">
+          <Paperclip className="h-5 w-5 text-muted-foreground" />
+        </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56">
             <DropdownMenuItem asChild>
@@ -988,16 +993,16 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
           <Smile className="h-5 w-5 text-muted-foreground" />
         </Button>
         <div className="flex-1 relative">
-          <Input
-            placeholder="Type your message..."
+        <Input
+          placeholder="Type your message..."
             className={`w-full pr-24 ${isRecording ? 'pl-28' : ''}`}
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') {
-                handleSendMessage()
-              }
-            }}
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          onKeyPress={(e) => {
+            if (e.key === 'Enter') {
+              handleSendMessage()
+            }
+          }}
             disabled={isLocked}
           />
           {isRecording && (

@@ -313,9 +313,9 @@ export function ConversationList({
         .map((conv: any) => {
           const convMsgs = messagesByConv.get(conv.id) || []
           const otherId = otherUserIdsByConv.get(conv.id)
-          if (!otherId) return null // Return null here
+          if (!otherId) return null
           const prof = profiles?.find(p => p.id === otherId)
-          if (!prof) return null // Return null here
+          if (!prof) return null
 
           const last = convMsgs.length > 0 ? convMsgs[convMsgs.length - 1] as Message : null;
           const unreadCount = convMsgs.filter(m => m.sender_id !== user.id && !m.is_read).length
@@ -352,12 +352,13 @@ export function ConversationList({
             theme: myParticipantRows?.find((p: any) => p.conversation_id === conv.id)?.theme || 'default',
             clearedAt: myParticipantRows?.find((p: any) => p.conversation_id === conv.id)?.cleared_at ? new Date(myParticipantRows.find((p: any) => p.conversation_id === conv.id)?.cleared_at) : null,
           }
-        })
-        .filter((c): c is Conversation => c !== null)
+        });
+
+      const filteredConversations: Conversation[] = transformedConversationsAll.filter((c): c is Conversation => c !== null);
 
       // Deduplicate by other participant id: keep the thread with more messages, then latest activity
       const bestByPeer = new Map<string, { conv: Conversation; msgCount: number; lastTs: number }>()
-      for (const conv of transformedConversationsAll) {
+      for (const conv of filteredConversations) {
         const peerId = conv.participants[0]?.id
         if (!peerId) continue
         const msgCount = (messagesByConv.get(conv.id) || []).length
@@ -369,9 +370,9 @@ export function ConversationList({
       }
       const transformedConversations = Array.from(bestByPeer.values())
         .map(v => v.conv)
-        .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+        .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
 
-      setConversations(transformedConversations)
+      setConversations(transformedConversations);
       
     } catch (error) {
       console.error('Error fetching conversations:', error)

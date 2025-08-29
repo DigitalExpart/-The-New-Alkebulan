@@ -9,7 +9,10 @@ ADD COLUMN IF NOT EXISTS location_name VARCHAR(255),
 ADD COLUMN IF NOT EXISTS location_coordinates POINT,
 ADD COLUMN IF NOT EXISTS feels_emoji VARCHAR(10),
 ADD COLUMN IF NOT EXISTS feels_description VARCHAR(100),
-ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'; -- New column for storing post metadata like hashtags
+ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}', -- New column for storing post metadata like hashtags
+ADD COLUMN IF NOT EXISTS likes_count INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS comments_count INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS shares_count INTEGER DEFAULT 0;
 
 -- Step 2: Create media_uploads table for better media management
 CREATE TABLE IF NOT EXISTS public.media_uploads (
@@ -48,10 +51,15 @@ CREATE INDEX IF NOT EXISTS idx_community_posts_media_type ON public.community_po
 CREATE INDEX IF NOT EXISTS idx_community_posts_location ON public.community_posts USING GIST(location_coordinates);
 
 -- Step 5: Enable RLS on new tables
+ALTER TABLE public.community_posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.media_uploads ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.post_feels ENABLE ROW LEVEL SECURITY;
 
--- Step 6: Create RLS policies for media_uploads
+-- Step 6: Create RLS policies for community_posts
+DROP POLICY IF EXISTS "Community posts are viewable by everyone" ON public.community_posts;
+CREATE POLICY "Community posts are viewable by everyone" ON public.community_posts FOR SELECT USING (true);
+
+-- Step 7: Create RLS policies for media_uploads
 DROP POLICY IF EXISTS "media_uploads_select_policy" ON public.media_uploads;
 DROP POLICY IF EXISTS "media_uploads_insert_policy" ON public.media_uploads;
 DROP POLICY IF EXISTS "media_uploads_delete_policy" ON public.media_uploads;
@@ -81,7 +89,7 @@ CREATE POLICY "media_uploads_delete_policy" ON public.media_uploads
         )
     );
 
--- Step 7: Create RLS policies for post_feels
+-- Step 8: Create RLS policies for post_feels
 DROP POLICY IF EXISTS "post_feels_select_policy" ON public.post_feels;
 DROP POLICY IF EXISTS "post_feels_insert_policy" ON public.post_feels;
 DROP POLICY IF EXISTS "post_feels_update_policy" ON public.post_feels;
@@ -106,7 +114,7 @@ CREATE POLICY "post_feels_update_policy" ON public.post_feels
 CREATE POLICY "post_feels_delete_policy" ON public.post_feels
     FOR DELETE USING (user_id = auth.uid());
 
--- Step 8: Create function to update post media_type based on media_urls
+-- Step 9: Create function to update post media_type based on media_urls
 CREATE OR REPLACE FUNCTION update_post_media_type()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -130,12 +138,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Step 9: Create trigger to automatically update media_type
+-- Step 10: Create trigger to automatically update media_type
 DROP TRIGGER IF EXISTS trigger_update_post_media_type ON public.community_posts;
 CREATE TRIGGER trigger_update_post_media_type
     BEFORE INSERT OR UPDATE ON public.community_posts
     FOR EACH ROW
     EXECUTE FUNCTION update_post_media_type();
 
--- Step 10: Verify the enhanced structure
+-- Step 11: Verify the enhanced structure
 SELECT 'Community posts enhanced with media, location, and feels support!' as result;
