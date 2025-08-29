@@ -154,23 +154,65 @@ export default function CommunityPage() {
   const fetchTrendingPosts = async () => {
     try {
       const supabase = getSupabaseClient();
+      
+      // First check if the table has the required columns
+      const { data: testData, error: testError } = await supabase
+        .from('community_posts')
+        .select('id')
+        .limit(1);
+        
+      if (testError) {
+        console.error('Error testing community_posts table:', testError);
+        toast.error('The community_posts table may need to be updated. Please run the enhance-community-posts.sql script.');
+        return;
+      }
+      
       const { data: posts, error } = await supabase
         .from('community_posts')
-        .select('*, profiles!community_posts_user_id_fkey(*), communities(*)') // Select all columns and join profiles and communities
-        .order('likes_count', { ascending: false }) // Example: sort by likes_count
-        .order('comments_count', { ascending: false }) // Then by comments_count
+        .select('*')
+        .order('created_at', { ascending: false }) // Temporarily sort by created_at
         .limit(10); // Limit to a reasonable number of trending posts
 
       if (error) {
-        console.error('Error fetching trending posts:', error);
-        toast.error('Failed to load trending posts.');
+        console.error('Error fetching trending posts:', error.message || error);
+        toast.error('Failed to load trending posts: ' + (error.message || 'Unknown error'));
         return;
+      }
+
+      // Fetch author profiles  
+      const authorIds = [...new Set((posts || []).map(p => p.user_id).filter(Boolean))];
+      const profilesMap: Record<string, any> = {};
+      
+      if (authorIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url')
+          .in('id', authorIds);
+        
+        (profiles || []).forEach(p => {
+          profilesMap[p.id] = p;
+        });
+      }
+
+      // Fetch community info
+      const communityIds = [...new Set((posts || []).map(p => p.community_id).filter(Boolean))];
+      const communitiesMap: Record<string, any> = {};
+      
+      if (communityIds.length > 0) {
+        const { data: communities } = await supabase
+          .from('communities')
+          .select('id, name, description, avatar_url')
+          .in('id', communityIds);
+        
+        (communities || []).forEach(c => {
+          communitiesMap[c.id] = c;
+        });
       }
 
       const mappedPosts: CommunityPost[] = (posts || []).map((p: any) => ({
         id: p.id,
         user_id: p.user_id,
-        content: p.content,
+        content: p.content || '',
         image_url: p.media_urls?.[0] || null,
         post_type: p.media_type === 'text' ? 'text' : (p.media_type === 'image' ? 'image' : 'text'),
         privacy: 'public',
@@ -179,8 +221,8 @@ export default function CommunityPage() {
         is_archived: p.is_archived || false,
         created_at: p.created_at,
         updated_at: p.updated_at || p.created_at,
-        author_name: `${p.profiles?.full_name || 'User'}`.trim(),
-        author_avatar: p.profiles?.avatar_url || '',
+        author_name: profilesMap[p.user_id]?.full_name || 'User',
+        author_avatar: profilesMap[p.user_id]?.avatar_url || '',
         like_count: p.likes_count || 0,
         comment_count: p.comments_count || 0,
         share_count: p.shares_count || 0,
@@ -188,9 +230,9 @@ export default function CommunityPage() {
         user_has_shared: false,
         community_id: p.community_id,
         community: {
-          name: p.communities?.name || 'Community',
-          description: p.communities?.description || '',
-          avatar_url: p.communities?.avatar_url || '',
+          name: communitiesMap[p.community_id]?.name || 'Community',
+          description: communitiesMap[p.community_id]?.description || '',
+          avatar_url: communitiesMap[p.community_id]?.avatar_url || '',
         },
         media_urls: p.media_urls || [],
         media_type: p.media_type || undefined,
