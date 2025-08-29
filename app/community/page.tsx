@@ -56,15 +56,13 @@ export default function CommunityPage() {
   const [userCommunities, setUserCommunities] = useState<Community[]>([]) // New state for user's communities
   const [memberCountMap, setMemberCountMap] = useState<Record<string, number>>({}) // New state for member counts
 
-  // Mock trending topics data
-  const trendingTopics = [
-    { hashtag: "DiasporaEntrepreneurs", posts: 234, trending: true },
-    { hashtag: "AfricanTech", posts: 189, trending: true },
-    { hashtag: "CulturalHeritage", posts: 156, trending: true },
-    { hashtag: "BusinessNetworking", posts: 142, trending: false },
-    { hashtag: "InnovationHub", posts: 98, trending: true },
-    { hashtag: "CommunityGrowth", posts: 87, trending: false },
-  ]
+  interface TrendingTopic {
+    hashtag: string;
+    posts: number;
+    trending: boolean; // Indicates if it's currently trending (e.g., increased in popularity recently)
+  }
+
+  const [trendingTopicsLive, setTrendingTopicsLive] = useState<TrendingTopic[]>([]);
 
   // Fetch live member counts whenever the user's community list changes
   useEffect(() => {
@@ -80,6 +78,52 @@ export default function CommunityPage() {
     // Implement search functionality
     console.log('Searching for:', searchQuery)
   }
+
+  const fetchTrendingTopics = async () => {
+    try {
+      const supabase = getSupabaseClient();
+      const { data: posts, error } = await supabase
+        .from('community_posts')
+        .select('metadata')
+        .not('metadata', 'is', null)
+        .limit(100); // Fetch a reasonable number of recent posts to analyze trends
+
+      if (error) {
+        console.error('Error fetching posts for trending topics:', error);
+        toast.error('Failed to load trending topics.');
+        return;
+      }
+
+      const hashtagCounts: { [key: string]: number } = {};
+
+      posts.forEach((post) => {
+        if (post.metadata && typeof post.metadata === 'object' && !Array.isArray(post.metadata) && post.metadata.hashtags) {
+          let hashtags = post.metadata.hashtags;
+          // Ensure hashtags is an array, even if it's a single string
+          if (typeof hashtags === 'string') {
+            hashtags = [hashtags];
+          } else if (!Array.isArray(hashtags)) {
+            return; // Skip if not string or array
+          }
+
+          hashtags.forEach((tag: string) => {
+            const normalizedTag = tag.startsWith('#') ? tag.substring(1) : tag; // Remove '#' if present
+            hashtagCounts[normalizedTag] = (hashtagCounts[normalizedTag] || 0) + 1;
+          });
+        }
+      });
+
+      const sortedTopics: TrendingTopic[] = Object.entries(hashtagCounts)
+        .map(([hashtag, posts]) => ({ hashtag, posts, trending: true })) // Assuming all are trending for now
+        .sort((a, b) => b.posts - a.posts) // Sort by post count descending
+        .slice(0, 6); // Take top 6 trending topics
+
+      setTrendingTopicsLive(sortedTopics);
+    } catch (error) {
+      console.error('Error in fetchTrendingTopics:', error);
+      toast.error('Failed to load trending topics.');
+    }
+  };
 
   const fetchUserCommunities = async () => {
     if (!user) return
@@ -169,6 +213,7 @@ export default function CommunityPage() {
   useEffect(() => {
     if (user) {
       fetchUserCommunities()
+      fetchTrendingTopics() // Call fetchTrendingTopics here
       // Add a timeout to prevent infinite loading
       const timeout = setTimeout(() => {
         setLoading(false)
@@ -405,7 +450,7 @@ export default function CommunityPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {trendingTopics.map((topic, index) => (
+                {trendingTopicsLive.map((topic, index) => (
                   <div key={index} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
                     <div className="flex items-center gap-2">
                       <Hash className="h-4 w-4 text-primary" />

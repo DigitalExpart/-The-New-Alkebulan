@@ -8,7 +8,8 @@ ADD COLUMN IF NOT EXISTS media_type VARCHAR(20) DEFAULT 'text' CHECK (media_type
 ADD COLUMN IF NOT EXISTS location_name VARCHAR(255),
 ADD COLUMN IF NOT EXISTS location_coordinates POINT,
 ADD COLUMN IF NOT EXISTS feels_emoji VARCHAR(10),
-ADD COLUMN IF NOT EXISTS feels_description VARCHAR(100);
+ADD COLUMN IF NOT EXISTS feels_description VARCHAR(100),
+ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'; -- New column for storing post metadata like hashtags
 
 -- Step 2: Create media_uploads table for better media management
 CREATE TABLE IF NOT EXISTS public.media_uploads (
