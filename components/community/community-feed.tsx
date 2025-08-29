@@ -43,20 +43,50 @@ interface CommunityPost {
   media_type?: string
 }
 
-
-
+// New interface for like status to manage optimistic updates
+interface PostLikeStatus {
+  [postId: string]: boolean;
+}
 
 export function CommunityFeed() {
   const { user } = useAuth()
   const [posts, setPosts] = useState<CommunityPost[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
+  const [postLikeStatus, setPostLikeStatus] = useState<PostLikeStatus>({});
 
   useEffect(() => {
     if (user) {
       fetchAllPosts()
+      fetchPostLikeStatus()
     }
   }, [user])
+
+  const fetchPostLikeStatus = async () => {
+    if (!user) return;
+    const sb = getSupabaseClient();
+    if (!sb) return;
+
+    try {
+      const { data, error } = await sb
+        .from('post_likes')
+        .select('post_id')
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error("Error fetching user likes:", error);
+        return;
+      }
+
+      const likedPosts: PostLikeStatus = {};
+      data.forEach(like => {
+        likedPosts[like.post_id] = true;
+      });
+      setPostLikeStatus(likedPosts);
+    } catch (error) {
+      console.error("Error in fetchPostLikeStatus:", error);
+    }
+  }
 
   const fetchAllPosts = async () => {
     try {
@@ -193,6 +223,89 @@ export function CommunityFeed() {
     }
   }
 
+  const handleLikePost = async (postId: string) => {
+    if (!user) {
+      toast.error("Please log in to like posts.");
+      return;
+    }
+
+    const sb = getSupabaseClient();
+    if (!sb) return;
+
+    try {
+      const { data, error } = await sb
+        .from('post_likes')
+        .select('post_id')
+        .eq('post_id', postId)
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error("Error checking like status:", error);
+        toast.error("Failed to check like status.");
+        return;
+      }
+
+      if (data && data.length > 0) {
+        // Unlike
+        const { error: unlikeError } = await sb
+          .from('post_likes')
+          .delete()
+          .eq('post_id', postId)
+          .eq('user_id', user.id);
+
+        if (unlikeError) {
+          console.error("Error unliking post:", unlikeError);
+          toast.error("Failed to unlike post.");
+          return;
+        }
+        setPostLikeStatus(prev => ({ ...prev, [postId]: false }));
+        toast.success("Post unliked!");
+      } else {
+        // Like
+        const { error: likeError } = await sb
+          .from('post_likes')
+          .insert({ post_id: postId, user_id: user.id });
+
+        if (likeError) {
+          console.error("Error liking post:", likeError);
+          toast.error("Failed to like post.");
+          return;
+        }
+        setPostLikeStatus(prev => ({ ...prev, [postId]: true }));
+        toast.success("Post liked!");
+      }
+    } catch (error) {
+      console.error("Error in handleLikePost:", error);
+      toast.error("Failed to like post.");
+    }
+  };
+
+  const handleSharePost = async (post: CommunityPost) => {
+    if (!user) {
+      toast.error("Please log in to share posts.");
+      return;
+    }
+
+    const sb = getSupabaseClient();
+    if (!sb) return;
+
+    try {
+      const { error } = await sb
+        .from('post_shares')
+        .insert({ post_id: post.id, user_id: user.id });
+
+      if (error) {
+        console.error("Error sharing post:", error);
+        toast.error("Failed to share post.");
+        return;
+      }
+      toast.success("Post shared!");
+    } catch (error) {
+      console.error("Error in handleSharePost:", error);
+      toast.error("Failed to share post.");
+    }
+  };
+
   const renderMedia = (media_urls?: string[], media_type?: string) => {
     if (!media_urls || media_urls.length === 0) return null
 
@@ -265,8 +378,8 @@ export function CommunityFeed() {
             <p className="text-foreground mb-3">{post.content}</p>
             <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
               <button
-                onClick={(e) => { e.stopPropagation(); /* handleLikePost(post.id) */ }}
-                className="flex items-center gap-1 hover:text-primary transition-colors"
+                onClick={(e) => { e.stopPropagation(); handleLikePost(post.id) }}
+                className={`flex items-center gap-1 transition-colors ${postLikeStatus[post.id] ? 'text-red-500' : 'hover:text-red-500'}`}
               >
                 <Heart className="w-4 h-4" />
                 {post.likes_count}
@@ -279,7 +392,7 @@ export function CommunityFeed() {
                 {post.comments_count}
               </button>
               <button
-                onClick={(e) => e.stopPropagation()} // Prevent card click propagation
+                onClick={(e) => { e.stopPropagation(); handleSharePost(post) }}
                 className="flex items-center gap-1 hover:text-primary transition-colors"
               >
                 <Share2 className="h-4 w-4" />
