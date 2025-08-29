@@ -19,18 +19,42 @@ import {
   Hash,
   ArrowUp,
   Plus,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Loader2,
+  Tag,
+  MapPin,
+  Clock
 } from "lucide-react"
 import { SocialFeed } from "@/components/social-feed/social-feed"
 import { CommunityFeed } from "@/components/community/community-feed"
 import { CommunityStats } from "@/components/community/community-stats"
 import { useAuth } from "@/hooks/use-auth"
 import { CreatePostDialog } from "@/components/social-feed/create-post-dialog"
+import { getSupabaseClient } from "@/lib/supabase"
+import { toast } from "sonner"
+import { useRouter } from "next/navigation"
+
+interface Community {
+  id: string
+  name: string
+  description: string
+  member_count: number
+  category: string
+  location: string | null
+  is_public: boolean
+  tags: string[]
+  created_at: string
+  created_by: string
+}
 
 export default function CommunityPage() {
   const { user } = useAuth()
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState("feed")
   const [searchQuery, setSearchQuery] = useState("")
+  const [loading, setLoading] = useState(true) // New state for loading
+  const [userCommunities, setUserCommunities] = useState<Community[]>([]) // New state for user's communities
+  const [memberCountMap, setMemberCountMap] = useState<Record<string, number>>({}) // New state for member counts
 
   // Mock trending topics data
   const trendingTopics = [
@@ -42,10 +66,140 @@ export default function CommunityPage() {
     { hashtag: "CommunityGrowth", posts: 87, trending: false },
   ]
 
+  // Fetch live member counts whenever the user's community list changes
+  useEffect(() => {
+    if (userCommunities.length > 0) {
+      fetchMemberCounts()
+    } else {
+      setMemberCountMap({})
+    }
+  }, [userCommunities])
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     // Implement search functionality
     console.log('Searching for:', searchQuery)
+  }
+
+  const fetchUserCommunities = async () => {
+    if (!user) return
+
+    try {
+      const supabase = getSupabaseClient()
+      
+      // Get communities where user is a member
+      const { data: memberships, error: membershipError } = await supabase
+        .from('community_members')
+        .select(`
+          community_id,
+          communities (
+            id,
+            name,
+            description,
+            member_count,
+            category,
+            location,
+            is_public,
+            tags,
+            created_at,
+            created_by
+          )
+        `)
+        .eq('user_id', user.id)
+
+      if (membershipError) {
+        console.error('Error fetching memberships:', membershipError)
+        toast.error('Failed to load communities')
+      } else {
+        const userComms = (memberships || [])
+          .map((m: any) => m?.communities)
+          .filter(Boolean) as Community[]
+        setUserCommunities(userComms)
+      }
+    } catch (error) {
+      console.error('Error fetching user communities:', error)
+      toast.error('Failed to load communities')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchMemberCounts = async () => {
+    try {
+      const supabase = getSupabaseClient()
+      const communityIds = userCommunities.map(c => c.id)
+      if (communityIds.length === 0) {
+        setMemberCountMap({})
+        return
+      }
+
+      const { data: memberRows, error } = await supabase
+        .from('community_members')
+        .select('community_id')
+        .in('community_id', communityIds)
+
+      if (error) {
+        console.error('Error fetching member counts:', error)
+        return
+      }
+
+      const counts: Record<string, number> = {}
+      memberRows?.forEach((row: { community_id: string }) => {
+        counts[row.community_id] = (counts[row.community_id] || 0) + 1
+      })
+
+      setMemberCountMap(counts)
+    } catch (err) {
+      console.error('Failed to compute member counts:', err)
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffTime = Math.abs(now.getTime() - date.getTime())
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    if (diffDays === 1) return '1 day ago'
+    if (diffDays < 7) return `${diffDays} days ago`
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
+    return date.toLocaleDateString()
+  }
+
+  useEffect(() => {
+    if (user) {
+      fetchUserCommunities()
+      // Add a timeout to prevent infinite loading
+      const timeout = setTimeout(() => {
+        setLoading(false)
+      }, 10000) // 10 seconds timeout
+      
+      return () => clearTimeout(timeout)
+    }
+  }, [user])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Loading your communities...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Please sign in to view your communities</h1>
+          <Button onClick={() => router.push('/auth/signin')}>
+            Sign In
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -164,33 +318,69 @@ export default function CommunityPage() {
 
                 {/* Communities Tab */}
                 <TabsContent value="communities" className="mt-6">
-                  <div className="space-y-4">
-                    <Card>
-                      <CardContent className="p-6">
-                        <div className="text-center">
-                          <Globe className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                          <h3 className="text-xl font-semibold mb-2">Your Communities</h3>
-                          <p className="text-muted-foreground mb-6">
-                            Manage and explore the communities you're part of
-                          </p>
-                          <div className="flex gap-2 justify-center">
-                            <Button asChild>
-                              <a href="/communities/my-community">
-                                <Globe className="h-4 w-4 mr-2" />
-                                My Communities
-                              </a>
-                            </Button>
-                            <Button variant="outline" asChild>
-                              <a href="/communities/create">
-                                <Plus className="h-4 w-4 mr-2" />
-                                Create Community
-                              </a>
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
+                  {userCommunities.length > 0 ? (
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {userCommunities.map((community) => (
+                        <Card key={community.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push(`/communities/${community.id}`)}>
+                          <CardContent className="p-6">
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
+                                <Globe className="h-6 w-6 text-primary" />
+                              </div>
+                              <Badge variant={community.created_by === user?.id ? "default" : "secondary"}>
+                                {community.created_by === user?.id ? "Owner" : "Member"}
+                              </Badge>
+                            </div>
+                            
+                            <h3 className="font-semibold text-lg mb-2">{community.name}</h3>
+                            <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{community.description}</p>
+                            
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Users className="h-4 w-4" />
+                                <span>{(memberCountMap[community.id] ?? community.member_count ?? 0)} members</span>
+                              </div>
+                              
+                              {community.category && (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <Tag className="h-4 w-4" />
+                                  <span>{community.category}</span>
+                                </div>
+                              )}
+                              
+                              {community.location && (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <MapPin className="h-4 w-4" />
+                                  <span>{community.location}</span>
+                                </div>
+                              )}
+                              
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Clock className="h-4 w-4" />
+                                <span>Created {formatDate(community.created_at)}</span>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <Card className="text-center py-12">
+                      <Globe className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-xl font-semibold mb-2">No Communities Yet</h3>
+                      <p className="text-muted-foreground mb-6">Start building your community network by creating or joining communities</p>
+                      <div className="flex gap-3 justify-center">
+                        <Button onClick={() => router.push('/communities/create')}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Create Community
+                        </Button>
+                        <Button variant="outline" onClick={() => router.push('/communities')}>
+                          <Search className="mr-2 h-4 w-4" />
+                          Find Communities
+                        </Button>
+                      </div>
                     </Card>
-                  </div>
+                  )}
                 </TabsContent>
               </Tabs>
             </div>

@@ -32,6 +32,12 @@ interface Community {
   created_by: string
 }
 
+// New interface for handling joined communities data structure from Supabase
+interface CommunityMemberWithCommunity {
+  community_id: string;
+  communities: Community | null; // Supabase returns the joined community as a nested object, or null
+}
+
 export default function CommunitiesPage() {
   const router = useRouter()
   const { user } = useAuth()
@@ -40,6 +46,7 @@ export default function CommunitiesPage() {
   const [communities, setCommunities] = useState<Community[]>([])
   const [loading, setLoading] = useState(true)
   const [searchLoading, setSearchLoading] = useState(false)
+  const [joinedCommunities, setJoinedCommunities] = useState<Community[]>([]) // New state for joined communities
 
   const categories = ["all", "Business", "Technology", "Arts & Culture", "Finance", "Education", "Health", "Sports"]
 
@@ -94,6 +101,26 @@ export default function CommunitiesPage() {
       } else {
         setCommunities([])
       }
+
+      // Fetch joined communities for the current user if logged in
+      if (user?.id) {
+        const { data: memberData, error: memberError } = await supabase
+          .from('community_members')
+          .select('community_id, communities(*)') // Select community details
+          .eq('user_id', user.id)
+
+        if (memberError) {
+          console.error('Error fetching joined communities:', memberError)
+          toast.error('Failed to load your communities')
+        } else {
+          const typedMemberData = (memberData || []) as CommunityMemberWithCommunity[];
+          const userJoinedCommunities: Community[] = typedMemberData
+            .map((m) => m.communities)
+            .filter((c): c is Community => c !== null)
+          setJoinedCommunities(userJoinedCommunities)
+        }
+      }
+
     } catch (error) {
       console.error('Error:', error)
       toast.error('Failed to load communities')
@@ -165,7 +192,8 @@ export default function CommunitiesPage() {
   // Filter communities by category
   const filteredCommunities = communities.filter(community => {
     const matchesCategory = selectedCategory === "all" || community.category === selectedCategory
-    return matchesCategory
+    const isJoined = joinedCommunities.some(joinedCommunity => joinedCommunity.id === community.id);
+    return matchesCategory && !isJoined;
   })
 
   return (
@@ -252,107 +280,197 @@ export default function CommunitiesPage() {
           </div>
         )}
 
-        {/* Communities Grid */}
-        {!loading && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCommunities.map((community) => (
-              <Card key={community.id} className="hover:shadow-lg transition-shadow duration-200">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg mb-2">{community.name}</CardTitle>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Badge variant="secondary" className="text-xs">
-                          {community.category}
-                        </Badge>
-                        {!community.is_public && (
+        {/* Joined Communities Section */}
+        {!loading && joinedCommunities.length > 0 && (
+          <div className="mb-12">
+            <h2 className="text-3xl font-bold mb-6 flex items-center gap-2">
+              <Users className="h-7 w-7" />
+              Your Communities
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {joinedCommunities.map((community) => (
+                <Card key={community.id} className="hover:shadow-lg transition-shadow duration-200 border-primary">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <CardTitle className="text-lg mb-2">{community.name}</CardTitle>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge variant="default" className="text-xs bg-primary text-primary-foreground">
+                            Joined
+                          </Badge>
+                          <Badge variant="secondary" className="text-xs">
+                            {community.category}
+                          </Badge>
+                          {!community.is_public && (
+                            <Badge variant="outline" className="text-xs">
+                              Private
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {community.description}
+                    </p>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Users className="h-4 w-4" />
+                        <span>
+                          {community.member_count === 1 
+                            ? '1 member' 
+                            : `${community.member_count || 0} members`
+                          }
+                        </span>
+                      </div>
+                      {community.location && (
+                        <div className="flex items-center gap-1">
+                          <MapPin className="h-4 w-4" />
+                          <span>{community.location}</span>
+                        </div>
+                      )}
+                    </div>
+                    {community.tags && community.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-3">
+                        {community.tags.slice(0, 3).map((tag, index) => (
+                          <Badge key={index} variant="outline" className="text-xs">
+                            {tag}
+                          </Badge>
+                        ))}
+                        {community.tags.length > 3 && (
                           <Badge variant="outline" className="text-xs">
-                            Private
+                            +{community.tags.length - 3} more
                           </Badge>
                         )}
                       </div>
-                    </div>
-                  </div>
-                </CardHeader>
-                
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {community.description}
-                  </p>
-
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Users className="h-4 w-4" />
-                      <span>
-                        {community.member_count === 1 
-                          ? '1 member' 
-                          : `${community.member_count || 0} members`
-                        }
-                      </span>
-                    </div>
-                    {community.location && (
-                      <div className="flex items-center gap-1">
-                        <MapPin className="h-4 w-4" />
-                        <span>{community.location}</span>
-                      </div>
                     )}
-                  </div>
-
-                  {/* Tags */}
-                  {community.tags && community.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mb-3">
-                      {community.tags.slice(0, 3).map((tag, index) => (
-                        <Badge key={index} variant="outline" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                      {community.tags.length > 3 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{community.tags.length - 3} more
-                        </Badge>
-                      )}
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Calendar className="h-3 w-3" />
+                      <span>Created {new Date(community.created_at).toLocaleDateString()}</span>
                     </div>
-                  )}
-
-                  {/* Creation Date */}
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Calendar className="h-3 w-3" />
-                    <span>Created {new Date(community.created_at).toLocaleDateString()}</span>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-2 pt-2">
-                    <Button 
-                      size="sm" 
-                      className="flex-1"
-                      onClick={() => router.push(`/communities/${community.id}`)}
-                    >
-                      View Community
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    <div className="flex items-center gap-2 pt-2">
+                      <Button 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={() => router.push(`/communities/${community.id}`)}
+                      >
+                        View Community
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Empty State */}
-        {!loading && filteredCommunities.length === 0 && (
-          <div className="text-center py-12">
-            <Users className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-xl font-semibold mb-2">
-              {searchQuery ? 'No communities found' : 'No communities yet'}
-            </h3>
-            <p className="text-muted-foreground mb-4">
-              {searchQuery 
-                ? 'Try adjusting your search or filters to find the community you\'re looking for.'
-                : 'Be the first to create a community and start building connections!'
-              }
-            </p>
-            <Button onClick={() => router.push('/communities/create')}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Your First Community
-            </Button>
+        {/* All Communities Section */}
+        {!loading && (
+          <div className="mb-8">
+            <h2 className="text-3xl font-bold mb-6 flex items-center gap-2">
+              <Globe className="h-7 w-7" />
+              Explore Communities
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredCommunities.length > 0 ? (
+                filteredCommunities.map((community) => (
+                  <Card key={community.id} className="hover:shadow-lg transition-shadow duration-200">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="text-lg mb-2">{community.name}</CardTitle>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="secondary" className="text-xs">
+                              {community.category}
+                            </Badge>
+                            {!community.is_public && (
+                              <Badge variant="outline" className="text-xs">
+                                Private
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    
+                    <CardContent className="space-y-4">
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {community.description}
+                      </p>
+
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Users className="h-4 w-4" />
+                          <span>
+                            {community.member_count === 1 
+                              ? '1 member' 
+                              : `${community.member_count || 0} members`
+                            }
+                          </span>
+                        </div>
+                        {community.location && (
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-4 w-4" />
+                            <span>{community.location}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Tags */}
+                      {community.tags && community.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {community.tags.slice(0, 3).map((tag, index) => (
+                            <Badge key={index} variant="outline" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                          {community.tags.length > 3 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{community.tags.length - 3} more
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Creation Date */}
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        <span>Created {new Date(community.created_at).toLocaleDateString()}</span>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-2 pt-2">
+                        <Button 
+                          size="sm" 
+                          className="flex-1"
+                          onClick={() => router.push(`/communities/${community.id}`)}
+                        >
+                          View Community
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                <div className="text-center py-12 col-span-full">
+                  <Users className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-xl font-semibold mb-2">
+                    {searchQuery ? 'No communities found' : 'No communities yet'}
+                  </h3>
+                  <p className="text-muted-foreground mb-4">
+                    {searchQuery 
+                      ? 'Try adjusting your search or filters to find the community you\'re looking for.'
+                      : 'Be the first to create a community and start building connections!'
+                    }
+                  </p>
+                  <Button onClick={() => router.push('/communities/create')}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Your First Community
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

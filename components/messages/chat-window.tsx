@@ -407,11 +407,8 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
  
       if (uploadError) throw uploadError;
  
-      // Once uploaded, get the public URL for actual display
-      const { data: publicUrlData } = supabase.storage
-        .from('chat_attachments')
-        .getPublicUrl(filePath);
-      publicUrl = publicUrlData.publicUrl;
+      const { data: publicUrlData } = await supabase.storage.from('chat_attachments').getPublicUrl(filePath);
+      publicUrl = publicUrlData.publicUrl; // Access publicUrl directly
  
       // Insert message into database
       const { data: messageData, error: messageError } = await supabase.from('messages').insert({
@@ -1027,18 +1024,17 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
           <span className="sr-only">Send message</span>
         </Button>
       </div>
+      {callOpen && currentUser && otherUser && (
+        <CallModal
+          open={callOpen}
+          onOpenChange={setCallOpen}
+          conversationId={conversationId}
+          currentUserId={currentUser!.id}
+          otherUserId={otherUser!.id}
+          startAs={callMode}
+          autoStart={callAutoStart}
+        />
+      )}
     </div>
   )
 }
-
-{callOpen && currentUser && otherUser && (
-  <CallModal
-    open={callOpen}
-    onOpenChange={setCallOpen}
-    conversationId={conversationId}
-    currentUserId={currentUser.id}
-    otherUserId={otherUser.id}
-    startAs={callMode}
-    autoStart={callAutoStart}
-  />
-)}
