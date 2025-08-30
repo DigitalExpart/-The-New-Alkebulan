@@ -2,12 +2,21 @@
 -- Copy and paste this entire script into your Supabase SQL Editor
 
 -- Create custom types
-CREATE TYPE user_role AS ENUM ('member', 'admin', 'moderator');
-CREATE TYPE project_status AS ENUM ('draft', 'active', 'completed', 'archived');
-CREATE TYPE event_type AS ENUM ('meetup', 'workshop', 'conference', 'webinar');
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+        CREATE TYPE user_role AS ENUM ('member', 'admin', 'moderator');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'project_status') THEN
+        CREATE TYPE project_status AS ENUM ('draft', 'active', 'completed', 'archived');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'event_type') THEN
+        CREATE TYPE event_type AS ENUM ('meetup', 'workshop', 'conference', 'webinar');
+    END IF;
+END $$;
 
 -- Users Profile Table (extends Supabase auth.users)
-CREATE TABLE public.profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
     full_name TEXT,
     avatar_url TEXT,
@@ -30,7 +39,7 @@ CREATE TABLE public.profiles (
 );
 
 -- Communities Table
-CREATE TABLE public.communities (
+CREATE TABLE IF NOT EXISTS public.communities (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
@@ -47,7 +56,7 @@ CREATE TABLE public.communities (
 );
 
 -- Community Members Table
-CREATE TABLE public.community_members (
+CREATE TABLE IF NOT EXISTS public.community_members (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     community_id UUID REFERENCES public.communities(id) ON DELETE CASCADE,
     user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -57,7 +66,7 @@ CREATE TABLE public.community_members (
 );
 
 -- Posts Table
-CREATE TABLE public.posts (
+CREATE TABLE IF NOT EXISTS public.posts (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     title TEXT,
     content TEXT NOT NULL,
@@ -72,7 +81,7 @@ CREATE TABLE public.posts (
 );
 
 -- Projects Table
-CREATE TABLE public.projects (
+CREATE TABLE IF NOT EXISTS public.projects (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     title TEXT NOT NULL,
     description TEXT,
@@ -90,7 +99,7 @@ CREATE TABLE public.projects (
 );
 
 -- Events Table
-CREATE TABLE public.events (
+CREATE TABLE IF NOT EXISTS public.events (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     title TEXT NOT NULL,
     description TEXT,
@@ -109,7 +118,7 @@ CREATE TABLE public.events (
 );
 
 -- Event Attendees Table
-CREATE TABLE public.event_attendees (
+CREATE TABLE IF NOT EXISTS public.event_attendees (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     event_id UUID REFERENCES public.events(id) ON DELETE CASCADE,
     user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -119,7 +128,7 @@ CREATE TABLE public.event_attendees (
 );
 
 -- Marketplace Products/Services Table
-CREATE TABLE public.marketplace_items (
+CREATE TABLE IF NOT EXISTS public.marketplace_items (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     title TEXT NOT NULL,
     description TEXT,
@@ -135,18 +144,8 @@ CREATE TABLE public.marketplace_items (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Messages Table
-CREATE TABLE public.messages (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    sender_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-    receiver_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-    content TEXT NOT NULL,
-    is_read BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
 -- Notifications Table
-CREATE TABLE public.notifications (
+CREATE TABLE IF NOT EXISTS public.notifications (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
@@ -158,7 +157,7 @@ CREATE TABLE public.notifications (
 );
 
 -- User Connections/Friends Table
-CREATE TABLE public.user_connections (
+CREATE TABLE IF NOT EXISTS public.user_connections (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     requester_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
     addressee_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -169,14 +168,12 @@ CREATE TABLE public.user_connections (
 );
 
 -- Create indexes for better performance
-CREATE INDEX idx_profiles_email ON public.profiles(id);
-CREATE INDEX idx_posts_author ON public.posts(author_id);
-CREATE INDEX idx_posts_community ON public.posts(community_id);
-CREATE INDEX idx_events_organizer ON public.events(organizer_id);
-CREATE INDEX idx_marketplace_seller ON public.marketplace_items(seller_id);
-CREATE INDEX idx_messages_sender ON public.messages(sender_id);
-CREATE INDEX idx_messages_receiver ON public.messages(receiver_id);
-CREATE INDEX idx_notifications_user ON public.notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles(id);
+CREATE INDEX IF NOT EXISTS idx_posts_author ON public.posts(author_id);
+CREATE INDEX IF NOT EXISTS idx_posts_community ON public.posts(community_id);
+CREATE INDEX IF NOT EXISTS idx_events_organizer ON public.events(organizer_id);
+CREATE INDEX IF NOT EXISTS idx_marketplace_seller ON public.marketplace_items(seller_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON public.notifications(user_id);
 
 -- Enable Row Level Security
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -187,42 +184,54 @@ ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.event_attendees ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.marketplace_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_connections ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS Policies
 -- Profiles: Users can read all profiles, update only their own
+DROP POLICY IF EXISTS "Profiles are viewable by everyone" ON public.profiles;
 CREATE POLICY "Profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
 CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- Communities: Public communities are viewable by everyone
-CREATE POLICY "Communities are viewable by everyone" ON public.communities FOR SELECT USING (is_public = true);
+DROP POLICY IF EXISTS "Communities are viewable by everyone" ON public.communities;
+CREATE POLICY "Communities are viewable by everyone" ON public.communities FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Community creators can manage their communities" ON public.communities;
 CREATE POLICY "Community creators can manage their communities" ON public.communities FOR ALL USING (auth.uid() = created_by);
 
 -- Posts: Public posts are viewable by everyone
+DROP POLICY IF EXISTS "Posts are viewable by everyone" ON public.posts;
 CREATE POLICY "Posts are viewable by everyone" ON public.posts FOR SELECT USING (is_published = true);
+DROP POLICY IF EXISTS "Users can create posts" ON public.posts;
 CREATE POLICY "Users can create posts" ON public.posts FOR INSERT WITH CHECK (auth.uid() = author_id);
+DROP POLICY IF EXISTS "Users can update own posts" ON public.posts;
 CREATE POLICY "Users can update own posts" ON public.posts FOR UPDATE USING (auth.uid() = author_id);
+DROP POLICY IF EXISTS "Users can delete own posts" ON public.posts;
 CREATE POLICY "Users can delete own posts" ON public.posts FOR DELETE USING (auth.uid() = author_id);
 
 -- Events: Public events are viewable by everyone
+DROP POLICY IF EXISTS "Events are viewable by everyone" ON public.events;
 CREATE POLICY "Events are viewable by everyone" ON public.events FOR SELECT USING (is_public = true);
+DROP POLICY IF EXISTS "Users can create events" ON public.events;
 CREATE POLICY "Users can create events" ON public.events FOR INSERT WITH CHECK (auth.uid() = organizer_id);
+DROP POLICY IF EXISTS "Users can update own events" ON public.events;
 CREATE POLICY "Users can update own events" ON public.events FOR UPDATE USING (auth.uid() = organizer_id);
 
 -- Marketplace: Active items are viewable by everyone
+DROP POLICY IF EXISTS "Marketplace items are viewable by everyone" ON public.marketplace_items;
 CREATE POLICY "Marketplace items are viewable by everyone" ON public.marketplace_items FOR SELECT USING (is_active = true);
+DROP POLICY IF EXISTS "Users can create marketplace items" ON public.marketplace_items;
 CREATE POLICY "Users can create marketplace items" ON public.marketplace_items FOR INSERT WITH CHECK (auth.uid() = seller_id);
+DROP POLICY IF EXISTS "Users can update own marketplace items" ON public.marketplace_items;
 CREATE POLICY "Users can update own marketplace items" ON public.marketplace_items FOR UPDATE USING (auth.uid() = seller_id);
 
--- Messages: Users can only see messages they sent or received
-CREATE POLICY "Users can view their messages" ON public.messages FOR SELECT USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
-CREATE POLICY "Users can send messages" ON public.messages FOR INSERT WITH CHECK (auth.uid() = sender_id);
-
 -- Notifications: Users can only see their own notifications
+DROP POLICY IF EXISTS "Users can view their notifications" ON public.notifications;
 CREATE POLICY "Users can view their notifications" ON public.notifications FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their notifications" ON public.notifications;
 CREATE POLICY "Users can update their notifications" ON public.notifications FOR UPDATE USING (auth.uid() = user_id);
 
 -- Create functions for automatic updates
@@ -235,12 +244,19 @@ END;
 $$ language 'plpgsql';
 
 -- Create triggers for updated_at columns
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
 CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_communities_updated_at ON public.communities;
 CREATE TRIGGER update_communities_updated_at BEFORE UPDATE ON public.communities FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_posts_updated_at ON public.posts;
 CREATE TRIGGER update_posts_updated_at BEFORE UPDATE ON public.posts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_projects_updated_at ON public.projects;
 CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON public.projects FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_events_updated_at ON public.events;
 CREATE TRIGGER update_events_updated_at BEFORE UPDATE ON public.events FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_marketplace_items_updated_at ON public.marketplace_items;
 CREATE TRIGGER update_marketplace_items_updated_at BEFORE UPDATE ON public.marketplace_items FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_user_connections_updated_at ON public.user_connections;
 CREATE TRIGGER update_user_connections_updated_at BEFORE UPDATE ON public.user_connections FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Function to automatically create profile when user signs up
@@ -254,6 +270,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Trigger to create profile on user signup
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user(); 

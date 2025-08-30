@@ -19,33 +19,361 @@ import {
   Hash,
   ArrowUp,
   Plus,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Loader2,
+  Tag,
+  MapPin,
+  Clock
 } from "lucide-react"
 import { SocialFeed } from "@/components/social-feed/social-feed"
 import { CommunityFeed } from "@/components/community/community-feed"
 import { CommunityStats } from "@/components/community/community-stats"
 import { useAuth } from "@/hooks/use-auth"
 import { CreatePostDialog } from "@/components/social-feed/create-post-dialog"
+import { getSupabaseClient } from "@/lib/supabase"
+import { toast } from "sonner"
+import { useRouter } from "next/navigation"
+import { CommunityPost } from "@/types"; // Import CommunityPost from shared types
+import { PostCard } from "@/components/social-feed/post-card"
+
+interface Community {
+  id: string
+  name: string
+  description: string
+  member_count: number
+  category: string
+  location: string | null
+  is_public: boolean
+  tags: string[]
+  created_at: string
+  created_by: string
+}
+
+// No longer needed here, moved to @/types/index.ts
+// interface CommunityPost {
+//   id: string;
+//   content: string;
+//   user_id: string;
+//   community_id: string;
+//   created_at: string;
+//   likes_count: number;
+//   comments_count: number;
+//   shares_count: number;
+//   user: {
+//     full_name: string;
+//     avatar_url: string;
+//   };
+//   community: {
+//     name: string;
+//     description: string;
+//     avatar_url: string;
+//   };
+//   media_urls?: string[];
+//   media_type?: string;
+// }
 
 export default function CommunityPage() {
   const { user } = useAuth()
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState("feed")
   const [searchQuery, setSearchQuery] = useState("")
+  const [loading, setLoading] = useState(true) // New state for loading
+  const [userCommunities, setUserCommunities] = useState<Community[]>([]) // New state for user's communities
+  const [memberCountMap, setMemberCountMap] = useState<Record<string, number>>({}) // New state for member counts
+  const [trendingPosts, setTrendingPosts] = useState<CommunityPost[]>([]) // New state for trending posts
 
-  // Mock trending topics data
-  const trendingTopics = [
-    { hashtag: "DiasporaEntrepreneurs", posts: 234, trending: true },
-    { hashtag: "AfricanTech", posts: 189, trending: true },
-    { hashtag: "CulturalHeritage", posts: 156, trending: true },
-    { hashtag: "BusinessNetworking", posts: 142, trending: false },
-    { hashtag: "InnovationHub", posts: 98, trending: true },
-    { hashtag: "CommunityGrowth", posts: 87, trending: false },
-  ]
+  interface TrendingTopic {
+    hashtag: string;
+    posts: number;
+    trending: boolean; // Indicates if it's currently trending (e.g., increased in popularity recently)
+  }
+
+  const [trendingTopicsLive, setTrendingTopicsLive] = useState<TrendingTopic[]>([]);
+
+  // Fetch live member counts whenever the user's community list changes
+  useEffect(() => {
+    if (userCommunities.length > 0) {
+      fetchMemberCounts()
+    } else {
+      setMemberCountMap({})
+    }
+  }, [userCommunities])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     // Implement search functionality
     console.log('Searching for:', searchQuery)
+  }
+
+  const fetchTrendingTopics = async () => {
+    try {
+      const supabase = getSupabaseClient();
+      const { data: posts, error } = await supabase
+        .from('community_posts')
+        .select('metadata')
+        .not('metadata', 'is', null)
+        .limit(100); // Fetch a reasonable number of recent posts to analyze trends
+
+      if (error) {
+        console.error('Error fetching posts for trending topics:', error);
+        toast.error('Failed to load trending topics.');
+        return;
+      }
+
+      const hashtagCounts: { [key: string]: number } = {};
+
+      posts.forEach((post) => {
+        if (post.metadata && typeof post.metadata === 'object' && !Array.isArray(post.metadata) && post.metadata.hashtags) {
+          let hashtags = post.metadata.hashtags;
+          // Ensure hashtags is an array, even if it's a single string
+          if (typeof hashtags === 'string') {
+            hashtags = [hashtags];
+          } else if (!Array.isArray(hashtags)) {
+            return; // Skip if not string or array
+          }
+
+          hashtags.forEach((tag: string) => {
+            const normalizedTag = tag.startsWith('#') ? tag.substring(1) : tag; // Remove '#' if present
+            hashtagCounts[normalizedTag] = (hashtagCounts[normalizedTag] || 0) + 1;
+          });
+        }
+      });
+
+      const sortedTopics: TrendingTopic[] = Object.entries(hashtagCounts)
+        .map(([hashtag, posts]) => ({ hashtag, posts, trending: true })) // Assuming all are trending for now
+        .sort((a, b) => b.posts - a.posts) // Sort by post count descending
+        .slice(0, 6); // Take top 6 trending topics
+
+      setTrendingTopicsLive(sortedTopics);
+    } catch (error) {
+      console.error('Error in fetchTrendingTopics:', error);
+      toast.error('Failed to load trending topics.');
+    }
+  };
+
+  const fetchTrendingPosts = async () => {
+    try {
+      const supabase = getSupabaseClient();
+      
+      // First check if the table has the required columns
+      const { data: testData, error: testError } = await supabase
+        .from('community_posts')
+        .select('id')
+        .limit(1);
+        
+      if (testError) {
+        console.error('Error testing community_posts table:', testError);
+        toast.error('The community_posts table may need to be updated. Please run the enhance-community-posts.sql script.');
+        return;
+      }
+      
+      const { data: posts, error } = await supabase
+        .from('community_posts')
+        .select('*')
+        .order('created_at', { ascending: false }) // Temporarily sort by created_at
+        .limit(10); // Limit to a reasonable number of trending posts
+
+      if (error) {
+        console.error('Error fetching trending posts:', error.message || error);
+        toast.error('Failed to load trending posts: ' + (error.message || 'Unknown error'));
+        return;
+      }
+
+      // Fetch author profiles  
+      const authorIds = [...new Set((posts || []).map(p => p.user_id).filter(Boolean))];
+      const profilesMap: Record<string, { full_name: string; avatar_url: string | null }> = {};
+      
+      if (authorIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, user_id, first_name, last_name, avatar_url')
+          .in('id', authorIds);
+        
+        (profiles || []).forEach((p: any) => {
+          const firstName = (p.first_name || '').trim();
+          const lastName = (p.last_name || '').trim();
+          const full_name = firstName && lastName
+            ? `${firstName} ${lastName}`
+            : (firstName || lastName || `User ${(p.id || p.user_id || '').slice(0, 8)}`);
+          const value = { full_name, avatar_url: p.avatar_url || '' };
+          if (p.id) profilesMap[p.id] = value;
+          if (p.user_id) profilesMap[p.user_id] = value;
+        });
+      }
+
+      // Fetch community info
+      const communityIds = [...new Set((posts || []).map(p => p.community_id).filter(Boolean))];
+      const communitiesMap: Record<string, any> = {};
+      
+      if (communityIds.length > 0) {
+        const { data: communities } = await supabase
+          .from('communities')
+          .select('id, name, description, avatar_url')
+          .in('id', communityIds);
+        
+        (communities || []).forEach(c => {
+          communitiesMap[c.id] = c;
+        });
+      }
+
+      const mappedPosts: CommunityPost[] = (posts || []).map((p: any) => ({
+        id: p.id,
+        user_id: p.user_id,
+        content: p.content || '',
+        image_url: p.media_urls?.[0] || null,
+        post_type: p.media_type === 'text' ? 'text' : (p.media_type === 'image' ? 'image' : 'text'),
+        privacy: 'public',
+        metadata: p.metadata || {},
+        is_pinned: p.is_pinned || false,
+        is_archived: p.is_archived || false,
+        created_at: p.created_at,
+        updated_at: p.updated_at || p.created_at,
+        author_name: profilesMap[p.user_id]?.full_name || 'User',
+        author_avatar: profilesMap[p.user_id]?.avatar_url || '',
+        like_count: p.likes_count || 0,
+        comment_count: p.comments_count || 0,
+        share_count: p.shares_count || 0,
+        user_has_liked: false,
+        user_has_shared: false,
+        community_id: p.community_id,
+        community: {
+          name: communitiesMap[p.community_id]?.name || 'Community',
+          description: communitiesMap[p.community_id]?.description || '',
+          avatar_url: communitiesMap[p.community_id]?.avatar_url || '',
+        },
+        media_urls: p.media_urls || [],
+        media_type: p.media_type || undefined,
+      }));
+
+      setTrendingPosts(mappedPosts);
+    } catch (error) {
+      console.error('Error in fetchTrendingPosts:', error);
+      toast.error('Failed to load trending posts.');
+    }
+  };
+
+  const fetchUserCommunities = async () => {
+    if (!user) return
+
+    try {
+      const supabase = getSupabaseClient()
+      
+      // Get communities where user is a member
+      const { data: memberships, error: membershipError } = await supabase
+        .from('community_members')
+        .select(`
+          community_id,
+          communities (
+            id,
+            name,
+            description,
+            member_count,
+            category,
+            location,
+            is_public,
+            tags,
+            created_at,
+            created_by
+          )
+        `)
+        .eq('user_id', user.id)
+
+      if (membershipError) {
+        console.error('Error fetching memberships:', membershipError)
+        toast.error('Failed to load communities')
+      } else {
+        const userComms = (memberships || [])
+          .map((m: any) => m?.communities)
+          .filter(Boolean) as Community[]
+        setUserCommunities(userComms)
+        console.log("Fetched user communities:", userComms);
+      }
+    } catch (error) {
+      console.error('Error fetching user communities:', error)
+      toast.error('Failed to load communities')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchMemberCounts = async () => {
+    try {
+      const supabase = getSupabaseClient()
+      const communityIds = userCommunities.map(c => c.id)
+      if (communityIds.length === 0) {
+        setMemberCountMap({})
+        return
+      }
+
+      const { data: memberRows, error } = await supabase
+        .from('community_members')
+        .select('community_id')
+        .in('community_id', communityIds)
+
+      if (error) {
+        console.error('Error fetching member counts:', error)
+        return
+      }
+
+      const counts: Record<string, number> = {}
+      memberRows?.forEach((row: { community_id: string }) => {
+        counts[row.community_id] = (counts[row.community_id] || 0) + 1
+      })
+
+      setMemberCountMap(counts)
+    } catch (err) {
+      console.error('Failed to compute member counts:', err)
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffTime = Math.abs(now.getTime() - date.getTime())
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    if (diffDays === 1) return '1 day ago'
+    if (diffDays < 7) return `${diffDays} days ago`
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
+    return date.toLocaleDateString()
+  }
+
+  useEffect(() => {
+    if (user) {
+      fetchUserCommunities()
+      fetchTrendingTopics()
+      fetchTrendingPosts() // Call fetchTrendingPosts here
+      // Add a timeout to prevent infinite loading
+      const timeout = setTimeout(() => {
+        setLoading(false)
+      }, 10000) // 10 seconds timeout
+      
+      return () => clearTimeout(timeout)
+    }
+  }, [user])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Loading your communities...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Please sign in to view your communities</h1>
+          <Button onClick={() => router.push('/auth/signin')}>
+            Sign In
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -122,75 +450,97 @@ export default function CommunityPage() {
 
                 {/* Trending Tab */}
                 <TabsContent value="trending" className="mt-6">
-                  <div className="space-y-4">
+                  {trendingPosts.length > 0 ? (
+                    <div className="space-y-6">
+                      {trendingPosts.map(post => (
+                        <PostCard
+                          key={post.id}
+                          post={post}
+                        />
+                      ))}
+                    </div>
+                  ) : (
                     <Card>
-                      <CardContent className="p-6">
-                        <div className="text-center">
-                          <TrendingUp className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                          <h3 className="text-xl font-semibold mb-2">Trending Posts</h3>
-                          <p className="text-muted-foreground mb-6">
-                            Discover the most popular and engaging content from our community
-                          </p>
-                          <Button>
-                            <TrendingUp className="h-4 w-4 mr-2" />
-                            View Trending
-                          </Button>
-                        </div>
+                      <CardContent className="p-6 text-center">
+                        <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground">No trending posts to display.</p>
                       </CardContent>
                     </Card>
-                  </div>
+                  )}
                 </TabsContent>
 
                 {/* Following Tab */}
                 <TabsContent value="following" className="mt-6">
-                  <div className="space-y-4">
-                    <Card>
-                      <CardContent className="p-6">
-                        <div className="text-center">
-                          <Users className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                          <h3 className="text-xl font-semibold mb-2">Following Feed</h3>
-                          <p className="text-muted-foreground mb-6">
-                            See posts from people and communities you follow
-                          </p>
-                          <Button>
-                            <Users className="h-4 w-4 mr-2" />
-                            Find People to Follow
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
+                  <CommunityFeed 
+                    communityIds={userCommunities.map(c => c.id)}
+                  />
                 </TabsContent>
 
                 {/* Communities Tab */}
                 <TabsContent value="communities" className="mt-6">
-                  <div className="space-y-4">
-                    <Card>
+                  {userCommunities.length > 0 ? (
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {userCommunities.map((community) => (
+                        <Card key={community.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push(`/communities/${community.id}`)}>
                       <CardContent className="p-6">
-                        <div className="text-center">
-                          <Globe className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                          <h3 className="text-xl font-semibold mb-2">Your Communities</h3>
-                          <p className="text-muted-foreground mb-6">
-                            Manage and explore the communities you're part of
-                          </p>
-                          <div className="flex gap-2 justify-center">
-                            <Button asChild>
-                              <a href="/communities/my-community">
-                                <Globe className="h-4 w-4 mr-2" />
-                                My Communities
-                              </a>
-                            </Button>
-                            <Button variant="outline" asChild>
-                              <a href="/communities/create">
-                                <Plus className="h-4 w-4 mr-2" />
-                                Create Community
-                              </a>
-                            </Button>
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
+                                <Globe className="h-6 w-6 text-primary" />
+                              </div>
+                              <Badge variant={community.created_by === user?.id ? "default" : "secondary"}>
+                                {community.created_by === user?.id ? "Owner" : "Member"}
+                              </Badge>
+                            </div>
+                            
+                            <h3 className="font-semibold text-lg mb-2">{community.name}</h3>
+                            <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{community.description}</p>
+                            
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Users className="h-4 w-4" />
+                                <span>{(memberCountMap[community.id] ?? community.member_count ?? 0)} members</span>
+                              </div>
+                              
+                              {community.category && (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <Tag className="h-4 w-4" />
+                                  <span>{community.category}</span>
+                                </div>
+                              )}
+                              
+                              {community.location && (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <MapPin className="h-4 w-4" />
+                                  <span>{community.location}</span>
+                                </div>
+                              )}
+                              
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Clock className="h-4 w-4" />
+                                <span>Created {formatDate(community.created_at)}</span>
                           </div>
                         </div>
                       </CardContent>
                     </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <Card className="text-center py-12">
+                      <Globe className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-xl font-semibold mb-2">No Communities Yet</h3>
+                      <p className="text-muted-foreground mb-6">Start building your community network by creating or joining communities</p>
+                      <div className="flex gap-3 justify-center">
+                        <Button onClick={() => router.push('/communities/create')}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Create Community
+                        </Button>
+                        <Button variant="outline" onClick={() => router.push('/communities')}>
+                          <Search className="mr-2 h-4 w-4" />
+                          Find Communities
+                        </Button>
                   </div>
+                    </Card>
+                  )}
                 </TabsContent>
               </Tabs>
             </div>
@@ -216,7 +566,7 @@ export default function CommunityPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {trendingTopics.map((topic, index) => (
+                {trendingTopicsLive.map((topic, index) => (
                   <div key={index} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
                     <div className="flex items-center gap-2">
                       <Hash className="h-4 w-4 text-primary" />

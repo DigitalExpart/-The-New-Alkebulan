@@ -22,6 +22,12 @@ CREATE TABLE public.conversation_participants (
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     role TEXT DEFAULT 'member' CHECK (role IN ('owner', 'admin', 'moderator', 'member')),
+    is_muted BOOLEAN DEFAULT FALSE,
+    notification_level TEXT DEFAULT 'all' CHECK (notification_level IN ('all','mentions','none')),
+    theme TEXT DEFAULT 'default' CHECK (theme IN ('default','gold','forest','contrast')),
+    is_archived BOOLEAN DEFAULT FALSE,
+    is_locked BOOLEAN DEFAULT FALSE,
+    cleared_at TIMESTAMP WITH TIME ZONE,
     UNIQUE(conversation_id, user_id)
 );
 
@@ -167,6 +173,12 @@ GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO authenticated;
 -- Add comments for documentation
 COMMENT ON TABLE public.conversations IS 'Chat conversations between users';
 COMMENT ON TABLE public.conversation_participants IS 'Users participating in conversations';
+COMMENT ON COLUMN public.conversation_participants.is_muted IS 'Whether the user muted this conversation';
+COMMENT ON COLUMN public.conversation_participants.notification_level IS 'Notification preference for this conversation';
+COMMENT ON COLUMN public.conversation_participants.theme IS 'Preferred theme for this conversation';
+COMMENT ON COLUMN public.conversation_participants.is_archived IS 'Whether the user archived this conversation';
+COMMENT ON COLUMN public.conversation_participants.is_locked IS 'Locks sending messages for this user in the conversation';
+COMMENT ON COLUMN public.conversation_participants.cleared_at IS 'Only show messages on/after this timestamp for this user';
 COMMENT ON TABLE public.messages IS 'Individual messages within conversations';
 COMMENT ON COLUMN public.conversations.title IS 'Optional title for group chats';
 COMMENT ON COLUMN public.conversations.is_group IS 'Whether this is a group chat or direct message';
