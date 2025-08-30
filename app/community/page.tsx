@@ -207,6 +207,7 @@ export default function CommunityPage() {
             </div>
 
             {/* Trending Topics */}
+            <div className="md:w-[70vw] lg:w-[30vw] xl:w-[24vw]">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
@@ -219,7 +220,7 @@ export default function CommunityPage() {
                   <div key={index} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
                     <div className="flex items-center gap-2">
                       <Hash className="h-4 w-4 text-primary" />
-                      <span className="font-medium">#{topic.hashtag}</span>
+                      <span className="font-medium max-lg:text-sm">#{topic.hashtag}</span>
                       {topic.trending && (
                         <ArrowUp className="h-3 w-3 text-green-500" />
                       )}
@@ -231,6 +232,7 @@ export default function CommunityPage() {
                 ))}
               </CardContent>
             </Card>
+            </div>
 
             {/* Quick Actions */}
             <Card>

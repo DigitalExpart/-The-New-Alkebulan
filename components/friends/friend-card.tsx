@@ -139,7 +139,27 @@ export function FriendCard({ friend, viewMode, onRemoveFriend }: FriendCardProps
         <CardContent className="p-6">
           <div className="flex flex-col items-center text-center space-y-4">
             {/* Avatar with online status */}
+            <div className="flex justify-end w-full items-start px-2">
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    <MoreVertical className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setShowRemoveDialog(true)} className="text-red-600">
+                    <UserMinus className="w-4 h-4 mr-2" />
+                    Remove Friend
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              </div>
             <div className="relative">
+
+              
+              {/* <div className="w-full"></div> */}
+              
+
               <Avatar className="h-20 w-20">
                 <AvatarImage src={friend.avatar || "/placeholder.svg"} alt={friend.name} />
                 <AvatarFallback className="text-lg">
@@ -153,6 +173,8 @@ export function FriendCard({ friend, viewMode, onRemoveFriend }: FriendCardProps
                 <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-3 border-white dark:border-gray-800 rounded-full"></div>
               )}
             </div>
+
+            
 
             {/* Name and relationship */}
             <div className="space-y-2">
@@ -215,19 +237,7 @@ export function FriendCard({ friend, viewMode, onRemoveFriend }: FriendCardProps
                 </Link>
               </Button>
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm">
-                    <MoreVertical className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setShowRemoveDialog(true)} className="text-red-600">
-                    <UserMinus className="w-4 h-4 mr-2" />
-                    Remove Friend
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {/* Removed DropdownMenu for removing friend */}
             </div>
           </div>
         </CardContent>
