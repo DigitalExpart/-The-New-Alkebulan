@@ -68,7 +68,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 export function Navbar() {
   const { user, profile, signOut, loading, refreshProfile, forceRefreshProfile } = useAuth()
   const router = useRouter()
-  const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchResults, setSearchResults] = useState<any[]>([])
@@ -78,6 +77,18 @@ export function Navbar() {
   const [isMarketplaceOpen, setIsMarketplaceOpen] = useState(false)
   const [isInvestingOpen, setIsInvestingOpen] = useState(false)
   const [isGrowthOpen, setIsGrowthOpen] = useState(false)
+
+  // === NEW STATES (separate user menu and mobile nav) ===
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false) 
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
+
+  // Mobile Devices collapsible states (mobile-only)
+  const [mobileCommunityOpen, setMobileCommunityOpen] = useState(false)
+  const [mobileMarketplaceOpen, setMobileMarketplaceOpen] = useState(false)
+  const [mobileInvestingOpen, setMobileInvestingOpen] = useState(false)
+  const [mobileGrowthOpen, setMobileGrowthOpen] = useState(false)
+
+  
 
   // Helper function to get first name from full name
   const getFirstName = (fullName?: string) => {
@@ -101,18 +112,14 @@ export function Navbar() {
     console.log('Navbar - Supabase configured:', isSupabaseConfigured())
   }, [user, loading, profile])
 
-  const toggleMenu = () => setIsOpen(!isOpen)
-
   const handleLogoClick = (e: React.MouseEvent) => {
     e.preventDefault()
-    // setIsLogoAnimating(true) // This state was removed, so this line is removed
     setTimeout(() => {
-      // setIsLogoAnimating(false) // This state was removed, so this line is removed
-      // Navigate to home after animation
       window.location.href = "/"
     }, 2500)
   }
 
+  
   // Enhanced live search functionality with debouncing
   const handleSearch = async (query: string) => {
     if (!query.trim() || !supabase) {
@@ -123,9 +130,8 @@ export function Navbar() {
 
     setIsSearching(true)
     try {
-      // Search across multiple tables
-      const results = []
-      
+      const results: any[] = []
+
       // Search communities
       const { data: communities } = await supabase
         .from('communities')
@@ -149,7 +155,6 @@ export function Navbar() {
           results.push(...projects.map(p => ({ ...p, type: 'project', url: `/projects/${p.id}` })))
         }
       } catch (error) {
-        // Projects table might not exist yet
         console.log('Projects table not available')
       }
 
@@ -165,7 +170,6 @@ export function Navbar() {
           results.push(...events.map(e => ({ ...e, type: 'event', url: `/events/${e.id}` })))
         }
       } catch (error) {
-        // Events table might not exist yet
         console.log('Events table not available')
       }
 
@@ -205,15 +209,13 @@ export function Navbar() {
     const query = e.target.value
     setSearchQuery(query)
     
-    // Clear previous timeout
     if ((window as any).searchTimeout) {
       clearTimeout((window as any).searchTimeout)
     }
     
     if (query.trim()) {
-      // Debounce search by 300ms
       (window as any).searchTimeout = setTimeout(() => {
-      handleSearch(query)
+        handleSearch(query)
       }, 300)
     } else {
       setSearchResults([])
@@ -231,7 +233,6 @@ export function Navbar() {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (searchQuery.trim()) {
-      // Navigate to search results page or perform search
       router.push(`/search?q=${encodeURIComponent(searchQuery)}`)
       setShowSearchResults(false)
       setSearchResults([])
@@ -256,14 +257,15 @@ export function Navbar() {
       console.log('Missing required data:', { user: !!user, profile: !!profile, supabase: !!supabase })
       return
     }
-    
+
     console.log('=== ROLE SWITCH DEBUG ===')
     console.log('Attempting to switch active role to:', newRole)
     console.log('User ID:', user.id)
     console.log('Current profile:', profile)
     console.log('Current buyer_enabled:', profile?.buyer_enabled)
     console.log('Current business_enabled:', profile?.business_enabled)
-    
+
+
     try {
       // Check if the target role is actually enabled in Role Management
       if (newRole === 'business' && !profile?.business_enabled) {
@@ -278,12 +280,12 @@ export function Navbar() {
       
       // Only update account_type, don't change the enabled status
       const updateData = {
-        account_type: newRole, // Only change the active role, not the enabled status
+        account_type: newRole,
         updated_at: new Date().toISOString()
       }
       
       console.log('Update data to be sent:', updateData)
-      
+
       // Update the profile in Supabase - try by user_id first, then by id
       let { data, error } = await supabase
         .from('profiles')
@@ -291,9 +293,8 @@ export function Navbar() {
         .eq('user_id', user.id)
         .select()
       
-      // If not found by user_id, try by id
+        // If not found by user_id, try by id
       if (error && error.code === 'PGRST116') {
-        console.log('Profile not found by user_id, trying by id...')
         const { data: dataById, error: errorById } = await supabase
           .from('profiles')
           .update(updateData)
@@ -311,12 +312,6 @@ export function Navbar() {
 
       if (error) {
         console.error('Error updating account type:', error)
-        console.error('Error details:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
-        })
         alert(`Failed to switch to ${newRole} mode: ${error.message}`)
         return
       }
@@ -325,13 +320,13 @@ export function Navbar() {
       console.log('Updated profile data:', data)
       
       // Show success message
+
       alert(`Switched to ${newRole} mode successfully!`)
-      
       // Refresh the profile data
       console.log('🔄 Refreshing profile after role switch...')
       await forceRefreshProfile()
       console.log('✅ Profile refreshed after role switch')
-      
+
       // Navigate to appropriate dashboard based on role
       if (newRole === 'business') {
         // Redirect to business dashboard for business activities
@@ -347,12 +342,21 @@ export function Navbar() {
   }
 
   const handleSignOut = async () => {
-    await signOut();
-    setIsOpen(false); // Close dropdown on sign out
-  };
+    await signOut()
+    setIsUserMenuOpen(false) // close profile dropdown
+  }
+
+  // Helper to close mobile nav when navigating
+  const closeMobileNav = () => {
+    setIsMobileNavOpen(false)
+    setMobileCommunityOpen(false)
+    setMobileMarketplaceOpen(false)
+    setMobileInvestingOpen(false)
+    setMobileGrowthOpen(false)
+  }
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 dark:bg-background border-b border-border transition-all duration-300 py-2 bg-[#07370d] ">
+    <nav className="fixed top-0 left-0 right-0 z-50 dark:bg-background border-b border-border transition-all duration-300 py-2 bg-[#07370d] overflow-y-visible">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo and Brand */}
@@ -361,35 +365,33 @@ export function Navbar() {
               onClick={handleLogoClick}
               className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors duration-200 gap-3"
             >
-              <div className="w-16 h-16 bg-transparent rounded-full flex items-center justify-center">
-                {/* <span className="text-primary-foreground font-bold text-sm">A</span> */}
+              <div className="w-12 h-12 md:w-16 md:h-16 bg-transparent rounded-full flex items-center justify-center">
                 <Image
-                                    src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Scherm_afbeelding_2025-07-20_om_19.00.08-removebg-preview-5SfpVg1sZpmH7Z60mo8coZyoqelzmF.png"
-                                    alt="The New Alkebulan Logo"
-                                    width={60}
-                                    height={60}
-                                    className="rounded-full object-contain"
-                                  />
+                  src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Scherm_afbeelding_2025-07-20_om_19.00.08-removebg-preview-5SfpVg1sZpmH7Z60mo8coZyoqelzmF.png"
+                  alt="The New Alkebulan Logo"
+                  width={60}
+                  height={60}
+                  className="rounded-full object-contain"
+                />
               </div>
               <div className="flex flex-col items-start">
-  <span className="text-amber-400 text-lg font-semibold">
-    The New
-  </span>
-  <span className="text-amber-400 text-2xl font-extrabold">
-    Alkebulan
-  </span>
+                <span className="text-amber-400 text-base md:text-lg font-semibold">
+                  The New
+                </span>
+                <span className="text-amber-400 text-xl md:text-2xl font-extrabold">
+                  Alkebulan
+                </span>
               </div>
-
             </button>
           </div>
 
-          {/* Navigation Links - Moved to center */}
+          {/* Desktop Navigation Links (unchanged) */}
           <div className="hidden md:flex items-center space-x-6">
             {/* Community Dropdown */}
             <DropdownMenu open={isCommunityOpen} onOpenChange={setIsCommunityOpen}>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors duration-200 font-medium text-white">
-                  <span className="">Community</span>
+                  <span>Community</span>
                   <ChevronDown className="h-4 w-4" />
                 </button>
               </DropdownMenuTrigger>
@@ -458,7 +460,7 @@ export function Navbar() {
             </DropdownMenu>
 
             {/* Growth Dropdown */}
-              <DropdownMenu open={isGrowthOpen} onOpenChange={setIsGrowthOpen}>
+            <DropdownMenu open={isGrowthOpen} onOpenChange={setIsGrowthOpen}>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors duration-200 font-medium text-white">
                   <span>Growth</span>
@@ -467,37 +469,37 @@ export function Navbar() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56">
                 <DropdownMenuItem asChild>
-                  <Link href="/marketplace" className="cursor-pointer flex items-center gap-2">
+                  <Link href="/growth/daily-planner" className="cursor-pointer flex items-center gap-2">
                     <ClipboardList className="w-4 h-4" />
                     Daily Planner
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/marketplace/companies" className="cursor-pointer flex items-center gap-2">
+                  <Link href="/growth/progress" className="cursor-pointer flex items-center gap-2">
                     <TrendingUp className="w-4 h-4" />
                     Progress
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/marketplace/companies" className="cursor-pointer flex items-center gap-2">
+                  <Link href="/growth/journey" className="cursor-pointer flex items-center gap-2">
                     <Map className="w-4 h-4" />
                     Journey
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/marketplace/companies" className="cursor-pointer flex items-center gap-2">
+                  <Link href="/growth/learning" className="cursor-pointer flex items-center gap-2">
                     <BookOpen className="w-4 h-4" />
                     Learning Hub
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/marketplace/companies" className="cursor-pointer flex items-center gap-2">
+                  <Link href="/growth/mentorship" className="cursor-pointer flex items-center gap-2">
                     <Users className="w-4 h-4" />
                     Mentorship
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/marketplace/companies" className="cursor-pointer flex items-center gap-2">
+                  <Link href="/growth/manifest-lab" className="cursor-pointer flex items-center gap-2">
                     <Sparkles className="w-4 h-4" />
                     The Manifest Lab
                   </Link>
@@ -505,13 +507,6 @@ export function Navbar() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-
-            {/* <Link
-              href="/learning"
-              className="text-foreground hover:text-primary transition-colors duration-200 font-medium text-white"
-            >
-              Growth
-            </Link> */}
             {/* Investing Dropdown */}
             <DropdownMenu open={isInvestingOpen} onOpenChange={setIsInvestingOpen}>
               <DropdownMenuTrigger asChild>
@@ -545,69 +540,69 @@ export function Navbar() {
 
           {/* Right Side - Search and User Menu */}
           <div className="flex items-center space-x-4">
-            {/* Search Bar - Moved to right side and made shorter */}
+            {/* Desktop Search Bar */}
             <div className="hidden md:block search-container">
-            <div className="relative">
-              <form onSubmit={handleSearchSubmit}>
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  type="text"
+              <div className="relative">
+                <form onSubmit={handleSearchSubmit}>
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="text"
                     placeholder="Search..."
-                  value={searchQuery}
-                  onChange={handleSearchInputChange}
+                    value={searchQuery}
+                    onChange={handleSearchInputChange}
                     className="w-64 pl-10 pr-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
-                />
-              </form>
-              
-              {/* Search Results Dropdown */}
-              {showSearchResults && searchResults.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
-                  {searchResults.map((result, index) => (
-                    <div
-                      key={`${result.type}-${result.id}`}
-                      onClick={() => handleSearchResultClick(result)}
-                      className="p-3 hover:bg-accent cursor-pointer border-b border-border last:border-b-0"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                          {result.type === 'community' && <Users className="h-4 w-4 text-primary" />}
-                          {result.type === 'project' && <FolderOpen className="h-4 w-4 text-primary" />}
-                          {result.type === 'event' && <Calendar className="h-4 w-4 text-primary" />}
+                  />
+                </form>
+
+                {/* Desktop Search Results */}
+                {showSearchResults && searchResults.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                    {searchResults.map((result, index) => (
+                      <div
+                        key={`${result.type}-${result.id}`}
+                        onClick={() => handleSearchResultClick(result)}
+                        className="p-3 hover:bg-accent cursor-pointer border-b border-border last:border-b-0"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                            {result.type === 'community' && <Users className="h-4 w-4 text-primary" />}
+                            {result.type === 'project' && <FolderOpen className="h-4 w-4 text-primary" />}
+                            {result.type === 'event' && <Calendar className="h-4 w-4 text-primary" />}
                             {result.type === 'user' && <UserCheck className="h-4 w-4 text-primary" />}
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-foreground">{result.name}</p>
-                          <p className="text-sm text-muted-foreground">{result.description}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full capitalize">
-                              {result.type}
-                            </span>
-                            {result.category && (
-                              <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full">
-                                {result.category}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium text-foreground">{result.name}</p>
+                            <p className="text-sm text-muted-foreground">{result.description}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full capitalize">
+                                {result.type}
                               </span>
-                            )}
+                              {result.category && (
+                                <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full">
+                                  {result.category}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
 
-            {/* Search Button for Mobile */}
+            {/* Mobile Search Button */}
             <button
               onClick={() => setIsSearchOpen(!isSearchOpen)}
-              className="md:hidden p-2 text-foreground hover:text-primary transition-colors duration-200"
+              className="md:hidden p-2 text-foreground hover:text-primary transition-colors duration-200 dark:hover:bg-accent rounded-xl"
             >
-              <Search className="h-5 w-5" />
+              <Search className="h-5 w-5 text-white"/>
             </button>
 
-            {/* User Menu */}
+            {/* Profile / User Menu */}
             {user ? (
-              <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+              <DropdownMenu open={isUserMenuOpen} onOpenChange={setIsUserMenuOpen}>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center space-x-2 p-2 rounded-lg hover:bg-accent transition-colors duration-200">
                     <UserAvatarFixed 
@@ -618,6 +613,8 @@ export function Navbar() {
                     <ChevronDown className="h-4 w-4 text-muted-foreground hover:text-black" />
                   </button>
                 </DropdownMenuTrigger>
+
+                {/* Profile dropdown content */}
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>
                     <div className="flex flex-col space-y-1">
@@ -662,7 +659,6 @@ export function Navbar() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  {/* Account Type Switcher */}
                   <DropdownMenuLabel className="text-xs text-muted-foreground px-2 py-1.5">
                     Account Roles
                   </DropdownMenuLabel>
@@ -670,9 +666,9 @@ export function Navbar() {
                     className={`cursor-pointer flex items-center gap-2 ${profile?.account_type === 'buyer' ? 'text-primary font-medium' : ''}`}
                     onClick={() => handleAccountTypeSwitch('buyer')}
                   >
-                    <ShoppingCart className="w-4 h-4" />
+                    <ShoppingCart className="w-4 h-4 text-white hover:text-black" />
                     <span>Buyer Mode</span>
-                    {profile?.account_type === 'buyer' && <CheckCircle className="w-4 w-4 ml-auto text-primary" />}
+                    {profile?.account_type === 'buyer' && <CheckCircle className="w-4 ml-auto text-primary" />}
                   </DropdownMenuItem>
                   <DropdownMenuItem 
                     className={`cursor-pointer flex items-center gap-2 ${profile?.account_type === 'business' ? 'text-primary font-medium' : ''}`}
@@ -683,7 +679,6 @@ export function Navbar() {
                     {profile?.account_type === 'business' && <CheckCircle className="w-4 ml-auto text-primary" />}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  {/* Theme submenu */}
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger>
                       <div className="flex items-center gap-2">
@@ -725,6 +720,20 @@ export function Navbar() {
 
             {/* Notifications Bell (last) */}
             {user && <NotificationsDropdown />}
+
+            {/* === Mobile Menu Toggle (hamburger) === */}
+            <button
+              className="md:hidden p-2 rounded-md hover:bg-accent transition-colors duration-150"
+              onClick={() => {
+                // make sure mobile nav and user menu are mutually exclusive
+                setIsMobileNavOpen(!isMobileNavOpen)
+                // close user menu if opening mobile nav
+                if (!isMobileNavOpen) setIsUserMenuOpen(false)
+              }}
+              aria-label="Open mobile menu"
+            >
+              {isMobileNavOpen ? <X className="w-5 h-5 text-white hover:text-black" /> : <Menu className="w-5 h-5 text-white hover:text-black" />}
+            </button>
           </div>
         </div>
 
@@ -742,7 +751,7 @@ export function Navbar() {
                   className="w-full pl-10 pr-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
                 />
               </form>
-              
+
               {/* Mobile Search Results */}
               {showSearchResults && searchResults.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
@@ -782,70 +791,102 @@ export function Navbar() {
           </div>
         )}
 
-        {/* Mobile Navigation Menu */}
-        {isOpen && (
-          <div className="md:hidden pb-4 border-t border-border">
-            <div className="flex flex-col space-y-2 pt-4">
-              <Collapsible open={isCommunityOpen} onOpenChange={setIsCommunityOpen} className="w-full">
-                <CollapsibleTrigger className="flex items-center justify-between w-full px-2 py-2 rounded-lg text-foreground hover:bg-accent font-medium">
-                Communities
-                  <ChevronDown className={`h-4 w-4 transition-transform ${isCommunityOpen ? 'rotate-180' : 'rotate-0'}`} />
+        {/* === MOBILE NAV PANEL ===
+            - Only shown on small screens (md:hidden)
+            - Uses its own collapsible states so desktop dropdowns are unaffected
+        */}
+        {isMobileNavOpen && (
+          <div className="md:hidden pb-4 border-t border-border mt-2">
+            <div className="flex flex-col px-2 pt-4 space-y-2">
+              {/* Community collapsible */}
+              <Collapsible open={mobileCommunityOpen} onOpenChange={setMobileCommunityOpen} className="w-full">
+                <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-3 rounded-lg text-foreground hover:bg-accent hover:text-black font-medium text-white">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    <span>Communities</span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${mobileCommunityOpen ? 'rotate-180' : 'rotate-0'}`} />
                 </CollapsibleTrigger>
                 <CollapsibleContent className="space-y-2 pl-4 pt-2">
-                  <Link href="/community" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
-                    <Users className="h-4 w-4" /> Social Feed
+                  <Link href="/community" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">
+                    <div className="flex items-center gap-2"><Users className="w-4 h-4" /> Social Feed</div>
                   </Link>
-                  <Link href="/community/my-friends" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
-                    <UserPlus className="h-4 w-4" /> My Friends
+                  <Link href="/community/my-friends" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">
+                    <div className="flex items-center gap-2"><UserPlus className="w-4 h-4" /> My Friends</div>
                   </Link>
-                  <Link href="/community/my-communities" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
-                    <Building2 className="h-4 w-4" /> My Communities
+                  <Link href="/community/my-communities" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">
+                    <div className="flex items-center gap-2"><Building2 className="w-4 h-4" /> My Communities</div>
                   </Link>
-                  <Link href="/community/my-alkebulan" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
-                    <Globe className="h-4 w-4" /> My Alkebulan
+                  <Link href="/community/my-alkebulan" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">
+                    <div className="flex items-center gap-2"><Globe className="w-4 h-4" /> My Alkebulan</div>
                   </Link>
-                  <Link href="/messages" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
-                    <MessageCircle className="h-4 w-4" /> Messenger
+                  <Link href="/messages" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">
+                    <div className="flex items-center gap-2"><MessageCircle className="w-4 h-4" /> Messenger</div>
                   </Link>
-                  <Link href="/community/events" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
-                    <Calendar className="h-4 w-4" /> Events
-              </Link>
-                </CollapsibleContent>
-              </Collapsible>
-              <Collapsible open={isMarketplaceOpen} onOpenChange={setIsMarketplaceOpen} className="w-full">
-                <CollapsibleTrigger className="flex items-center justify-between w-full px-2 py-2 rounded-lg text-foreground hover:bg-accent font-medium">
-                Marketplace
-                  <ChevronDown className={`h-4 w-4 transition-transform ${isMarketplaceOpen ? 'rotate-180' : 'rotate-0'}`} />
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-2 pl-4 pt-2">
-                  <Link href="/marketplace" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
-                    <Store className="h-4 w-4" /> Browse Products
-                  </Link>
-                  <Link href="/marketplace/companies" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
-                    <Building2 className="h-4 w-4" /> All Companies
+                  <Link href="/community/events" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">
+                    <div className="flex items-center gap-2"><Calendar className="w-4 h-4" /> Events</div>
                   </Link>
                 </CollapsibleContent>
               </Collapsible>
-              <Link href="/learning" className="text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
-                Growth
-              </Link>
-              <Collapsible open={isInvestingOpen} onOpenChange={setIsInvestingOpen} className="w-full">
-                <CollapsibleTrigger className="flex items-center justify-between w-full px-2 py-2 rounded-lg text-foreground hover:bg-accent font-medium">
-                  Investing
-                  <ChevronDown className={`h-4 w-4 transition-transform ${isInvestingOpen ? 'rotate-180' : 'rotate-0'}`} />
+
+              {/* Marketplace collapsible */}
+              <Collapsible open={mobileMarketplaceOpen} onOpenChange={setMobileMarketplaceOpen} className="w-full">
+                <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-3 rounded-lg text-foreground hover:bg-accent font-medium hover:text-black text-white">
+                  <div className="flex items-center gap-2">
+                    <Store className="w-4 h-4" />
+                    <span>Marketplace</span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${mobileMarketplaceOpen ? 'rotate-180' : 'rotate-0'}`} />
                 </CollapsibleTrigger>
                 <CollapsibleContent className="space-y-2 pl-4 pt-2">
-                  <Link href="/investing/alkebulan" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
-                    <TrendingUp className="h-4 w-4" /> Investing Alkebulan
-              </Link>
-                  <Link href="/investing/my-investments" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
-                    <BarChart3 className="h-4 w-4" /> My Investments
-              </Link>
-                  <Link href="/investing/more-projects" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors duration-200 font-medium px-2 py-2 rounded-lg hover:bg-accent">
-                    <FolderOpen className="h-4 w-4" /> More Projects
-              </Link>
+                  <Link href="/marketplace" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black">
+                    Browse Products
+                  </Link>
+                  <Link href="/marketplace/companies" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black">
+                    All Companies
+                  </Link>
                 </CollapsibleContent>
               </Collapsible>
+
+              {/* Growth collapsible */}
+              <Collapsible open={mobileGrowthOpen} onOpenChange={setMobileGrowthOpen} className="w-full">
+                <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-3 rounded-lg text-foreground hover:bg-accent font-medium hover:text-black text-white">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4" />
+                    <span>Growth</span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${mobileGrowthOpen ? 'rotate-180' : 'rotate-0'}`} />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-2 pl-4 pt-2">
+                  <Link href="/growth/daily-planner" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">Daily Planner</Link>
+                  <Link href="/growth/progress" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">Progress</Link>
+                  <Link href="/growth/journey" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">Journey</Link>
+                  <Link href="/growth/learning" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">Learning Hub</Link>
+                  <Link href="/growth/mentorship" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">Mentorship</Link>
+                </CollapsibleContent>
+              </Collapsible>
+
+              {/* Investing collapsible */}
+              <Collapsible open={mobileInvestingOpen} onOpenChange={setMobileInvestingOpen} className="w-full">
+                <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-3 rounded-lg text-foreground hover:bg-accent font-medium hover:text-black text-white">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4" />
+                    <span>Investing</span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${mobileInvestingOpen ? 'rotate-180' : 'rotate-0'}`} />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-2 pl-4 pt-2">
+                  <Link href="/investing/alkebulan" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">Investing Alkebulan</Link>
+                  <Link href="/investing/my-investments" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">My Investments</Link>
+                  <Link href="/investing/more-projects" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">More Projects</Link>
+                </CollapsibleContent>
+              </Collapsible>
+
+              {/* Optional quick links */}
+              <div className="pt-2 border-t border-border mt-2">
+                <Link onClick={closeMobileNav} href="/learning" className="block px-3 py-2 rounded-md hover:bg-accent hover:text-black text-white">Learning</Link>
+                <Link onClick={closeMobileNav} href="/marketplace" className="block px-3 py-2 rounded-md hover:bg-accent hover:text-black text-white">Marketplace</Link>
+              </div>
             </div>
           </div>
         )}

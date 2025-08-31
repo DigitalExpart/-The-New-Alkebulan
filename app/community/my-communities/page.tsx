@@ -443,7 +443,7 @@ export default function MyCommunitiesPage() {
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 text-white">👥 My Communities</h1>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4 dark:text-white">👥 My Communities</h1>
           <p className="text-xl text-muted-foreground max-w-3xl">
             Manage and discover communities in the diaspora network.
           </p>
