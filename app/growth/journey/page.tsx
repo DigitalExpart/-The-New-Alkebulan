@@ -1,10 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { MapPin, Calendar, Clock, Star, Plus, Edit, Trash2, Flag } from "lucide-react"
+import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase"
+import { toast } from "sonner"
 
 interface Milestone {
   id: string
@@ -18,38 +20,7 @@ interface Milestone {
 }
 
 export default function JourneyPage() {
-  const [milestones, setMilestones] = useState<Milestone[]>([
-    {
-      id: "1",
-      title: "Started Business",
-      description: "Launched first product line",
-      date: "2023-01-15",
-      category: "Business",
-      status: "completed",
-      impact: "high",
-      location: "Lagos, Nigeria"
-    },
-    {
-      id: "2",
-      title: "First Sale",
-      description: "Achieved first customer sale",
-      date: "2023-02-20",
-      category: "Sales",
-      status: "completed",
-      impact: "medium",
-      location: "Online"
-    },
-    {
-      id: "3",
-      title: "Market Expansion",
-      description: "Expanded to international markets",
-      date: "2024-06-01",
-      category: "Growth",
-      status: "in-progress",
-      impact: "high",
-      location: "Global"
-    }
-  ])
+  const [milestones, setMilestones] = useState<Milestone[]>([])
 
   const [showAddForm, setShowAddForm] = useState(false)
   const [newMilestone, setNewMilestone] = useState({
@@ -61,35 +32,108 @@ export default function JourneyPage() {
     location: ""
   })
 
-  const addMilestone = () => {
+  const loadMilestones = async () => {
+    let supabase: any
+    try { supabase = getSupabaseClient() } catch { return }
+    if (!isSupabaseConfigured() || !supabase) return
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id
+    if (!userId) return
+    const { data, error } = await supabase
+      .from('journey_milestones')
+      .select('*')
+      .eq('user_id', userId)
+      .order('milestone_date', { ascending: true })
+    if (error) { console.error('Error loading milestones:', error); return }
+    const mapped: Milestone[] = (data || []).map((m: any) => ({
+      id: m.id,
+      title: m.title,
+      description: m.description || '',
+      date: typeof m.milestone_date === 'string' ? m.milestone_date : (m.milestone_date ? new Date(m.milestone_date).toISOString().split('T')[0] : ''),
+      category: m.category || '',
+      status: (m.status || 'planned') as Milestone['status'],
+      impact: (m.impact || 'medium') as Milestone['impact'],
+      location: m.location || ''
+    }))
+    setMilestones(mapped)
+  }
+
+  useEffect(() => { loadMilestones() }, [])
+
+  const addMilestone = async () => {
     if (!newMilestone.title || !newMilestone.date) return
-    
-    const milestone: Milestone = {
-      id: Date.now().toString(),
-      ...newMilestone,
-      status: "planned"
+    let supabase: any
+    try { supabase = getSupabaseClient() } catch { return }
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id
+    if (!userId) return
+
+    const normalizeDate = (value: string) => {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value
+      const m = value.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/)
+      if (m) { const [, dd, mm, yyyy] = m; return `${yyyy}-${mm}-${dd}` }
+      const d = new Date(value); return isNaN(d.getTime()) ? value : d.toISOString().split('T')[0]
     }
-    
-    setMilestones([...milestones, milestone])
-    setNewMilestone({
-      title: "",
-      description: "",
-      date: "",
-      category: "",
-      impact: "medium",
-      location: ""
-    })
-    setShowAddForm(false)
+
+    const payload = {
+      user_id: userId,
+      title: newMilestone.title,
+      description: newMilestone.description || null,
+      milestone_date: normalizeDate(newMilestone.date),
+      category: newMilestone.category || null,
+      status: 'planned',
+      impact: newMilestone.impact || 'medium',
+      location: newMilestone.location || null
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('journey_milestones')
+        .insert(payload)
+        .select('*')
+        .single()
+
+      if (error) {
+        console.error('Error adding milestone:', error)
+        toast.error(error.message || 'Failed to add milestone')
+        return
+      }
+
+      const created: Milestone = {
+        id: data.id,
+        title: data.title,
+        description: data.description || '',
+        date: typeof data.milestone_date === 'string' ? data.milestone_date : (data.milestone_date ? new Date(data.milestone_date).toISOString().split('T')[0] : ''),
+        category: data.category || '',
+        status: (data.status || 'planned') as Milestone['status'],
+        impact: (data.impact || 'medium') as Milestone['impact'],
+        location: data.location || ''
+      }
+
+      setMilestones(prev => [...prev, created])
+      setNewMilestone({ title: "", description: "", date: "", category: "", impact: "medium", location: "" })
+      setShowAddForm(false)
+      toast.success('Milestone added')
+    } catch (e) {
+      console.error('Unexpected error adding milestone:', e)
+      toast.error('Unexpected error adding milestone')
+    }
   }
 
-  const updateStatus = (id: string, status: Milestone["status"]) => {
-    setMilestones(milestones.map(milestone => 
-      milestone.id === id ? { ...milestone, status } : milestone
-    ))
+  const updateStatus = async (id: string, status: Milestone["status"]) => {
+    setMilestones(milestones.map(m => m.id === id ? { ...m, status } : m))
+    let supabase: any
+    try { supabase = getSupabaseClient() } catch { return }
+    await supabase.from('journey_milestones').update({ status }).eq('id', id)
+    loadMilestones()
   }
 
-  const deleteMilestone = (id: string) => {
-    setMilestones(milestones.filter(milestone => milestone.id !== id))
+  const deleteMilestone = async (id: string) => {
+    setMilestones(milestones.filter(m => m.id !== id))
+    let supabase: any
+    try { supabase = getSupabaseClient() } catch { return }
+    await supabase.from('journey_milestones').delete().eq('id', id)
+    loadMilestones()
   }
 
   const getStatusColor = (status: string) => {
