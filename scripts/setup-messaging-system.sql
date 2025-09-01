@@ -52,8 +52,20 @@ DROP POLICY IF EXISTS "Enable read access for participants" ON public.conversati
 CREATE POLICY "Enable read access for participants" ON public.conversation_participants
 FOR SELECT USING (user_id = auth.uid());
 DROP POLICY IF EXISTS "Enable insert for authenticated users" ON public.conversation_participants;
-CREATE POLICY "Enable insert for authenticated users" ON public.conversation_participants
-FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Enable insert for participant or partner"
+ON public.conversation_participants
+FOR INSERT
+WITH CHECK (
+  -- Allow inserting own participant row
+  user_id = auth.uid()
+  -- Or allow inserting partner row when the current user is already a participant in the same conversation
+  OR EXISTS (
+    SELECT 1
+    FROM public.conversation_participants cp2
+    WHERE cp2.conversation_id = conversation_id
+      AND cp2.user_id = auth.uid()
+  )
+);
 
 -- Enable RLS for messages
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
@@ -93,21 +105,20 @@ CREATE OR REPLACE FUNCTION public.create_conversation_and_participants(
 RETURNS uuid AS $$
 DECLARE
     v_conversation_id uuid;
-    v_participant_count int;
     v_existing_conversation_id uuid;
+    v_current_user uuid := auth.uid();
 BEGIN
     -- Sort the user IDs to ensure consistent ordering for conversation lookup
     SELECT ARRAY(SELECT unnest(p_user_ids) ORDER BY 1) INTO p_user_ids;
 
     -- Check if a conversation with these exact participants already exists
-    -- This is a more complex check, requiring matching all participants
     SELECT cp.conversation_id
     INTO v_existing_conversation_id
     FROM public.conversation_participants cp
-    WHERE cp.user_id = p_user_ids[1] -- Start with the first user
+    WHERE cp.user_id = p_user_ids[1] -- Assuming 1:1 chat for simplicity initially
     GROUP BY cp.conversation_id
-    HAVING COUNT(cp.user_id) = array_length(p_user_ids, 1)
-       AND ARRAY(SELECT user_id FROM public.conversation_participants WHERE conversation_id = cp.conversation_id ORDER BY user_id) = p_user_ids;
+    HAVING COUNT(cp.user_id) = 2 AND -- Assuming 2 participants for 1:1 chat
+           ARRAY(SELECT user_id FROM public.conversation_participants WHERE conversation_id = cp.conversation_id ORDER BY user_id) = p_user_ids;
 
     IF v_existing_conversation_id IS NOT NULL THEN
         RETURN v_existing_conversation_id;
@@ -116,11 +127,17 @@ BEGIN
     -- If no existing conversation, create a new one
     INSERT INTO public.conversations DEFAULT VALUES RETURNING id INTO v_conversation_id;
 
-    -- Add participants to the new conversation
+    -- Insert current user first (satisfies RLS)
     INSERT INTO public.conversation_participants (conversation_id, user_id)
-    SELECT v_conversation_id, unnest(p_user_ids);
+    VALUES (v_conversation_id, v_current_user);
 
-    RETURN v_conversation_id;
+    -- Insert the partner(s) (allowed by RLS because current user row now exists)
+    INSERT INTO public.conversation_participants (conversation_id, user_id)
+    SELECT v_conversation_id, uid
+    FROM unnest(p_user_ids) AS uid
+    WHERE uid <> v_current_user;
+  
+  RETURN v_conversation_id;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -138,15 +155,15 @@ DECLARE
 BEGIN
     IF current_user_id IS NULL THEN
         RAISE EXCEPTION 'Not authenticated';
-    END IF;
-
+  END IF;
+  
     -- Build and sort ids for consistent lookup
     ids := ARRAY[current_user_id, other_user_id];
     SELECT ARRAY(SELECT unnest(ids) ORDER BY 1) INTO ids;
 
     -- Delegate to the array-based implementation
     v_conversation_id := public.create_conversation_and_participants(ids);
-    RETURN v_conversation_id;
+  RETURN v_conversation_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

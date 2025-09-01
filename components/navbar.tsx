@@ -504,7 +504,7 @@ export function Navbar() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/growth/learning" className="cursor-pointer flex items-center gap-2">
+                  <Link href="/growth/learning-hub" className="cursor-pointer flex items-center gap-2">
                     <BookOpen className="w-4 h-4" />
                     Learning Hub
                   </Link>
@@ -516,7 +516,7 @@ export function Navbar() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/growth/manifest-lab" className="cursor-pointer flex items-center gap-2">
+                  <Link href="/dashboard/my-manifesting" className="cursor-pointer flex items-center gap-2">
                     <Sparkles className="w-4 h-4" />
                     The Manifest Lab
                   </Link>
