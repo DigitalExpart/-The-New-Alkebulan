@@ -39,13 +39,13 @@ export default function ShortcutBar() {
   const [isOpen, setIsOpen] = useState(true);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 flex flex-col items-center">
-      {/* Toggle Button or Chevron */}
-      
-
-      <div className="w-full flex justify-end pr-4">
+    <div className="fixed bottom-0 left-0 right-0 z-50">
+      {/* Toggle Button (keeps right alignment as before) */}
+      <div className="w-full flex justify-end ">
         <button
-          className="bg-gray-900 dark:bg-dark-card text-white py-1 px-6 rounded-t-lg shadow-md flex justify-center items-center"
+          aria-expanded={isOpen}
+          aria-label={isOpen ? "Collapse shortcuts" : "Expand shortcuts"}
+          className="bg-dark-bg dark:bg-dark-card text-white py-1 px-6 rounded-t-lg shadow-md md:flex md:justify-center md:items-center border border-b-0 border-accent/40 lg:animate-pulse"
           onClick={() => setIsOpen(!isOpen)}
         >
           {isOpen ? <ChevronDown size={34} /> : <ChevronUp size={34} />}
@@ -55,24 +55,23 @@ export default function ShortcutBar() {
       {/* Animated Shortcut Bar */}
       <motion.div
         initial={{ height: 0 }}
-        animate={{ height: isOpen ? "4rem" : 0 }}
+        animate={{ height: isOpen ? "auto" : 0 }}
         transition={{ type: "spring", stiffness: 120, damping: 20 }}
-        className="overflow-hidden w-full bg-gray-900 dark:bg-dark-card shadow-lg"
+        className="overflow-hidden w-full bg-dark-bg dark:bg-dark-card shadow-lg"
       >
-        <div className="flex justify-around items-center h-16 px-4">
+        
+        <div className="grid grid-cols-3 gap-2 p-2 md:flex md:justify-around md:items-center md:h-16 md:px-4">
           {menuItems.map((item, idx) => {
             const Icon = item.icon;
             return (
-              <button
+              <Link
                 key={idx}
-                className="flex flex-col items-center text-xs lg:text-sm text-gray-300 hover:text-amber-400 transition-colors"
+                href={item.link}
+                className="flex flex-col items-center justify-center text-xs lg:text-sm text-gray-300 hover:text-amber-400 transition-colors py-2 rounded lg:border-r lg:border-l lg:border-opacity-25 lg:p-3 lg:border-white"
               >
-                <Link href={`${item.link}`}>
-                  <Icon size={18} className="mb-1" />
-                  {item.label}
-                </Link>
-                    
-              </button>
+                <Icon size={18} className="mb-1" />
+                <span className="whitespace-nowrap">{item.label}</span>
+              </Link>
             );
           })}
         </div>

@@ -88,6 +88,23 @@ export function Navbar() {
   const [mobileInvestingOpen, setMobileInvestingOpen] = useState(false)
   const [mobileGrowthOpen, setMobileGrowthOpen] = useState(false)
 
+  // closing the currently-open dropdown - only one collapsible can be open at once
+  const handleMobileToggle = (section: 'community' | 'marketplace' | 'investing' | 'growth') => (open: boolean) => {
+    if (!open) {
+      
+      setMobileCommunityOpen(false)
+      setMobileMarketplaceOpen(false)
+      setMobileInvestingOpen(false)
+      setMobileGrowthOpen(false)
+      return
+    }
+
+    setMobileCommunityOpen(section === 'community')
+    setMobileMarketplaceOpen(section === 'marketplace')
+    setMobileInvestingOpen(section === 'investing')
+    setMobileGrowthOpen(section === 'growth')
+  }
+
   
 
   // Helper function to get first name from full name
@@ -363,9 +380,9 @@ export function Navbar() {
           <div className="flex items-center space-x-4">
             <button
               onClick={handleLogoClick}
-              className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors duration-200 gap-3"
+              className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors duration-200 md:gap-3"
             >
-              <div className="w-12 h-12 md:w-16 md:h-16 bg-transparent rounded-full flex items-center justify-center">
+              <div className="w-10 h-10 md:w-16 md:h-16 bg-transparent rounded-full flex items-center justify-center">
                 <Image
                   src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Scherm_afbeelding_2025-07-20_om_19.00.08-removebg-preview-5SfpVg1sZpmH7Z60mo8coZyoqelzmF.png"
                   alt="The New Alkebulan Logo"
@@ -375,17 +392,17 @@ export function Navbar() {
                 />
               </div>
               <div className="flex flex-col items-start">
-                <span className="text-amber-400 text-base md:text-lg font-semibold">
+                <span className="text-amber-400 max-sm:text-sm sm:text-base md:text-lg font-semibold">
                   The New
                 </span>
-                <span className="text-amber-400 text-xl md:text-2xl font-extrabold">
+                <span className="text-amber-400 max-sm:text-lg sm:text-xl md:text-2xl font-extrabold">
                   Alkebulan
                 </span>
               </div>
             </button>
           </div>
 
-          {/* Desktop Navigation Links (unchanged) */}
+          {/* Desktop Navigation Links */}
           <div className="hidden md:flex items-center space-x-6">
             {/* Community Dropdown */}
             <DropdownMenu open={isCommunityOpen} onOpenChange={setIsCommunityOpen}>
@@ -539,7 +556,7 @@ export function Navbar() {
           </div>
 
           {/* Right Side - Search and User Menu */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center md:space-x-4 space-x-1">
             {/* Desktop Search Bar */}
             <div className="hidden md:block search-container">
               <div className="relative">
@@ -799,9 +816,9 @@ export function Navbar() {
           <div className="md:hidden pb-4 border-t border-border mt-2">
             <div className="flex flex-col px-2 pt-4 space-y-2">
               {/* Community collapsible */}
-              <Collapsible open={mobileCommunityOpen} onOpenChange={setMobileCommunityOpen} className="w-full">
+              <Collapsible open={mobileCommunityOpen} onOpenChange={handleMobileToggle('community')} className="w-full">
                 <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-3 rounded-lg text-foreground hover:bg-accent hover:text-black font-medium text-white">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 md:gap-2">
                     <Users className="w-4 h-4" />
                     <span>Communities</span>
                   </div>
@@ -830,7 +847,7 @@ export function Navbar() {
               </Collapsible>
 
               {/* Marketplace collapsible */}
-              <Collapsible open={mobileMarketplaceOpen} onOpenChange={setMobileMarketplaceOpen} className="w-full">
+              <Collapsible open={mobileMarketplaceOpen} onOpenChange={handleMobileToggle('marketplace')} className="w-full">
                 <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-3 rounded-lg text-foreground hover:bg-accent font-medium hover:text-black text-white">
                   <div className="flex items-center gap-2">
                     <Store className="w-4 h-4" />
@@ -839,17 +856,17 @@ export function Navbar() {
                   <ChevronDown className={`h-4 w-4 transition-transform ${mobileMarketplaceOpen ? 'rotate-180' : 'rotate-0'}`} />
                 </CollapsibleTrigger>
                 <CollapsibleContent className="space-y-2 pl-4 pt-2">
-                  <Link href="/marketplace" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black">
+                  <Link href="/marketplace" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">
                     Browse Products
                   </Link>
-                  <Link href="/marketplace/companies" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black">
+                  <Link href="/marketplace/companies" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">
                     All Companies
                   </Link>
                 </CollapsibleContent>
               </Collapsible>
 
               {/* Growth collapsible */}
-              <Collapsible open={mobileGrowthOpen} onOpenChange={setMobileGrowthOpen} className="w-full">
+              <Collapsible open={mobileGrowthOpen} onOpenChange={handleMobileToggle('growth')} className="w-full">
                 <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-3 rounded-lg text-foreground hover:bg-accent font-medium hover:text-black text-white">
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4" />
@@ -867,7 +884,7 @@ export function Navbar() {
               </Collapsible>
 
               {/* Investing collapsible */}
-              <Collapsible open={mobileInvestingOpen} onOpenChange={setMobileInvestingOpen} className="w-full">
+              <Collapsible open={mobileInvestingOpen} onOpenChange={handleMobileToggle('investing')} className="w-full">
                 <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-3 rounded-lg text-foreground hover:bg-accent font-medium hover:text-black text-white">
                   <div className="flex items-center gap-2">
                     <TrendingUp className="w-4 h-4" />

@@ -340,7 +340,7 @@ export default function HomePage() {
         </section>
 
         {/* 4. Invest in the Future Section */}
-        <section className="py-20 invest-gradient relative overflow-hidden">
+        <section className="py-20 invest-gradient relative overflow-hidden z-10">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div
               ref={investRef}
