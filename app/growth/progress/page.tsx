@@ -1,12 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { BarChart3, TrendingUp, Target, Calendar, Plus, Edit, Trash2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase"
+import { toast } from "sonner"
 
 interface Goal {
   id: string
@@ -21,30 +23,7 @@ interface Goal {
 }
 
 export default function ProgressPage() {
-  const [goals, setGoals] = useState<Goal[]>([
-    {
-      id: "1",
-      title: "Monthly Revenue Target",
-      description: "Achieve monthly revenue goal",
-      target: 10000,
-      current: 7500,
-      unit: "USD",
-      deadline: "2024-01-31",
-      category: "Business",
-      status: "on-track"
-    },
-    {
-      id: "2",
-      title: "Product Launches",
-      description: "Launch new products this quarter",
-      target: 5,
-      current: 3,
-      unit: "products",
-      deadline: "2024-03-31",
-      category: "Product",
-      status: "behind"
-    }
-  ])
+  const [goals, setGoals] = useState<Goal[]>([])
 
   const [showAddForm, setShowAddForm] = useState(false)
   const [newGoal, setNewGoal] = useState({
@@ -56,50 +35,103 @@ export default function ProgressPage() {
     category: ""
   })
 
-  const addGoal = () => {
-    if (!newGoal.title || !newGoal.target || !newGoal.deadline) return
-    
-    const goal: Goal = {
-      id: Date.now().toString(),
-      title: newGoal.title,
-      description: newGoal.description,
-      target: parseFloat(newGoal.target),
-      current: 0,
-      unit: newGoal.unit,
-      deadline: newGoal.deadline,
-      category: newGoal.category,
-      status: "on-track"
+  const loadGoals = async () => {
+    let supabase: any
+    try { supabase = getSupabaseClient() } catch { return }
+    if (!isSupabaseConfigured() || !supabase) return
+
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id
+    if (!userId) return
+
+    const { data, error } = await supabase
+      .from('progress_goals')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true })
+
+    if (error) {
+      console.error('Error loading goals:', error)
+      return
     }
-    
-    setGoals([...goals, goal])
-    setNewGoal({
-      title: "",
-      description: "",
-      target: "",
-      unit: "",
-      deadline: "",
-      category: ""
-    })
-    setShowAddForm(false)
-  }
 
-  const updateProgress = (id: string, newCurrent: number) => {
-    setGoals(goals.map(goal => {
-      if (goal.id === id) {
-        const progress = (newCurrent / goal.target) * 100
-        let status: Goal["status"] = "on-track"
-        
-        if (progress >= 100) status = "completed"
-        else if (progress < 60) status = "behind"
-        
-        return { ...goal, current: newCurrent, status }
-      }
-      return goal
+    const mapped: Goal[] = (data || []).map((g: any) => ({
+      id: g.id,
+      title: g.title,
+      description: g.description || '',
+      target: Number(g.target),
+      current: Number(g.current || 0),
+      unit: g.unit || '',
+      deadline: typeof g.deadline === 'string' ? g.deadline : (g.deadline ? new Date(g.deadline).toISOString().split('T')[0] : ''),
+      category: g.category || '',
+      status: (g.status || 'on-track') as Goal['status']
     }))
+    setGoals(mapped)
   }
 
-  const deleteGoal = (id: string) => {
-    setGoals(goals.filter(goal => goal.id !== id))
+  useEffect(() => { loadGoals() }, [])
+
+  const addGoal = async () => {
+    if (!newGoal.title || !newGoal.target || !newGoal.deadline) return
+    let supabase: any
+    try { supabase = getSupabaseClient() } catch { return }
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id
+    if (!userId) return
+
+    const normalizeDate = (value: string) => {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value
+      const m = value.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/)
+      if (m) { const [, dd, mm, yyyy] = m; return `${yyyy}-${mm}-${dd}` }
+      const d = new Date(value); return isNaN(d.getTime()) ? value : d.toISOString().split('T')[0]
+    }
+
+    const payload = {
+      user_id: userId,
+      title: newGoal.title,
+      description: newGoal.description || null,
+      target: Number(newGoal.target),
+      current: 0,
+      unit: newGoal.unit || null,
+      deadline: normalizeDate(newGoal.deadline),
+      category: newGoal.category || null,
+      status: 'on-track'
+    }
+
+    const { error } = await supabase
+      .from('progress_goals')
+      .insert(payload)
+
+    if (error) {
+      console.error('Error creating goal:', error)
+      toast.error('Failed to add goal')
+      return
+    }
+
+    setShowAddForm(false)
+    setNewGoal({ title: "", description: "", target: "", unit: "", deadline: "", category: "" })
+    toast.success('Goal added')
+    loadGoals()
+  }
+
+  const updateProgress = async (id: string, newCurrent: number) => {
+    setGoals(goals.map(g => g.id === id ? { ...g, current: newCurrent } : g))
+    let supabase: any
+    try { supabase = getSupabaseClient() } catch { return }
+    const goal = goals.find(g => g.id === id)
+    if (!goal) return
+    const progressPct = (newCurrent / goal.target) * 100
+    const nextStatus: Goal['status'] = progressPct >= 100 ? 'completed' : progressPct < 60 ? 'behind' : 'on-track'
+    await supabase.from('progress_goals').update({ current: newCurrent, status: nextStatus }).eq('id', id)
+    loadGoals()
+  }
+
+  const deleteGoal = async (id: string) => {
+    setGoals(goals.filter(g => g.id !== id))
+    let supabase: any
+    try { supabase = getSupabaseClient() } catch { return }
+    await supabase.from('progress_goals').delete().eq('id', id)
+    loadGoals()
   }
 
   const getStatusColor = (status: string) => {
