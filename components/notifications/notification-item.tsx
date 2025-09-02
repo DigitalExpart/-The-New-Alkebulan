@@ -32,6 +32,8 @@ const getIcon = (type: Notification["type"]) => {
       return <UserPlus className={`${iconClass} text-green-500`} />
     case "system":
       return <Bell className={`${iconClass} text-yellow-500 dark:text-yellow-400`} />
+    case "booking":
+      return <MessageCircle className={`${iconClass} text-indigo-500`} />
     default:
       return <Bell className={`${iconClass} text-gray-500`} />
   }

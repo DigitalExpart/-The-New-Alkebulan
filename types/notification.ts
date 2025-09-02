@@ -1,6 +1,6 @@
 export interface Notification {
   id: string
-  type: "message" | "comment" | "mention" | "like" | "follow" | "system" | "friend_request"
+  type: "message" | "comment" | "mention" | "like" | "follow" | "system" | "friend_request" | "booking"
   title: string
   message: string
   timestamp: Date

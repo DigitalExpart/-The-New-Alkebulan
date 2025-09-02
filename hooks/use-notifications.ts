@@ -41,6 +41,8 @@ export function useNotifications() {
         return "follows"
       case "system":
         return "system_updates"
+      case "booking":
+        return null
       default:
         return null
     }
@@ -397,6 +399,8 @@ function getActionUrl(type: string, relatedId?: string): string {
       return '/notifications'
     case 'system':
       return '/dashboard'
+    case 'booking':
+      return '/mentor/bookings'
     default:
       return '/notifications'
   }
@@ -419,6 +423,8 @@ function getIconColor(type: string): string {
       return 'text-green-500'
     case 'system':
       return 'text-yellow-500'
+    case 'booking':
+      return 'text-indigo-500'
     default:
       return 'text-gray-500'
   }
