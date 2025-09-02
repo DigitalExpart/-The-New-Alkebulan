@@ -114,9 +114,9 @@ export default function BookSessionPage() {
           if (!userId) return
           const { error } = await getSupabaseClient()
             .from('mentor_bookings')
-            .insert({ session_id: params.sessionId, mentee_user_id: userId, status: 'pending' })
+            .insert({ session_id: params.sessionId, mentee_user_id: userId, status: 'confirmed' })
           if (error) throw error
-          toast.success('Payment successful. Booking request sent')
+          toast.success('Payment successful. You have been added to this session')
           router.replace('/mentor/dashboard')
         } catch (err: any) {
           toast.error(err?.message || 'Failed to finalize booking after payment')
