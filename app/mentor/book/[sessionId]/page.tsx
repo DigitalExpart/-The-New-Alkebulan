@@ -52,13 +52,15 @@ export default function BookSessionPage() {
   const [loading, setLoading] = useState(true)
   const [sessionInfo, setSessionInfo] = useState<any>(null)
   const [programInfo, setProgramInfo] = useState<any>(null)
+  const [programSessions, setProgramSessions] = useState<any[]>([])
   const [paying, setPaying] = useState(false)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [clientSecret, setClientSecret] = useState<string | null>(null)
 
   useEffect(() => {
     const load = async () => {
-      const { data, error } = await getSupabaseClient()
+      const supabase = getSupabaseClient()
+      const { data, error } = await supabase
         .from('mentor_sessions')
         .select('*, mentor_programs!mentor_sessions_program_id_fkey(id,title,description,price_total)')
         .eq('id', params.sessionId)
@@ -68,9 +70,17 @@ export default function BookSessionPage() {
         // when joined via foreign select
         if ((data as any).mentor_programs) setProgramInfo((data as any).mentor_programs)
         // or fetch separately if needed
-        if (!programInfo && (data as any).program_id) {
-          const { data: p } = await getSupabaseClient().from('mentor_programs').select('*').eq('id', (data as any).program_id).single()
+        const progId = (data as any).program_id
+        if (!programInfo && progId) {
+          const { data: p } = await supabase.from('mentor_programs').select('*').eq('id', progId).single()
           if (p) setProgramInfo(p)
+          // load all sessions of this program to display all days
+          const { data: allSess } = await supabase
+            .from('mentor_sessions')
+            .select('id,title,start_time,end_time')
+            .eq('program_id', progId)
+            .order('start_time', { ascending: true })
+          setProgramSessions(allSess || [])
         }
       }
       setLoading(false)
@@ -132,7 +142,17 @@ export default function BookSessionPage() {
         body: JSON.stringify({ mentorSessionId: params.sessionId })
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to start checkout')
+      if (!res.ok) {
+        if (data?.error === 'MIN_AMOUNT') {
+          throw new Error(`Amount below Stripe minimum. Increase price to at least $${data.minAmount}`)
+        }
+        throw new Error(data.error || 'Failed to start checkout')
+      }
+      if (data?.free) {
+        // No payment required; finalize booking immediately
+        await onCardPaid()
+        return ''
+      }
       return data.clientSecret as string
     } finally {
       setPaying(false)
@@ -175,6 +195,16 @@ export default function BookSessionPage() {
               typeof sessionInfo.price === 'number' && (
                 <div className="text-lg font-medium">Price: ${Number(sessionInfo.price).toFixed(2)}</div>
               )
+            )}
+            {programSessions.length > 0 && (
+              <div className="mt-2">
+                <div className="text-sm font-medium">Included Days</div>
+                <div className="text-sm text-muted-foreground space-y-1 mt-1">
+                  {programSessions.map(s => (
+                    <div key={s.id}>{new Date(s.start_time).toLocaleString()} - {new Date(s.end_time).toLocaleString()}</div>
+                  ))}
+                </div>
+              </div>
             )}
             <Dialog open={checkoutOpen} onOpenChange={async (open) => {
               setCheckoutOpen(open)

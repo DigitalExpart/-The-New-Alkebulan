@@ -116,6 +116,11 @@ export default function MentorDashboardPage() {
                   <Users className="w-4 h-4 mr-2" /> Find New Mentees
                 </Link>
               </Button>
+              <Button variant="outline" asChild>
+                <Link href="/mentor/students">
+                  <Users className="w-4 h-4 mr-2" /> View Students
+                </Link>
+              </Button>
             </CardContent>
           </Card>
 
@@ -126,9 +131,7 @@ export default function MentorDashboardPage() {
             <CardContent className="space-y-2">
               <div className="flex items-center justify-between">
                 <Link href="/mentor/profile" className="underline underline-offset-4">Complete your mentor profile</Link>
-                <Badge asChild>
-                  <Link href="/mentor/profile">New</Link>
-                </Badge>
+                <Badge>New</Badge>
               </div>
               <p className="text-sm text-muted-foreground">Add expertise, availability and intro to attract mentees.</p>
             </CardContent>

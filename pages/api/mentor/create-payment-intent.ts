@@ -54,6 +54,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       amountCents = Math.max(0, Math.round(Number((sessionRow as any).price || 0) * 100))
     }
 
+    // If free, skip Stripe – client should auto-confirm booking
+    if (!amountCents || amountCents <= 0) {
+      res.status(200).json({ free: true })
+      return
+    }
+
+    // Stripe minimum charge in USD is 50 cents
+    const MIN_USD_CENTS = 50
+    if (amountCents < MIN_USD_CENTS) {
+      res.status(400).json({ error: "MIN_AMOUNT", minAmount: MIN_USD_CENTS / 100 })
+      return
+    }
+
     const intent = await stripe.paymentIntents.create({
       amount: amountCents,
       currency: "usd",
