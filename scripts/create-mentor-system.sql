@@ -14,3 +14,24 @@ alter table if exists public.mentor_profiles
 
 -- Optional indexes to help filtering/searching by years of experience
 create index if not exists mentor_profiles_years_exp_idx on public.mentor_profiles (years_experience);
+
+-- Program-based booking (pay once for the whole program)
+create table if not exists public.mentor_programs (
+  id uuid primary key default gen_random_uuid(),
+  mentor_user_id uuid references auth.users(id) on delete cascade,
+  title text,
+  description text,
+  price_total numeric(10,2) not null default 0,
+  capacity integer not null default 1,
+  start_date timestamptz,
+  end_date timestamptz,
+  weeks integer,
+  days_per_week integer,
+  created_at timestamptz default now()
+);
+
+alter table if exists public.mentor_sessions
+  add column if not exists program_id uuid references public.mentor_programs(id) on delete cascade;
+
+alter table if exists public.mentor_bookings
+  add column if not exists program_id uuid references public.mentor_programs(id) on delete set null;

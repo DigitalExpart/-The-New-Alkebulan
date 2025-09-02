@@ -44,6 +44,8 @@ export default function MentorSchedulePage() {
   const [price, setPrice] = useState("0")
   const [weeks, setWeeks] = useState("4")
   const [rows, setRows] = useState<RowAvailability[]>([])
+  const [createProgram, setCreateProgram] = useState(true)
+  const [programId, setProgramId] = useState<string | null>(null)
   const [sessions, setSessions] = useState<Session[]>([])
 
   const load = async () => {
@@ -82,6 +84,24 @@ export default function MentorSchedulePage() {
       const payloads: any[] = []
 
       if (rows.length > 0) {
+        // Create a program first so all generated sessions are linked and paid as a whole
+        let newProgramId: string | null = programId
+        if (createProgram || !newProgramId) {
+          const programInsert = await getSupabaseClient()
+            .from('mentor_programs')
+            .insert({
+              mentor_user_id: userId,
+              title: title || 'Mentorship Program',
+              description,
+              price_total: priceNum,
+              capacity: cap
+            })
+            .select('id')
+            .single()
+          if (programInsert.error) throw programInsert.error
+          newProgramId = programInsert.data.id
+          setProgramId(newProgramId)
+        }
         const weeksInt = Math.max(1, Math.min(12, parseInt(weeks || '4')))
         const base = new Date()
         for (let w = 0; w < weeksInt; w++) {
@@ -101,12 +121,25 @@ export default function MentorSchedulePage() {
               start_time: sDate.toISOString(),
               end_time: eDate.toISOString(),
               capacity: cap,
-              price: priceNum
+              price: 0,
+              program_id: newProgramId
             })
           }
         }
       } else {
         if (!start || !end) { toast.error('Provide single start/end time or add available days'); return }
+        // Single session treated as program of one
+        let newProgramId: string | null = programId
+        if (createProgram || !newProgramId) {
+          const programInsert = await getSupabaseClient()
+            .from('mentor_programs')
+            .insert({ mentor_user_id: userId, title, description, price_total: priceNum, capacity: cap })
+            .select('id')
+            .single()
+          if (programInsert.error) throw programInsert.error
+          newProgramId = programInsert.data.id
+          setProgramId(newProgramId)
+        }
         payloads.push({
           mentor_user_id: userId,
           title,
@@ -114,7 +147,8 @@ export default function MentorSchedulePage() {
           start_time: start,
           end_time: end,
           capacity: cap,
-          price: priceNum
+          price: 0,
+          program_id: newProgramId
         })
       }
 
@@ -147,7 +181,8 @@ export default function MentorSchedulePage() {
             </div>
 
             <Input placeholder="Capacity" type="number" min={1} value={capacity} onChange={e => setCapacity(e.target.value)} />
-            <Input placeholder="Price (USD)" type="number" min={0} step="0.01" value={price} onChange={e => setPrice(e.target.value)} />
+            <Input placeholder="Program Price (USD)" type="number" min={0} step="0.01" value={price} onChange={e => setPrice(e.target.value)} />
+            <div className="text-sm text-muted-foreground">This price will be charged once for the whole program. Individual sessions are marked as $0.</div>
 
             {/* Available days rows */}
             <div className="space-y-3">

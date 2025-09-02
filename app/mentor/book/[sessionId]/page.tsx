@@ -51,6 +51,7 @@ export default function BookSessionPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [sessionInfo, setSessionInfo] = useState<any>(null)
+  const [programInfo, setProgramInfo] = useState<any>(null)
   const [paying, setPaying] = useState(false)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [clientSecret, setClientSecret] = useState<string | null>(null)
@@ -59,10 +60,19 @@ export default function BookSessionPage() {
     const load = async () => {
       const { data, error } = await getSupabaseClient()
         .from('mentor_sessions')
-        .select('*')
+        .select('*, mentor_programs!mentor_sessions_program_id_fkey(id,title,description,price_total)')
         .eq('id', params.sessionId)
         .single()
-      if (!error) setSessionInfo(data)
+      if (!error) {
+        setSessionInfo(data)
+        // when joined via foreign select
+        if ((data as any).mentor_programs) setProgramInfo((data as any).mentor_programs)
+        // or fetch separately if needed
+        if (!programInfo && (data as any).program_id) {
+          const { data: p } = await getSupabaseClient().from('mentor_programs').select('*').eq('id', (data as any).program_id).single()
+          if (p) setProgramInfo(p)
+        }
+      }
       setLoading(false)
     }
     load()
@@ -136,7 +146,7 @@ export default function BookSessionPage() {
       if (!userId) return
       const { error } = await getSupabaseClient()
         .from('mentor_bookings')
-        .insert({ session_id: params.sessionId, mentee_user_id: userId, status: 'confirmed' })
+        .insert({ session_id: params.sessionId, mentee_user_id: userId, status: 'confirmed', program_id: sessionInfo?.program_id || programInfo?.id || null })
       if (error) throw error
       toast.success('Payment successful. You have been added to this session')
       router.replace('/mentor/dashboard')
@@ -159,8 +169,12 @@ export default function BookSessionPage() {
             <div className="text-sm text-muted-foreground">{new Date(sessionInfo.start_time).toLocaleString()} - {new Date(sessionInfo.end_time).toLocaleString()}</div>
             <div className="text-sm">{sessionInfo.title}</div>
             <div className="text-sm text-muted-foreground">{sessionInfo.description}</div>
-            {typeof sessionInfo.price === 'number' && (
-              <div className="text-lg font-medium">Price: ${Number(sessionInfo.price).toFixed(2)}</div>
+            {programInfo ? (
+              <div className="text-lg font-medium">Program Price: ${Number(programInfo.price_total || 0).toFixed(2)}</div>
+            ) : (
+              typeof sessionInfo.price === 'number' && (
+                <div className="text-lg font-medium">Price: ${Number(sessionInfo.price).toFixed(2)}</div>
+              )
             )}
             <Dialog open={checkoutOpen} onOpenChange={async (open) => {
               setCheckoutOpen(open)

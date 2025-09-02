@@ -25,7 +25,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const { data: sessionRow, error: sErr } = await supabase
       .from("mentor_sessions")
-      .select("id, title, start_time, price")
+      .select("id, title, start_time, price, program_id")
       .eq("id", mentorSessionId)
       .single()
 
@@ -41,8 +41,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     const stripe = new Stripe(secret, { apiVersion: "2024-06-20" })
 
+    // If the session is part of a program, charge the program's total price once
+    let amountCents = 0
+    if ((sessionRow as any).program_id) {
+      const { data: program } = await supabase
+        .from('mentor_programs')
+        .select('price_total')
+        .eq('id', (sessionRow as any).program_id)
+        .single()
+      amountCents = Math.max(0, Math.round(Number(program?.price_total || 0) * 100))
+    } else {
+      amountCents = Math.max(0, Math.round(Number((sessionRow as any).price || 0) * 100))
+    }
+
     const intent = await stripe.paymentIntents.create({
-      amount: Math.max(0, Math.round(Number(sessionRow.price || 0) * 100)),
+      amount: amountCents,
       currency: "usd",
       payment_method_types: ["card"],
       metadata: { mentor_session_id: mentorSessionId },
