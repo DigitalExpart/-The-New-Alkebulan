@@ -89,3 +89,45 @@ DROP TRIGGER IF EXISTS trg_mentor_profiles_updated_at ON public.mentor_profiles;
 CREATE TRIGGER trg_mentor_profiles_updated_at BEFORE UPDATE ON public.mentor_profiles FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 
 
+-- Auto-increment total_sessions when booking becomes confirmed
+CREATE OR REPLACE FUNCTION public.increment_total_sessions()
+RETURNS trigger AS $$
+BEGIN
+  IF NEW.status = 'confirmed' AND (OLD.status IS DISTINCT FROM 'confirmed') THEN
+    UPDATE public.mentor_profiles mp
+    SET total_sessions = COALESCE(total_sessions, 0) + 1
+    FROM public.mentor_sessions ms
+    WHERE ms.id = NEW.session_id
+      AND mp.user_id = ms.mentor_user_id;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_increment_total_sessions ON public.mentor_bookings;
+CREATE TRIGGER trg_increment_total_sessions
+AFTER UPDATE ON public.mentor_bookings
+FOR EACH ROW EXECUTE FUNCTION public.increment_total_sessions();
+
+-- Notify mentee when mentor changes booking status (confirmed/cancelled)
+CREATE OR REPLACE FUNCTION public.notify_mentee_on_status_change()
+RETURNS trigger AS $$
+DECLARE
+  v_title text;
+  v_msg text;
+BEGIN
+  IF NEW.status IS DISTINCT FROM OLD.status THEN
+    v_title := 'Booking status updated';
+    v_msg := 'Your booking status is now ' || NEW.status;
+    INSERT INTO public.notifications (user_id, title, message, type, related_id, is_read)
+    VALUES (NEW.mentee_user_id, v_title, v_msg, 'system', NEW.session_id::text, false);
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_notify_mentee_on_status_change ON public.mentor_bookings;
+CREATE TRIGGER trg_notify_mentee_on_status_change
+AFTER UPDATE ON public.mentor_bookings
+FOR EACH ROW EXECUTE FUNCTION public.notify_mentee_on_status_change();
+
