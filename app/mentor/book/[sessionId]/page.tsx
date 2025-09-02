@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { getSupabaseClient } from "@/lib/supabase"
 import { toast } from "sonner"
 
@@ -142,11 +143,23 @@ export default function BookSessionPage() {
             {typeof sessionInfo.price === 'number' && (
               <div className="text-lg font-medium">Price: ${Number(sessionInfo.price).toFixed(2)}</div>
             )}
-            <div className="flex gap-2">
-              <Button onClick={payWithStripe} disabled={paying}>{paying ? 'Processing...' : 'Pay with Card & Book'}</Button>
-              <Button variant="outline" onClick={() => initPayPal()} disabled={paying}>Pay with PayPal</Button>
-            </div>
-            <div id="paypal-button-container" className="mt-2" />
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button disabled={paying}>{paying ? 'Processing...' : 'Pay & Book'}</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Choose payment method</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <Button className="w-full" onClick={payWithStripe} disabled={paying}>Pay with Card (Stripe)</Button>
+                  <div>
+                    <div id="paypal-button-container" />
+                    <Button className="w-full mt-2" variant="outline" onClick={() => initPayPal()} disabled={paying}>Pay with PayPal</Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </CardContent>
         </Card>
       </div>
