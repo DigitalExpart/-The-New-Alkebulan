@@ -19,7 +19,7 @@ interface MentorCardData {
   bio: string
   status: "available" | "unavailable"
   firstUpcomingSessionId?: string
-  upcomingSessions?: { id: string; start_time: string }[]
+  upcomingSessions?: { id: string; start_time: string; price?: number }[]
 }
 
 export default function MentorshipPage() {
@@ -36,18 +36,18 @@ export default function MentorshipPage() {
         // 1) Load upcoming sessions
         const { data: sessions, error: sErr } = await supabase
           .from("mentor_sessions")
-          .select("id, mentor_user_id, title, start_time, end_time")
+          .select("id, mentor_user_id, title, start_time, end_time, price")
           .gte("start_time", new Date().toISOString())
           .order("start_time", { ascending: true })
 
         if (sErr) throw sErr
-        const byMentor: Record<string, { sessionIds: string[]; days: Set<string>; sessions: { id: string; start_time: string }[] }> = {}
+        const byMentor: Record<string, { sessionIds: string[]; days: Set<string>; sessions: { id: string; start_time: string; price?: number }[] }> = {}
         for (const s of sessions || []) {
           const start = new Date(s.start_time)
           const day = start.toLocaleDateString(undefined, { weekday: "long" })
           const m = byMentor[s.mentor_user_id] || { sessionIds: [], days: new Set<string>(), sessions: [] }
           m.sessionIds.push(s.id)
-          m.sessions.push({ id: s.id, start_time: s.start_time })
+          m.sessions.push({ id: s.id, start_time: s.start_time, price: (s as any).price })
           m.days.add(day)
           byMentor[s.mentor_user_id] = m
         }
@@ -81,18 +81,22 @@ export default function MentorshipPage() {
           nameMap[(up as any).id] = full || "Mentor"
         }
 
-        const result: MentorCardData[] = (profiles || []).map((mp: any) => {
-          const availability = Array.from(byMentor[mp.user_id]?.days || [])
-          const firstSessionId = byMentor[mp.user_id]?.sessionIds?.[0]
-          const upcomingSessions = (byMentor[mp.user_id]?.sessions || []).sort((a, b) => a.start_time.localeCompare(b.start_time))
+        const profileMap: Record<string, any> = {}
+        for (const mp of profiles || []) profileMap[(mp as any).user_id] = mp
+
+        const result: MentorCardData[] = mentorIds.map((id) => {
+          const mp = profileMap[id]
+          const availability = Array.from(byMentor[id]?.days || [])
+          const firstSessionId = byMentor[id]?.sessionIds?.[0]
+          const upcomingSessions = (byMentor[id]?.sessions || []).sort((a, b) => a.start_time.localeCompare(b.start_time))
           return {
-            id: mp.user_id,
-            name: nameMap[mp.user_id] || "Mentor",
-            expertise: Array.isArray(mp.expertise) ? mp.expertise : [],
-            rating: Number(mp.rating || 0),
-            sessions: Number(mp.total_sessions || 0),
+            id,
+            name: nameMap[id] || "Mentor",
+            expertise: mp && Array.isArray(mp.expertise) ? mp.expertise : [],
+            rating: mp ? Number(mp.rating || 0) : 0,
+            sessions: mp ? Number(mp.total_sessions || 0) : 0,
             availability,
-            bio: mp.bio || mp.headline || "",
+            bio: (mp && (mp.bio || mp.headline)) || "",
             status: availability.length > 0 ? "available" : "unavailable",
             firstUpcomingSessionId: firstSessionId,
             upcomingSessions
@@ -232,7 +236,7 @@ export default function MentorshipPage() {
                       {mentor.upcomingSessions.slice(0, 3).map(s => (
                         <Button key={s.id} asChild variant="outline" className="justify-start">
                           <Link href={`/mentor/book/${s.id}`}>
-                            {new Date(s.start_time).toLocaleString()}
+                            {new Date(s.start_time).toLocaleString()} {typeof s.price === 'number' ? `· $${Number(s.price).toFixed(2)}` : ''}
                           </Link>
                         </Button>
                       ))}

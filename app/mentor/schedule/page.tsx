@@ -15,6 +15,7 @@ interface Session {
   start_time: string
   end_time: string
   capacity: number
+  price?: number
 }
 
 interface RowAvailability {
@@ -40,6 +41,7 @@ export default function MentorSchedulePage() {
   const [start, setStart] = useState("")
   const [end, setEnd] = useState("")
   const [capacity, setCapacity] = useState("1")
+  const [price, setPrice] = useState("0")
   const [weeks, setWeeks] = useState("4")
   const [rows, setRows] = useState<RowAvailability[]>([])
   const [sessions, setSessions] = useState<Session[]>([])
@@ -76,6 +78,7 @@ export default function MentorSchedulePage() {
       if (!userId) { toast.error('Please sign in'); return }
 
       const cap = Number(capacity) || 1
+      const priceNum = Math.max(0, Number(price) || 0)
       const payloads: any[] = []
 
       if (rows.length > 0) {
@@ -97,7 +100,8 @@ export default function MentorSchedulePage() {
               description,
               start_time: sDate.toISOString(),
               end_time: eDate.toISOString(),
-              capacity: cap
+              capacity: cap,
+              price: priceNum
             })
           }
         }
@@ -109,7 +113,8 @@ export default function MentorSchedulePage() {
           description,
           start_time: start,
           end_time: end,
-          capacity: cap
+          capacity: cap,
+          price: priceNum
         })
       }
 
@@ -117,7 +122,7 @@ export default function MentorSchedulePage() {
       const { error } = await getSupabaseClient().from('mentor_sessions').insert(payloads)
       if (error) throw error
       toast.success(`Created ${payloads.length} session${payloads.length>1?'s':''}`)
-      setTitle(""); setDescription(""); setStart(""); setEnd(""); setCapacity("1"); setRows([])
+      setTitle(""); setDescription(""); setStart(""); setEnd(""); setCapacity("1"); setPrice("0"); setRows([])
       load()
     } catch (e: any) {
       toast.error(e.message || 'Failed to create')
@@ -142,6 +147,7 @@ export default function MentorSchedulePage() {
             </div>
 
             <Input placeholder="Capacity" type="number" min={1} value={capacity} onChange={e => setCapacity(e.target.value)} />
+            <Input placeholder="Price (USD)" type="number" min={0} step="0.01" value={price} onChange={e => setPrice(e.target.value)} />
 
             {/* Available days rows */}
             <div className="space-y-3">
@@ -188,7 +194,7 @@ export default function MentorSchedulePage() {
                   <p className="font-medium">{s.title || 'Session'}</p>
                   <p className="text-sm text-muted-foreground">{new Date(s.start_time).toLocaleString()} - {new Date(s.end_time).toLocaleString()}</p>
                 </div>
-                <div className="text-sm text-muted-foreground">Capacity: {s.capacity}</div>
+                <div className="text-sm text-muted-foreground">Capacity: {s.capacity} · Price: ${s.price?.toFixed?.(2) ?? '0.00'}</div>
               </CardContent>
             </Card>
           ))}
