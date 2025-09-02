@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -24,6 +24,8 @@ interface Course {
 export default function LearningHubPage() {
   const [courses, setCourses] = useState<Course[]>([])
   const [saving, setSaving] = useState(false)
+  const timersRef = useRef<Record<string, { intervalId: any, elapsedSec: number, lastPersistMs: number }>>({})
+  const [clockTick, setClockTick] = useState(0) // forces re-render while timers run
 
   const [showAddForm, setShowAddForm] = useState(false)
   const [newCourse, setNewCourse] = useState({
@@ -122,6 +124,106 @@ export default function LearningHubPage() {
     const status = newProgress >= 100 ? 'completed' : (newProgress > 0 ? 'in-progress' : 'not-started')
     await supabase.from('learning_courses').update({ progress: newProgress, status }).eq('id', id)
   }
+
+  // Helpers for timer-driven progress
+  const getTotalSeconds = (course: Course) => {
+    const numeric = parseFloat((course.duration || '0').toString().replace(/[^0-9.]/g, '')) || 0
+    // Interpret as hours
+    return Math.max(0, Math.round(numeric * 3600))
+  }
+
+  const isRunning = (courseId: string) => !!timersRef.current[courseId]
+
+  const startTimer = (course: Course) => {
+    if (isRunning(course.id)) return
+    const totalSec = getTotalSeconds(course)
+    if (totalSec === 0) {
+      toast.error('Please set a numeric duration (in hours) for this course')
+      return
+    }
+    // Initialize elapsed from current progress
+    const initialElapsed = Math.round((course.progress / 100) * totalSec)
+    let elapsedSec = initialElapsed
+    const tick = async () => {
+      elapsedSec += 1
+      const pct = Math.min(100, Math.round((elapsedSec / totalSec) * 100))
+      setCourses(prev => prev.map(c => c.id === course.id ? { ...c, progress: pct, status: pct >= 100 ? 'completed' : 'in-progress' } : c))
+      const now = Date.now()
+      const timer = timersRef.current[course.id]
+      if (!timer) return
+      // Persist every 60 seconds, and on completion
+      if (now - timer.lastPersistMs >= 60000 || pct >= 100) {
+        timer.lastPersistMs = now
+        await updateProgress(course.id, pct)
+      }
+      // Keep elapsed in ref for stop/refresh persistence
+      const t = timersRef.current[course.id]
+      if (t) t.elapsedSec = elapsedSec
+      if (pct >= 100) {
+        stopTimer(course.id)
+      }
+      setClockTick(t => (t + 1) % 1000000)
+    }
+    const intervalId = setInterval(tick, 1000)
+    timersRef.current[course.id] = { intervalId, elapsedSec, lastPersistMs: Date.now() }
+  }
+
+  const stopTimer = (courseId: string) => {
+    const timer = timersRef.current[courseId]
+    if (timer) {
+      // Persist the most recent progress immediately
+      const course = courses.find(c => c.id === courseId)
+      if (course) {
+        const totalSec = getTotalSeconds(course)
+        const pct = Math.min(100, Math.round((timer.elapsedSec / totalSec) * 100))
+        updateProgress(courseId, pct)
+      }
+      clearInterval(timer.intervalId)
+      delete timersRef.current[courseId]
+    }
+    setClockTick(t => t + 1)
+  }
+
+  const getElapsedMinutes = (course: Course): number => {
+    const timer = timersRef.current[course.id]
+    if (timer) {
+      return Math.floor(timer.elapsedSec / 60)
+    }
+    const totalSec = getTotalSeconds(course)
+    const elapsedFromProgress = Math.round((course.progress / 100) * totalSec)
+    return Math.floor(elapsedFromProgress / 60)
+  }
+
+  const getElapsedSeconds = (course: Course): number => {
+    const timer = timersRef.current[course.id]
+    if (timer) return timer.elapsedSec
+    const totalSec = getTotalSeconds(course)
+    return Math.round((course.progress / 100) * totalSec)
+  }
+
+  const formatHMM = (totalSeconds: number): string => {
+    const hours = Math.floor(totalSeconds / 3600)
+    const minutes = Math.floor((totalSeconds % 3600) / 60)
+    const mm = String(minutes).padStart(2, '0')
+    return `${hours}:${mm}`
+  }
+
+  // Persist timers on tab close/refresh
+  useEffect(() => {
+    const handler = () => {
+      Object.entries(timersRef.current).forEach(([courseId, t]) => {
+        const course = courses.find(c => c.id === courseId)
+        if (!course) return
+        const totalSec = getTotalSeconds(course)
+        const pct = Math.min(100, Math.round((t.elapsedSec / totalSec) * 100))
+        navigator.sendBeacon && navigator.sendBeacon('', new Blob()) // no-op to avoid blocking
+        // fire-and-forget; we cannot await
+        updateProgress(courseId, pct)
+      })
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [courses])
 
   const deleteCourse = async (id: string) => {
     setCourses(courses.filter(c => c.id !== id))
@@ -297,7 +399,7 @@ export default function LearningHubPage() {
                 <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-4">
                   <div className="flex items-center gap-1">
                     <Clock className="h-4 w-4" />
-                    {course.duration}
+                    {course.duration} hrs
                   </div>
                   <div className="flex items-center gap-1">
                     <Star className="h-4 w-4 text-yellow-500" />
@@ -324,17 +426,24 @@ export default function LearningHubPage() {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  {course.status === "not-started" && (
-                    <Button size="sm" className="bg-orange-600 hover:bg-orange-700 text-white flex-1">
-                      <Play className="h-4 w-4 mr-2" />
-                      Start Course
+                <div className="flex items-center gap-2">
+                  {isRunning(course.id) ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => stopTimer(course.id)}
+                    >
+                      Pause
                     </Button>
-                  )}
-                  {course.status === "in-progress" && (
-                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white flex-1">
+                  ) : (
+                    <Button
+                      size="sm"
+                      className={`flex-1 ${course.status === 'not-started' ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'} text-white`}
+                      onClick={() => startTimer(course)}
+                    >
                       <Play className="h-4 w-4 mr-2" />
-                      Continue
+                      {course.status === 'not-started' ? 'Start Course' : 'Continue'}
                     </Button>
                   )}
                   {course.status === "completed" && (
@@ -345,19 +454,7 @@ export default function LearningHubPage() {
                   )}
                   
                   <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      placeholder="%"
-                      className="w-16 h-8 text-center text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value)
-                        if (!isNaN(value) && value >= 0 && value <= 100) {
-                          updateProgress(course.id, value)
-                        }
-                      }}
-                    />
+                    {/* Manual override of progress removed to avoid confusion with live timer */}
                     <Button
                       size="sm"
                       variant="outline"
@@ -366,6 +463,7 @@ export default function LearningHubPage() {
                     >
                       Delete
                     </Button>
+                    <span className="ml-2 text-xs text-gray-500 dark:text-gray-300">Elapsed: {formatHMM(getElapsedSeconds(course))}</span>
                   </div>
                 </div>
               </CardContent>
