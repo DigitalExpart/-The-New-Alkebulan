@@ -257,7 +257,7 @@ export default function MentorshipPage() {
                     <Button disabled className="flex-1">No Upcoming Sessions</Button>
                   )}
                   <Button variant="outline" asChild className="flex-1">
-                    <Link href="/mentor/dashboard">
+                    <Link href={`/mentor/view/${mentor.id}`}>
                       <Users className="h-4 w-4 mr-2" />
                       View Profile
                     </Link>

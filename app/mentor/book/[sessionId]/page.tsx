@@ -8,6 +8,43 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { getSupabaseClient } from "@/lib/supabase"
 import { toast } from "sonner"
+import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js"
+import { loadStripe } from "@stripe/stripe-js"
+
+const stripePromise = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null
+
+function CardCheckout({ sessionId, onSuccess }: { sessionId: string, onSuccess: () => void }) {
+  const stripe = useStripe()
+  const elements = useElements()
+  const [submitting, setSubmitting] = useState(false)
+
+  const handlePay = async () => {
+    if (!stripe || !elements) return
+    setSubmitting(true)
+    try {
+      const { error } = await stripe.confirmPayment({
+        elements,
+        confirmParams: { return_url: window.location.href },
+        redirect: 'if_required'
+      })
+      if (error) throw error
+      onSuccess()
+    } catch (e: any) {
+      toast.error(e?.message || 'Payment failed')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <PaymentElement />
+      <Button className="w-full" onClick={handlePay} disabled={submitting || !stripe}>Pay now</Button>
+    </div>
+  )
+}
 
 export default function BookSessionPage() {
   const params = useParams<{ sessionId: string }>()
@@ -15,7 +52,8 @@ export default function BookSessionPage() {
   const [loading, setLoading] = useState(true)
   const [sessionInfo, setSessionInfo] = useState<any>(null)
   const [paying, setPaying] = useState(false)
-  const [paypalReady, setPaypalReady] = useState(false)
+  const [checkoutOpen, setCheckoutOpen] = useState(false)
+  const [clientSecret, setClientSecret] = useState<string | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -47,8 +85,6 @@ export default function BookSessionPage() {
           document.body.appendChild(script)
         })
       }
-      setPaypalReady(true)
-      // Render button into container
       const paypal = (window as any).paypal
       paypal.Buttons({
         createOrder: (_: any, actions: any) => {
@@ -57,16 +93,15 @@ export default function BookSessionPage() {
         },
         onApprove: async (_: any, actions: any) => {
           await actions.order.capture()
-          // After capture, create the booking
           const { data: { session } } = await getSupabaseClient().auth.getSession()
           const userId = session?.user?.id
           if (!userId) { toast.error('Please sign in'); return }
           const { error } = await getSupabaseClient()
             .from('mentor_bookings')
-            .insert({ session_id: params.sessionId, mentee_user_id: userId, status: 'pending' })
+            .insert({ session_id: params.sessionId, mentee_user_id: userId, status: 'confirmed' })
           if (error) throw error
-          toast.success('Payment successful via PayPal. Booking request sent')
-          window.location.href = '/mentor/dashboard'
+          toast.success('Payment successful via PayPal. You have been added to this session')
+          router.replace('/mentor/dashboard')
         },
         onError: (err: any) => {
           console.error(err)
@@ -78,53 +113,37 @@ export default function BookSessionPage() {
     }
   }
 
-  const payWithStripe = async () => {
+  const startCardCheckout = async () => {
     try {
-      const { data: { session } } = await getSupabaseClient().auth.getSession()
-      const userId = session?.user?.id
-      if (!userId) { toast.error('Please sign in'); return }
       setPaying(true)
-      const res = await fetch('/api/mentor/checkout', {
+      const res = await fetch('/api/mentor/create-payment-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mentorSessionId: params.sessionId, customerEmail: session.user.email }),
+        body: JSON.stringify({ mentorSessionId: params.sessionId })
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to start checkout')
-      if (data.url) {
-        window.location.href = data.url
-        return
-      }
-      throw new Error('No Stripe URL returned')
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to book')
+      return data.clientSecret as string
     } finally {
       setPaying(false)
     }
   }
 
-  // After returning from Stripe success, create booking
-  useEffect(() => {
-    const url = new URL(window.location.href)
-    const payment = url.searchParams.get('payment')
-    if (payment === 'success') {
-      ;(async () => {
-        try {
-          const { data: { session } } = await getSupabaseClient().auth.getSession()
-          const userId = session?.user?.id
-          if (!userId) return
-          const { error } = await getSupabaseClient()
-            .from('mentor_bookings')
-            .insert({ session_id: params.sessionId, mentee_user_id: userId, status: 'confirmed' })
-          if (error) throw error
-          toast.success('Payment successful. You have been added to this session')
-          router.replace('/mentor/dashboard')
-        } catch (err: any) {
-          toast.error(err?.message || 'Failed to finalize booking after payment')
-        }
-      })()
+  const onCardPaid = async () => {
+    try {
+      const { data: { session } } = await getSupabaseClient().auth.getSession()
+      const userId = session?.user?.id
+      if (!userId) return
+      const { error } = await getSupabaseClient()
+        .from('mentor_bookings')
+        .insert({ session_id: params.sessionId, mentee_user_id: userId, status: 'confirmed' })
+      if (error) throw error
+      toast.success('Payment successful. You have been added to this session')
+      router.replace('/mentor/dashboard')
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to finalize booking')
     }
-  }, [params.sessionId, router])
+  }
 
   if (loading) return <div className="p-8">Loading...</div>
   if (!sessionInfo) return <div className="p-8">Session not found</div>
@@ -143,19 +162,35 @@ export default function BookSessionPage() {
             {typeof sessionInfo.price === 'number' && (
               <div className="text-lg font-medium">Price: ${Number(sessionInfo.price).toFixed(2)}</div>
             )}
-            <Dialog>
+            <Dialog open={checkoutOpen} onOpenChange={async (open) => {
+              setCheckoutOpen(open)
+              if (open && !clientSecret) {
+                try {
+                  const secret = await startCardCheckout()
+                  setClientSecret(secret)
+                } catch (e: any) {
+                  toast.error(e?.message || 'Failed to initialize checkout')
+                }
+              }
+            }}>
               <DialogTrigger asChild>
-                <Button disabled={paying}>{paying ? 'Processing...' : 'Pay & Book'}</Button>
+                <Button>Pay & Book</Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Choose payment method</DialogTitle>
+                  <DialogTitle>Checkout</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-3">
-                  <Button className="w-full" onClick={payWithStripe} disabled={paying}>Pay with Card (Stripe)</Button>
-                  <div>
+                <div className="grid gap-4">
+                  {stripePromise && clientSecret ? (
+                    <Elements stripe={stripePromise} options={{ clientSecret }}>
+                      <CardCheckout sessionId={params.sessionId} onSuccess={onCardPaid} />
+                    </Elements>
+                  ) : (
+                    <div className="text-sm text-red-500">Stripe not configured. Set NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.</div>
+                  )}
+                  <div className="border-t pt-3">
                     <div id="paypal-button-container" />
-                    <Button className="w-full mt-2" variant="outline" onClick={() => initPayPal()} disabled={paying}>Pay with PayPal</Button>
+                    <Button className="w-full mt-2" variant="outline" onClick={() => initPayPal()}>Pay with PayPal</Button>
                   </div>
                 </div>
               </DialogContent>
@@ -166,3 +201,4 @@ export default function BookSessionPage() {
     </div>
   )
 }
+

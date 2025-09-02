@@ -427,16 +427,7 @@ export default function LearningHubPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {isRunning(course.id) ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() => stopTimer(course.id)}
-                    >
-                      Pause
-                    </Button>
-                  ) : (
+                  {(course.status === "not-started" || (course.status === "in-progress" && !isRunning(course.id))) && (
                     <Button
                       size="sm"
                       className={`flex-1 ${course.status === 'not-started' ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'} text-white`}
@@ -444,6 +435,16 @@ export default function LearningHubPage() {
                     >
                       <Play className="h-4 w-4 mr-2" />
                       {course.status === 'not-started' ? 'Start Course' : 'Continue'}
+                    </Button>
+                  )}
+                  {course.status !== "completed" && isRunning(course.id) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => stopTimer(course.id)}
+                    >
+                      Pause
                     </Button>
                   )}
                   {course.status === "completed" && (

@@ -136,7 +136,7 @@ export function Navbar() {
     }, 2500)
   }
 
-  
+
   // Enhanced live search functionality with debouncing
   const handleSearch = async (query: string) => {
     if (!query.trim() || !supabase) {
@@ -148,7 +148,7 @@ export function Navbar() {
     setIsSearching(true)
     try {
       const results: any[] = []
-
+      
       // Search communities
       const { data: communities } = await supabase
         .from('communities')
@@ -232,7 +232,7 @@ export function Navbar() {
     
     if (query.trim()) {
       (window as any).searchTimeout = setTimeout(() => {
-        handleSearch(query)
+      handleSearch(query)
       }, 300)
     } else {
       setSearchResults([])
@@ -274,7 +274,7 @@ export function Navbar() {
       console.log('Missing required data:', { user: !!user, profile: !!profile, supabase: !!supabase })
       return
     }
-
+    
     console.log('=== ROLE SWITCH DEBUG ===')
     console.log('Attempting to switch active role to:', newRole)
     console.log('User ID:', user.id)
@@ -282,7 +282,7 @@ export function Navbar() {
     console.log('Current buyer_enabled:', profile?.buyer_enabled)
     console.log('Current business_enabled:', profile?.business_enabled)
 
-
+    
     try {
       // Check if the target role is actually enabled in Role Management
       if (newRole === 'business' && !profile?.business_enabled) {
@@ -302,7 +302,7 @@ export function Navbar() {
       }
       
       console.log('Update data to be sent:', updateData)
-
+      
       // Update the profile in Supabase - try by user_id first, then by id
       let { data, error } = await supabase
         .from('profiles')
@@ -310,7 +310,7 @@ export function Navbar() {
         .eq('user_id', user.id)
         .select()
       
-        // If not found by user_id, try by id
+      // If not found by user_id, try by id
       if (error && error.code === 'PGRST116') {
         const { data: dataById, error: errorById } = await supabase
           .from('profiles')
@@ -337,13 +337,13 @@ export function Navbar() {
       console.log('Updated profile data:', data)
       
       // Show success message
-
+      
       alert(`Switched to ${newRole} mode successfully!`)
       // Refresh the profile data
       console.log('🔄 Refreshing profile after role switch...')
       await forceRefreshProfile()
       console.log('✅ Profile refreshed after role switch')
-
+      
       // Navigate to appropriate dashboard based on role
       if (newRole === 'business') {
         // Redirect to business dashboard for business activities
@@ -384,20 +384,20 @@ export function Navbar() {
             >
               <div className="w-10 h-10 md:w-16 md:h-16 bg-transparent rounded-full flex items-center justify-center">
                 <Image
-                  src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Scherm_afbeelding_2025-07-20_om_19.00.08-removebg-preview-5SfpVg1sZpmH7Z60mo8coZyoqelzmF.png"
-                  alt="The New Alkebulan Logo"
-                  width={60}
-                  height={60}
-                  className="rounded-full object-contain"
-                />
+                                    src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Scherm_afbeelding_2025-07-20_om_19.00.08-removebg-preview-5SfpVg1sZpmH7Z60mo8coZyoqelzmF.png"
+                                    alt="The New Alkebulan Logo"
+                                    width={60}
+                                    height={60}
+                                    className="rounded-full object-contain"
+                                  />
               </div>
               <div className="flex flex-col items-start">
                 <span className="text-amber-400 max-sm:text-sm sm:text-base md:text-lg font-semibold">
-                  The New
-                </span>
+    The New
+  </span>
                 <span className="text-amber-400 max-sm:text-lg sm:text-xl md:text-2xl font-extrabold">
-                  Alkebulan
-                </span>
+    Alkebulan
+  </span>
               </div>
             </button>
           </div>
@@ -477,7 +477,7 @@ export function Navbar() {
             </DropdownMenu>
 
             {/* Growth Dropdown */}
-            <DropdownMenu open={isGrowthOpen} onOpenChange={setIsGrowthOpen}>
+              <DropdownMenu open={isGrowthOpen} onOpenChange={setIsGrowthOpen}>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors duration-200 font-medium text-white">
                   <span>Growth</span>
@@ -559,55 +559,55 @@ export function Navbar() {
           <div className="flex items-center md:space-x-4 space-x-1">
             {/* Desktop Search Bar */}
             <div className="hidden md:block search-container">
-              <div className="relative">
-                <form onSubmit={handleSearchSubmit}>
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <input
-                    type="text"
+            <div className="relative">
+              <form onSubmit={handleSearchSubmit}>
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
                     placeholder="Search..."
-                    value={searchQuery}
-                    onChange={handleSearchInputChange}
+                  value={searchQuery}
+                  onChange={handleSearchInputChange}
                     className="w-64 pl-10 pr-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
-                  />
-                </form>
-
+                />
+              </form>
+              
                 {/* Desktop Search Results */}
-                {showSearchResults && searchResults.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
-                    {searchResults.map((result, index) => (
-                      <div
-                        key={`${result.type}-${result.id}`}
-                        onClick={() => handleSearchResultClick(result)}
-                        className="p-3 hover:bg-accent cursor-pointer border-b border-border last:border-b-0"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                            {result.type === 'community' && <Users className="h-4 w-4 text-primary" />}
-                            {result.type === 'project' && <FolderOpen className="h-4 w-4 text-primary" />}
-                            {result.type === 'event' && <Calendar className="h-4 w-4 text-primary" />}
+              {showSearchResults && searchResults.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                  {searchResults.map((result, index) => (
+                    <div
+                      key={`${result.type}-${result.id}`}
+                      onClick={() => handleSearchResultClick(result)}
+                      className="p-3 hover:bg-accent cursor-pointer border-b border-border last:border-b-0"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                          {result.type === 'community' && <Users className="h-4 w-4 text-primary" />}
+                          {result.type === 'project' && <FolderOpen className="h-4 w-4 text-primary" />}
+                          {result.type === 'event' && <Calendar className="h-4 w-4 text-primary" />}
                             {result.type === 'user' && <UserCheck className="h-4 w-4 text-primary" />}
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-medium text-foreground">{result.name}</p>
-                            <p className="text-sm text-muted-foreground">{result.description}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full capitalize">
-                                {result.type}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-foreground">{result.name}</p>
+                          <p className="text-sm text-muted-foreground">{result.description}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full capitalize">
+                              {result.type}
+                            </span>
+                            {result.category && (
+                              <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full">
+                                {result.category}
                               </span>
-                              {result.category && (
-                                <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full">
-                                  {result.category}
-                                </span>
-                              )}
-                            </div>
+                            )}
                           </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+          </div>
 
             {/* Mobile Search Button */}
             <button
@@ -768,7 +768,7 @@ export function Navbar() {
                   className="w-full pl-10 pr-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
                 />
               </form>
-
+              
               {/* Mobile Search Results */}
               {showSearchResults && searchResults.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
@@ -842,7 +842,7 @@ export function Navbar() {
                   </Link>
                   <Link href="/community/events" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">
                     <div className="flex items-center gap-2"><Calendar className="w-4 h-4" /> Events</div>
-                  </Link>
+              </Link>
                 </CollapsibleContent>
               </Collapsible>
 
