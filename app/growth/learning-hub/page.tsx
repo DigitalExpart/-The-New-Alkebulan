@@ -1,10 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { BookOpen, Play, CheckCircle, Plus, Clock, Star, Users } from "lucide-react"
+import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase"
+import { toast } from "sonner"
 
 interface Course {
   id: string
@@ -20,32 +22,8 @@ interface Course {
 }
 
 export default function LearningHubPage() {
-  const [courses, setCourses] = useState<Course[]>([
-    {
-      id: "1",
-      title: "Business Fundamentals",
-      description: "Learn the basics of starting and running a business",
-      category: "Business",
-      duration: "4 hours",
-      difficulty: "beginner",
-      rating: 4.8,
-      enrolled: 1250,
-      status: "completed",
-      progress: 100
-    },
-    {
-      id: "2",
-      title: "Digital Marketing Mastery",
-      description: "Master digital marketing strategies for business growth",
-      category: "Marketing",
-      duration: "6 hours",
-      difficulty: "intermediate",
-      rating: 4.6,
-      enrolled: 890,
-      status: "in-progress",
-      progress: 65
-    }
-  ])
+  const [courses, setCourses] = useState<Course[]>([])
+  const [saving, setSaving] = useState(false)
 
   const [showAddForm, setShowAddForm] = useState(false)
   const [newCourse, setNewCourse] = useState({
@@ -56,44 +34,100 @@ export default function LearningHubPage() {
     difficulty: "beginner" as const
   })
 
-  const addCourse = () => {
+  const loadCourses = async () => {
+    let supabase: any
+    try { supabase = getSupabaseClient() } catch { return }
+    if (!isSupabaseConfigured() || !supabase) return
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id
+    if (!userId) return
+    const { data, error } = await supabase
+      .from('learning_courses')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true })
+    if (error) { console.error('Error loading courses:', error); return }
+    const mapped: Course[] = (data || []).map((c: any) => ({
+      id: c.id,
+      title: c.title,
+      description: c.description || '',
+      category: c.category || '',
+      duration: c.duration || '',
+      difficulty: (c.difficulty || 'beginner') as Course['difficulty'],
+      rating: Number(c.rating || 0),
+      enrolled: Number(c.enrolled || 0),
+      status: (c.status || 'not-started') as Course['status'],
+      progress: Number(c.progress || 0)
+    }))
+    setCourses(mapped)
+  }
+
+  useEffect(() => { loadCourses() }, [])
+
+  const addCourse = async () => {
     if (!newCourse.title || !newCourse.category || !newCourse.duration) return
-    
-    const course: Course = {
-      id: Date.now().toString(),
-      ...newCourse,
+    let supabase: any
+    try { supabase = getSupabaseClient() } catch {
+      toast.error('Service not configured')
+      return
+    }
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id
+    if (!userId) {
+      toast.error('Please sign in to add a course')
+      return
+    }
+    setSaving(true)
+    const payload = {
+      user_id: userId,
+      title: newCourse.title,
+      description: newCourse.description || null,
+      category: newCourse.category || null,
+      duration: newCourse.duration || null,
+      difficulty: newCourse.difficulty,
       rating: 0,
       enrolled: 0,
-      status: "not-started",
+      status: 'not-started',
       progress: 0
     }
-    
-    setCourses([...courses, course])
-    setNewCourse({
-      title: "",
-      description: "",
-      category: "",
-      duration: "",
-      difficulty: "beginner"
-    })
+    const { data, error } = await supabase
+      .from('learning_courses')
+      .insert(payload)
+      .select('*')
+      .single()
+    if (error) { console.error('Error adding course:', error); toast.error('Failed to add course'); setSaving(false); return }
+    const created: Course = {
+      id: data.id,
+      title: data.title,
+      description: data.description || '',
+      category: data.category || '',
+      duration: data.duration || '',
+      difficulty: (data.difficulty || 'beginner') as Course['difficulty'],
+      rating: Number(data.rating || 0),
+      enrolled: Number(data.enrolled || 0),
+      status: (data.status || 'not-started') as Course['status'],
+      progress: Number(data.progress || 0)
+    }
+    setCourses(prev => [...prev, created])
+    setNewCourse({ title: "", description: "", category: "", duration: "", difficulty: "beginner" })
     setShowAddForm(false)
+    toast.success('Course added')
+    setSaving(false)
   }
 
-  const updateProgress = (id: string, newProgress: number) => {
-    setCourses(courses.map(course => {
-      if (course.id === id) {
-        let status: Course["status"] = "not-started"
-        if (newProgress > 0 && newProgress < 100) status = "in-progress"
-        else if (newProgress >= 100) status = "completed"
-        
-        return { ...course, progress: newProgress, status }
-      }
-      return course
-    }))
+  const updateProgress = async (id: string, newProgress: number) => {
+    setCourses(courses.map(c => c.id === id ? { ...c, progress: newProgress, status: newProgress >= 100 ? 'completed' : (newProgress > 0 ? 'in-progress' : 'not-started') } : c))
+    let supabase: any
+    try { supabase = getSupabaseClient() } catch { return }
+    const status = newProgress >= 100 ? 'completed' : (newProgress > 0 ? 'in-progress' : 'not-started')
+    await supabase.from('learning_courses').update({ progress: newProgress, status }).eq('id', id)
   }
 
-  const deleteCourse = (id: string) => {
-    setCourses(courses.filter(course => course.id !== id))
+  const deleteCourse = async (id: string) => {
+    setCourses(courses.filter(c => c.id !== id))
+    let supabase: any
+    try { supabase = getSupabaseClient() } catch { return }
+    await supabase.from('learning_courses').delete().eq('id', id)
   }
 
   const getDifficultyColor = (difficulty: string) => {
