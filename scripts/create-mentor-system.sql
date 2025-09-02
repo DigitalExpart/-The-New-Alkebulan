@@ -72,6 +72,7 @@ CREATE POLICY "Mentor can manage own sessions" ON public.mentor_sessions
 DROP POLICY IF EXISTS "Mentor and mentee can read bookings" ON public.mentor_bookings;
 DROP POLICY IF EXISTS "Mentee can book session" ON public.mentor_bookings;
 DROP POLICY IF EXISTS "Mentee can cancel own booking" ON public.mentor_bookings;
+DROP POLICY IF EXISTS "Mentor can update status on own sessions" ON public.mentor_bookings;
 CREATE POLICY "Mentor and mentee can read bookings" ON public.mentor_bookings
   FOR SELECT USING (
     mentee_user_id = auth.uid() OR
@@ -81,6 +82,13 @@ CREATE POLICY "Mentee can book session" ON public.mentor_bookings
   FOR INSERT WITH CHECK (mentee_user_id = auth.uid());
 CREATE POLICY "Mentee can cancel own booking" ON public.mentor_bookings
   FOR UPDATE USING (mentee_user_id = auth.uid());
+CREATE POLICY "Mentor can update status on own sessions" ON public.mentor_bookings
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM public.mentor_sessions s
+      WHERE s.id = mentor_bookings.session_id AND s.mentor_user_id = auth.uid()
+    )
+  );
 
 -- Triggers to keep updated_at
 CREATE OR REPLACE FUNCTION public.update_updated_at()

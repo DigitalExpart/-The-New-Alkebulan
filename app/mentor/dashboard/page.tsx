@@ -125,7 +125,7 @@ export default function MentorDashboardPage() {
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="flex items-center justify-between">
-                <span>Complete your mentor profile</span>
+                <Link href="/mentor/profile" className="underline underline-offset-4">Complete your mentor profile</Link>
                 <Badge asChild>
                   <Link href="/mentor/profile">New</Link>
                 </Badge>
