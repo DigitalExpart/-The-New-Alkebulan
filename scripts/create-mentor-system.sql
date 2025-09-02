@@ -128,7 +128,7 @@ BEGIN
     v_title := 'Booking status updated';
     v_msg := 'Your booking status is now ' || NEW.status;
     INSERT INTO public.notifications (user_id, title, message, type, related_id, is_read)
-    VALUES (NEW.mentee_user_id, v_title, v_msg, 'system', NEW.session_id::text, false);
+    VALUES (NEW.mentee_user_id, v_title, v_msg, 'system', NEW.session_id, false);
   END IF;
   RETURN NEW;
 END;
@@ -138,4 +138,24 @@ DROP TRIGGER IF EXISTS trg_notify_mentee_on_status_change ON public.mentor_booki
 CREATE TRIGGER trg_notify_mentee_on_status_change
 AFTER UPDATE ON public.mentor_bookings
 FOR EACH ROW EXECUTE FUNCTION public.notify_mentee_on_status_change();
+
+-- Notify mentor on booking creation (so mentors see new requests)
+CREATE OR REPLACE FUNCTION public.notify_mentor_on_booking()
+RETURNS trigger AS $$
+DECLARE
+  v_mentor uuid;
+BEGIN
+  SELECT mentor_user_id INTO v_mentor FROM public.mentor_sessions WHERE id = NEW.session_id;
+  IF v_mentor IS NOT NULL THEN
+    INSERT INTO public.notifications (user_id, title, message, type, related_id, is_read)
+    VALUES (v_mentor, 'New booking request', 'A mentee requested to book your session.', 'booking', NEW.session_id, false);
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_notify_mentor_on_booking ON public.mentor_bookings;
+CREATE TRIGGER trg_notify_mentor_on_booking
+AFTER INSERT ON public.mentor_bookings
+FOR EACH ROW EXECUTE FUNCTION public.notify_mentor_on_booking();
 
