@@ -1,57 +1,121 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Users, MessageCircle, Calendar, Star, Plus, Search } from "lucide-react"
+import { Users, MessageCircle, Star, Plus, Search } from "lucide-react"
+import Link from "next/link"
+import { getSupabaseClient } from "@/lib/supabase"
+import { useToast } from "@/hooks/use-toast"
 
-interface Mentor {
+interface MentorCardData {
   id: string
   name: string
   expertise: string[]
-  experience: string
   rating: number
   sessions: number
   availability: string[]
   bio: string
-  status: "available" | "busy" | "unavailable"
+  status: "available" | "unavailable"
+  firstUpcomingSessionId?: string
+  upcomingSessions?: { id: string; start_time: string }[]
 }
 
 export default function MentorshipPage() {
-  const [mentors, setMentors] = useState<Mentor[]>([
-    {
-      id: "1",
-      name: "Dr. Sarah Johnson",
-      expertise: ["Business Strategy", "Marketing", "Leadership"],
-      experience: "15+ years",
-      rating: 4.9,
-      sessions: 127,
-      availability: ["Monday", "Wednesday", "Friday"],
-      bio: "Experienced business consultant helping entrepreneurs scale their businesses",
-      status: "available"
-    },
-    {
-      id: "2",
-      name: "Michael Chen",
-      expertise: ["Technology", "Startups", "Product Development"],
-      experience: "12+ years",
-      rating: 4.7,
-      sessions: 89,
-      availability: ["Tuesday", "Thursday", "Saturday"],
-      bio: "Tech entrepreneur and product strategist with multiple successful exits",
-      status: "available"
-    }
-  ])
-
+  const { toast } = useToast()
+  const [mentors, setMentors] = useState<MentorCardData[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedExpertise, setSelectedExpertise] = useState("")
 
-  const expertiseOptions = ["Business Strategy", "Marketing", "Leadership", "Technology", "Startups", "Finance", "Sales"]
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const supabase = getSupabaseClient()
+
+        // 1) Load upcoming sessions
+        const { data: sessions, error: sErr } = await supabase
+          .from("mentor_sessions")
+          .select("id, mentor_user_id, title, start_time, end_time")
+          .gte("start_time", new Date().toISOString())
+          .order("start_time", { ascending: true })
+
+        if (sErr) throw sErr
+        const byMentor: Record<string, { sessionIds: string[]; days: Set<string>; sessions: { id: string; start_time: string }[] }> = {}
+        for (const s of sessions || []) {
+          const start = new Date(s.start_time)
+          const day = start.toLocaleDateString(undefined, { weekday: "long" })
+          const m = byMentor[s.mentor_user_id] || { sessionIds: [], days: new Set<string>(), sessions: [] }
+          m.sessionIds.push(s.id)
+          m.sessions.push({ id: s.id, start_time: s.start_time })
+          m.days.add(day)
+          byMentor[s.mentor_user_id] = m
+        }
+
+        const mentorIds = Object.keys(byMentor)
+        if (mentorIds.length === 0) {
+          setMentors([])
+          return
+        }
+
+        // 2) Load mentor profile basics
+        const { data: profiles, error: pErr } = await supabase
+          .from("mentor_profiles")
+          .select("user_id, headline, bio, expertise, rating, total_sessions")
+          .in("user_id", mentorIds)
+
+        if (pErr) throw pErr
+
+        // 3) Load names from public profiles table for nicer display
+        const { data: userProfiles, error: uErr } = await supabase
+          .from("profiles")
+          .select("id, first_name, last_name")
+          .in("id", mentorIds)
+
+        if (uErr) throw uErr
+        const nameMap: Record<string, string> = {}
+        for (const up of userProfiles || []) {
+          const first = (up as any).first_name || ""
+          const last = (up as any).last_name || ""
+          const full = `${first} ${last}`.trim()
+          nameMap[(up as any).id] = full || "Mentor"
+        }
+
+        const result: MentorCardData[] = (profiles || []).map((mp: any) => {
+          const availability = Array.from(byMentor[mp.user_id]?.days || [])
+          const firstSessionId = byMentor[mp.user_id]?.sessionIds?.[0]
+          const upcomingSessions = (byMentor[mp.user_id]?.sessions || []).sort((a, b) => a.start_time.localeCompare(b.start_time))
+          return {
+            id: mp.user_id,
+            name: nameMap[mp.user_id] || "Mentor",
+            expertise: Array.isArray(mp.expertise) ? mp.expertise : [],
+            rating: Number(mp.rating || 0),
+            sessions: Number(mp.total_sessions || 0),
+            availability,
+            bio: mp.bio || mp.headline || "",
+            status: availability.length > 0 ? "available" : "unavailable",
+            firstUpcomingSessionId: firstSessionId,
+            upcomingSessions
+          }
+        })
+
+        setMentors(result)
+      } catch (err: any) {
+        toast({ title: "Failed to load mentors", description: String(err?.message || err), variant: "destructive" })
+      }
+    }
+    load()
+  }, [toast])
+
+  const expertiseOptions = useMemo(() => {
+    const set = new Set<string>()
+    mentors.forEach(m => (m.expertise || []).forEach(x => set.add(x)))
+    return Array.from(set)
+  }, [mentors])
 
   const filteredMentors = mentors.filter(mentor => {
     const matchesSearch = mentor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         mentor.bio.toLowerCase().includes(searchTerm.toLowerCase())
+                         (mentor.bio || "").toLowerCase().includes(searchTerm.toLowerCase())
     const matchesExpertise = !selectedExpertise || mentor.expertise.includes(selectedExpertise)
     return matchesSearch && matchesExpertise
   })
@@ -59,7 +123,6 @@ export default function MentorshipPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "available": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-      case "busy": return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
       case "unavailable": return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
       default: return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
     }
@@ -133,14 +196,14 @@ export default function MentorshipPage() {
                 {/* Mentor Stats */}
                 <div className="grid grid-cols-3 gap-4 mb-4 text-center">
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Experience</p>
-                    <p className="font-semibold text-gray-900 dark:text-white">{mentor.experience}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Availability</p>
+                    <p className="font-semibold text-gray-900 dark:text-white">{mentor.availability.length > 0 ? "Open" : "Closed"}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Rating</p>
                     <div className="flex items-center justify-center gap-1">
                       <Star className="h-4 w-4 text-yellow-500" />
-                      <span className="font-semibold text-gray-900 dark:text-white">{mentor.rating}</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">{mentor.rating.toFixed(1)}</span>
                     </div>
                   </div>
                   <div>
@@ -161,15 +224,39 @@ export default function MentorshipPage() {
                   </div>
                 </div>
 
+                {/* Upcoming Sessions */}
+                {mentor.upcomingSessions && mentor.upcomingSessions.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Upcoming sessions:</p>
+                    <div className="flex flex-col gap-2">
+                      {mentor.upcomingSessions.slice(0, 3).map(s => (
+                        <Button key={s.id} asChild variant="outline" className="justify-start">
+                          <Link href={`/mentor/book/${s.id}`}>
+                            {new Date(s.start_time).toLocaleString()}
+                          </Link>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Action Buttons */}
                 <div className="flex gap-2">
-                  <Button className="bg-indigo-600 hover:bg-indigo-700 text-white flex-1">
-                    <MessageCircle className="h-4 w-4 mr-2" />
-                    Book Session
-                  </Button>
-                  <Button variant="outline" className="flex-1">
-                    <Users className="h-4 w-4 mr-2" />
-                    View Profile
+                  {mentor.firstUpcomingSessionId ? (
+                    <Button asChild className="bg-indigo-600 hover:bg-indigo-700 text-white flex-1">
+                      <Link href={`/mentor/book/${mentor.firstUpcomingSessionId}`}>
+                        <MessageCircle className="h-4 w-4 mr-2" />
+                        Book Session
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button disabled className="flex-1">No Upcoming Sessions</Button>
+                  )}
+                  <Button variant="outline" asChild className="flex-1">
+                    <Link href="/mentor/dashboard">
+                      <Users className="h-4 w-4 mr-2" />
+                      View Profile
+                    </Link>
                   </Button>
                 </div>
               </CardContent>
