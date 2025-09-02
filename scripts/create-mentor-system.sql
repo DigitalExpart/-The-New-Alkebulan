@@ -119,7 +119,11 @@ FOR EACH ROW EXECUTE FUNCTION public.increment_total_sessions();
 
 -- Notify mentee when mentor changes booking status (confirmed/cancelled)
 CREATE OR REPLACE FUNCTION public.notify_mentee_on_status_change()
-RETURNS trigger AS $$
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
   v_title text;
   v_msg text;
@@ -132,7 +136,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 DROP TRIGGER IF EXISTS trg_notify_mentee_on_status_change ON public.mentor_bookings;
 CREATE TRIGGER trg_notify_mentee_on_status_change
@@ -141,7 +145,11 @@ FOR EACH ROW EXECUTE FUNCTION public.notify_mentee_on_status_change();
 
 -- Notify mentor on booking creation (so mentors see new requests)
 CREATE OR REPLACE FUNCTION public.notify_mentor_on_booking()
-RETURNS trigger AS $$
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
   v_mentor uuid;
 BEGIN
@@ -152,7 +160,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 DROP TRIGGER IF EXISTS trg_notify_mentor_on_booking ON public.mentor_bookings;
 CREATE TRIGGER trg_notify_mentor_on_booking
