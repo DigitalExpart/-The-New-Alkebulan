@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useCallback } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { getSupabaseClient } from "@/lib/supabase"
@@ -32,6 +33,7 @@ export default function MentorBookingsPage() {
   const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [bookings, setBookings] = useState<BookingWithSession[]>([])
+  const [processingId, setProcessingId] = useState<string | null>(null)
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -90,6 +92,9 @@ export default function MentorBookingsPage() {
 
   const updateStatus = useCallback(async (bookingId: string, next: MentorBooking["status"]) => {
     try {
+      setProcessingId(bookingId)
+      // Optimistic UI update
+      setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: next } : b))
       const supabase = getSupabaseClient()
       const { error } = await supabase
         .from("mentor_bookings")
@@ -101,6 +106,8 @@ export default function MentorBookingsPage() {
       await loadData()
     } catch (err: any) {
       toast({ title: "Update failed", description: String(err?.message || err), variant: "destructive" })
+      // Revert optimistic change on failure
+      await loadData()
     }
   }, [toast, loadData])
 
@@ -140,8 +147,12 @@ export default function MentorBookingsPage() {
                     <div className="text-xs mt-1">Mentee: <span className="font-mono">{b.mentee_user_id}</span></div>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={() => updateStatus(b.id, "confirmed")}>Confirm</Button>
-                    <Button size="sm" variant="destructive" onClick={() => updateStatus(b.id, "cancelled")}>Cancel</Button>
+                    <Button size="sm" onClick={() => updateStatus(b.id, "confirmed")} disabled={processingId === b.id}>
+                      {processingId === b.id ? (<><Loader2 className="w-3 h-3 mr-2 animate-spin" />Confirming</>) : 'Confirm'}
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => updateStatus(b.id, "cancelled")} disabled={processingId === b.id}>
+                      {processingId === b.id ? (<><Loader2 className="w-3 h-3 mr-2 animate-spin" />Cancelling</>) : 'Cancel'}
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -169,7 +180,9 @@ export default function MentorBookingsPage() {
                   <div className="flex items-center gap-2">
                     <Badge variant={b.status === "confirmed" ? "default" : b.status === "pending" ? "secondary" : "destructive"}>{b.status}</Badge>
                     {b.status !== "cancelled" && (
-                      <Button size="sm" variant="outline" onClick={() => updateStatus(b.id, "cancelled")}>Cancel</Button>
+                      <Button size="sm" variant="outline" onClick={() => updateStatus(b.id, "cancelled")} disabled={processingId === b.id}>
+                        {processingId === b.id ? (<><Loader2 className="w-3 h-3 mr-2 animate-spin" />Cancelling</>) : 'Cancel'}
+                      </Button>
                     )}
                   </div>
                 </div>
