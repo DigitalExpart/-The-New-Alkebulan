@@ -32,6 +32,9 @@ export default function PublicMentorProfilePage() {
   const [workItems, setWorkItems] = useState<Array<{ company: string; role: string; years: number }>>([])
   const [eduItems, setEduItems] = useState<Array<{ university: string; country: string; course: string; graduationYear: number; degree: string }>>([])
   const [upcoming, setUpcoming] = useState<SessionItem[]>([])
+  const [capacity, setCapacity] = useState<number | null>(null)
+  const [joinedCount, setJoinedCount] = useState<number>(0)
+  const [availabilityDays, setAvailabilityDays] = useState<string[]>([])
 
   useEffect(() => {
     const load = async () => {
@@ -71,7 +74,7 @@ export default function PublicMentorProfilePage() {
 
         const { data: sessions } = await supabase
           .from("mentor_sessions")
-          .select("id,title,start_time,end_time,price")
+          .select("id,title,start_time,end_time,price,program_id")
           .eq("mentor_user_id", params.userId)
           .gte("start_time", new Date().toISOString())
           .order("start_time", { ascending: true })
@@ -82,6 +85,27 @@ export default function PublicMentorProfilePage() {
           end_time: s.end_time,
           price: s.price,
         })))
+
+        // derive availability days from upcoming sessions
+        const daySet = new Set<string>()
+        ;(sessions || []).forEach((s: any) => {
+          const day = new Date(s.start_time).toLocaleDateString(undefined, { weekday: 'long' })
+          daySet.add(day)
+        })
+        setAvailabilityDays(Array.from(daySet))
+
+        // capacity and joined count (program or standalone)
+        const programId = (sessions || []).map((s: any) => s.program_id).filter(Boolean)[0]
+        if (programId) {
+          const { data: prog } = await supabase.from('mentor_programs').select('capacity').eq('id', programId).single()
+          if (prog) setCapacity((prog as any).capacity || null)
+          const { count } = await supabase.from('mentor_bookings').select('id', { count: 'exact', head: true }).eq('program_id', programId).eq('status','confirmed')
+          setJoinedCount(count || 0)
+        } else if ((sessions || []).length > 0) {
+          const ids = (sessions || []).map((s: any) => s.id)
+          const { count } = await supabase.from('mentor_bookings').select('id', { count: 'exact', head: true }).in('session_id', ids).eq('status','confirmed')
+          setJoinedCount(count || 0)
+        }
       } finally {
         setLoading(false)
       }
@@ -112,6 +136,16 @@ export default function PublicMentorProfilePage() {
               </div>
             )}
             <div className="text-sm text-muted-foreground">Rating: {rating.toFixed(1)}</div>
+            {availabilityDays.length > 0 && (
+              <div className="text-sm">
+                <span className="font-medium">Available days:</span> {availabilityDays.join(', ')}
+              </div>
+            )}
+            {capacity !== null && (
+              <div className="text-sm">
+                <span className="font-medium">Capacity:</span> {joinedCount} joined / {capacity} total · {Math.max(0, (capacity || 0) - (joinedCount || 0))} left
+              </div>
+            )}
             {yearsExperience !== null && (
               <div className="text-sm">Years of experience: <span className="font-medium">{yearsExperience}</span></div>
             )}

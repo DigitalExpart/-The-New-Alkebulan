@@ -246,16 +246,12 @@ export default function MentorshipPage() {
 
                 {/* Action Buttons */}
                 <div className="flex gap-2">
-                  {mentor.firstUpcomingSessionId ? (
-                    <Button asChild className="bg-indigo-600 hover:bg-indigo-700 text-white flex-1">
-                      <Link href={`/mentor/book/${mentor.firstUpcomingSessionId}`}>
-                        <MessageCircle className="h-4 w-4 mr-2" />
-                        Book Session
-                      </Link>
-                    </Button>
-                  ) : (
-                    <Button disabled className="flex-1">No Upcoming Sessions</Button>
-                  )}
+                  <Button asChild className="bg-indigo-600 hover:bg-indigo-700 text-white flex-1">
+                    <Link href={`/mentor/view/${mentor.id}`}>
+                      <MessageCircle className="h-4 w-4 mr-2" />
+                      Book Session
+                    </Link>
+                  </Button>
                   <Button variant="outline" asChild className="flex-1">
                     <Link href={`/mentor/view/${mentor.id}`}>
                       <Users className="h-4 w-4 mr-2" />
