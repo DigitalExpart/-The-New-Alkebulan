@@ -4,7 +4,9 @@ import { useCart } from "@/components/commerce/cart-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js"
+import { loadStripe } from "@stripe/stripe-js"
 import { toast } from "sonner"
 
 export default function CheckoutPage() {
@@ -12,6 +14,8 @@ export default function CheckoutPage() {
   const [placing, setPlacing] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<"stripe" | "paypal">("stripe")
   const [useDifferentBilling, setUseDifferentBilling] = useState(false)
+  const [clientSecret, setClientSecret] = useState<string | null>(null)
+  const confirmPaymentRef = useRef<null | (() => Promise<void>)>(null)
 
   // Shipping fields
   const [firstName, setFirstName] = useState("")
@@ -30,40 +34,65 @@ export default function CheckoutPage() {
   const [bPostal, setBPostal] = useState("")
   const [bCountry, setBCountry] = useState("")
 
-  // Card fields (UI only; Stripe Checkout handles secure entry)
-  const [cardName, setCardName] = useState("")
-  const [cardNumber, setCardNumber] = useState("")
-  const [cardExpiry, setCardExpiry] = useState("")
-  const [cardCvc, setCardCvc] = useState("")
+  // Card fields are handled by Stripe Elements
   const paypalClientId = useMemo(() => process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID, []) as string | undefined
 
-  const stripeCheckout = async () => {
+  const stripePromise = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+    ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+    : null
+
+  const createPaymentIntent = async () => {
     try {
       setPlacing(true)
-      const res = await fetch("/api/checkout", {
+      const res = await fetch("/api/checkout-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           items,
-          customerEmail: email,
-          shipping: { firstName, lastName, address, city, region, postal, country },
-          billing: useDifferentBilling
-            ? { address: bAddress, city: bCity, region: bRegion, postal: bPostal, country: bCountry }
-            : { address, city, region, postal, country },
-          cardName,
+          customerEmail: email
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Checkout failed")
-      if (data.url) {
-        window.location.href = data.url
-      } else {
-        throw new Error("No checkout URL returned")
+      if (data.free) {
+        clear();
+        toast.success("Order placed (no payment needed)")
+        window.location.href = "/marketplace"
+        return
       }
+      return data.clientSecret as string
     } catch (e: any) {
       toast.error(e?.message || "Stripe checkout failed. Configure STRIPE_SECRET_KEY.")
       setPlacing(false)
     }
+  }
+
+  function EmbeddedCard() {
+    const stripe = useStripe()
+    const elements = useElements()
+    const [submitting, setSubmitting] = useState(false)
+    const pay = async () => {
+      if (!stripe || !elements) return
+      setSubmitting(true)
+      const { error } = await stripe.confirmPayment({ elements, confirmParams: { return_url: window.location.href }, redirect: 'if_required' })
+      if (error) {
+        toast.error(error.message || 'Payment failed')
+      } else {
+        clear();
+        toast.success('Payment successful')
+        window.location.href = '/marketplace'
+      }
+      setSubmitting(false)
+    }
+    useEffect(() => {
+      confirmPaymentRef.current = pay
+      return () => { confirmPaymentRef.current = null }
+    }, [stripe, elements])
+    return (
+      <div className="space-y-3">
+        <PaymentElement />
+      </div>
+    )
   }
 
   const initPayPal = async () => {
@@ -111,6 +140,18 @@ export default function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paymentMethod, subtotal, items.length])
 
+  // Automatically prepare Stripe PaymentIntent when Stripe is selected
+  useEffect(() => {
+    const run = async () => {
+      if (paymentMethod !== "stripe" || items.length === 0 || clientSecret) return
+      const secret = await createPaymentIntent()
+      if (secret) setClientSecret(secret)
+      setPlacing(false)
+    }
+    run()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paymentMethod, items.length])
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
       <h1 className="text-3xl font-bold mb-6">Checkout</h1>
@@ -133,26 +174,7 @@ export default function CheckoutPage() {
             </div>
             <Input placeholder="Country" value={country} onChange={(e) => setCountry(e.target.value)} />
 
-            {/* Billing address toggle */}
-            <div className="pt-2">
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input type="checkbox" checked={useDifferentBilling} onChange={(e) => setUseDifferentBilling(e.target.checked)} />
-                Use a different billing address
-              </label>
-            </div>
-
-            {useDifferentBilling && (
-              <div className="mt-2 space-y-3 border rounded-md p-3">
-                <p className="text-sm font-medium">Billing Address</p>
-                <Input placeholder="Address" value={bAddress} onChange={(e) => setBAddress(e.target.value)} />
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <Input placeholder="City" value={bCity} onChange={(e) => setBCity(e.target.value)} />
-                  <Input placeholder="State/Region" value={bRegion} onChange={(e) => setBRegion(e.target.value)} />
-                  <Input placeholder="Postal code" value={bPostal} onChange={(e) => setBPostal(e.target.value)} />
-                </div>
-                <Input placeholder="Country" value={bCountry} onChange={(e) => setBCountry(e.target.value)} />
-              </div>
-            )}
+            {/* Billing address toggle moved below card details */}
 
             {/* Payment method */}
             <div className="space-y-2">
@@ -171,13 +193,52 @@ export default function CheckoutPage() {
 
             {paymentMethod === "stripe" && (
               <div className="space-y-3">
-                <Input placeholder="Cardholder name" value={cardName} onChange={(e) => setCardName(e.target.value)} />
-                <Input placeholder="Card number" value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} />
-                <div className="grid grid-cols-2 gap-3">
-                  <Input placeholder="MM/YY" value={cardExpiry} onChange={(e) => setCardExpiry(e.target.value)} />
-                  <Input placeholder="CVC" value={cardCvc} onChange={(e) => setCardCvc(e.target.value)} />
-                </div>
                 <p className="text-xs text-muted-foreground">Card details are processed securely by Stripe.</p>
+                {stripePromise ? (
+                  clientSecret ? (
+                    <Elements
+                      stripe={stripePromise}
+                      options={{
+                        clientSecret,
+                        appearance: {
+                          theme: 'night',
+                          variables: {
+                            colorPrimary: '#22c55e',
+                            colorBackground: '#0b0f0b',
+                            colorText: '#e5e7eb',
+                            borderRadius: '8px',
+                          },
+                        },
+                      }}
+                    >
+                      <EmbeddedCard />
+                    </Elements>
+                  ) : (
+                    <div className="text-xs text-muted-foreground">Preparing secure card form...</div>
+                  )
+                ) : (
+                  <p className="text-xs text-red-500">Stripe not configured.</p>
+                )}
+                {/* Billing address toggle under card */}
+                <div className="pt-2">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" checked={useDifferentBilling} onChange={(e) => setUseDifferentBilling(e.target.checked)} />
+                    Use a different billing address
+                  </label>
+                </div>
+
+                {useDifferentBilling && (
+                  <div className="mt-2 space-y-3 border rounded-md p-3">
+                    <p className="text-sm font-medium">Billing Address</p>
+                    <Input placeholder="Address" value={bAddress} onChange={(e) => setBAddress(e.target.value)} />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <Input placeholder="City" value={bCity} onChange={(e) => setBCity(e.target.value)} />
+                      <Input placeholder="State/Region" value={bRegion} onChange={(e) => setBRegion(e.target.value)} />
+                      <Input placeholder="Postal code" value={bPostal} onChange={(e) => setBPostal(e.target.value)} />
+                    </div>
+                    <Input placeholder="Country" value={bCountry} onChange={(e) => setBCountry(e.target.value)} />
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
@@ -208,8 +269,14 @@ export default function CheckoutPage() {
               <span>${subtotal.toFixed(2)}</span>
             </div>
             {paymentMethod === "stripe" ? (
-              <Button className="w-full" onClick={stripeCheckout} disabled={placing || items.length === 0}>
-                {placing ? "Redirecting..." : "Place Order"}
+              <Button className="w-full" onClick={async () => {
+                if (confirmPaymentRef.current) {
+                  await confirmPaymentRef.current()
+                } else {
+                  toast.error('Card form not ready yet')
+                }
+              }} disabled={items.length === 0}>
+                Place Order
               </Button>
             ) : (
               <div className="space-y-2">
