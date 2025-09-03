@@ -228,6 +228,9 @@ export default function MentorshipPage() {
                   </div>
                 </div>
 
+                {/* Compact capacity badge (joined/capacity) if program info exists - computed server-side on profile page, but we hint here */}
+                {/* This card list does not compute counts to keep it light; users click Book Session to see details. */}
+
                 {/* Upcoming Sessions */}
                 {mentor.upcomingSessions && mentor.upcomingSessions.length > 0 && (
                   <div className="mb-4">

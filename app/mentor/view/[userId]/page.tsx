@@ -35,6 +35,7 @@ export default function PublicMentorProfilePage() {
   const [capacity, setCapacity] = useState<number | null>(null)
   const [joinedCount, setJoinedCount] = useState<number>(0)
   const [availabilityDays, setAvailabilityDays] = useState<string[]>([])
+  const [programGroups, setProgramGroups] = useState<Array<{ programId: string | null; title: string; priceTotal?: number; capacity?: number; joined?: number; sessionIds: string[]; sessions: SessionItem[] }>>([])
 
   useEffect(() => {
     const load = async () => {
@@ -95,17 +96,42 @@ export default function PublicMentorProfilePage() {
         setAvailabilityDays(Array.from(daySet))
 
         // capacity and joined count (program or standalone)
-        const programId = (sessions || []).map((s: any) => s.program_id).filter(Boolean)[0]
-        if (programId) {
-          const { data: prog } = await supabase.from('mentor_programs').select('capacity').eq('id', programId).single()
-          if (prog) setCapacity((prog as any).capacity || null)
-          const { count } = await supabase.from('mentor_bookings').select('id', { count: 'exact', head: true }).eq('program_id', programId).eq('status','confirmed')
-          setJoinedCount(count || 0)
-        } else if ((sessions || []).length > 0) {
-          const ids = (sessions || []).map((s: any) => s.id)
-          const { count } = await supabase.from('mentor_bookings').select('id', { count: 'exact', head: true }).in('session_id', ids).eq('status','confirmed')
-          setJoinedCount(count || 0)
+        // group sessions by program
+        const groupsMap: Record<string, { programId: string | null; sessionIds: string[]; sessions: SessionItem[] }> = {}
+        ;(sessions || []).forEach((s: any) => {
+          const key = s.program_id || `single:${s.id}`
+          const arr = groupsMap[key] || { programId: s.program_id || null, sessionIds: [], sessions: [] }
+          arr.sessionIds.push(s.id)
+          arr.sessions.push({ id: s.id, title: s.title, start_time: s.start_time, end_time: s.end_time, price: s.price })
+          groupsMap[key] = arr
+        })
+
+        const programIds = Object.values(groupsMap).map(g => g.programId).filter((x): x is string => Boolean(x))
+        const progInfo: Record<string, { title: string; price_total: number; capacity: number }> = {}
+        if (programIds.length > 0) {
+          const { data: progs } = await supabase.from('mentor_programs').select('id,title,price_total,capacity').in('id', programIds)
+          for (const p of progs || []) progInfo[(p as any).id] = { title: (p as any).title || 'Program', price_total: Number((p as any).price_total || 0), capacity: Number((p as any).capacity || 0) }
         }
+        const groups: Array<{ programId: string | null; title: string; priceTotal?: number; capacity?: number; joined?: number; sessionIds: string[]; sessions: SessionItem[] }> = []
+        for (const g of Object.values(groupsMap)) {
+          if (g.programId) {
+            const info = progInfo[g.programId]
+            let joined = 0
+            const { count } = await supabase.from('mentor_bookings').select('id', { count: 'exact', head: true }).eq('program_id', g.programId).eq('status','confirmed')
+            joined = count || 0
+            groups.push({ programId: g.programId, title: info?.title || 'Program', priceTotal: info?.price_total, capacity: info?.capacity, joined, sessionIds: g.sessionIds, sessions: g.sessions })
+          } else {
+            groups.push({ programId: null, title: g.sessions[0]?.title || 'Session', priceTotal: g.sessions[0]?.price, capacity: undefined, joined: undefined, sessionIds: g.sessionIds, sessions: g.sessions })
+          }
+        }
+        // set summary totals for header
+        const capSum = groups.reduce((a, g) => a + (g.capacity || 0), 0)
+        const joinSum = groups.reduce((a, g) => a + (g.joined || 0), 0)
+        setCapacity(capSum || null)
+        setJoinedCount(joinSum)
+        // order groups: programs first by start time
+        groups.sort((a, b) => (new Date(a.sessions[0].start_time).getTime()) - (new Date(b.sessions[0].start_time).getTime()))
+        setProgramGroups(groups)
       } finally {
         setLoading(false)
       }
@@ -194,19 +220,29 @@ export default function PublicMentorProfilePage() {
           <CardHeader>
             <CardTitle>Upcoming Sessions</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {upcoming.length === 0 && (
+          <CardContent className="space-y-4">
+            {programGroups.length === 0 && (
               <div className="text-sm text-muted-foreground">No upcoming sessions</div>
             )}
-            {upcoming.map((s) => (
-              <div key={s.id} className="flex items-center justify-between gap-2 border rounded-md px-3 py-2">
-                <div className="text-sm">
-                  <div className="font-medium">{s.title || "Mentor Session"}</div>
-                  <div className="text-muted-foreground">
-                    {new Date(s.start_time).toLocaleString()} {typeof s.price === 'number' ? `· $${Number(s.price).toFixed(2)}` : ''}
+            {programGroups.map((g, idx) => (
+              <div key={idx} className="border rounded-md">
+                <div className="flex items-center justify-between px-3 py-2">
+                  <div className="text-sm">
+                    <div className="font-medium">
+                      {g.title} {typeof g.priceTotal === 'number' ? `· $${Number(g.priceTotal).toFixed(2)}` : ''}
+                    </div>
+                    {(g.capacity !== undefined && g.joined !== undefined) && (
+                      <div className="text-xs text-muted-foreground">{g.joined} joined / {g.capacity} total · {Math.max(0, (g.capacity || 0) - (g.joined || 0))} left</div>
+                    )}
                   </div>
+                  {/* Book any session in the group leads to the same program booking */}
+                  <Button onClick={() => router.push(`/mentor/book/${g.sessions[0].id}`)}>Book</Button>
                 </div>
-                <Button onClick={() => router.push(`/mentor/book/${s.id}`)}>Book</Button>
+                <div className="px-3 pb-3 text-xs text-muted-foreground space-y-1">
+                  {g.sessions.map(s => (
+                    <div key={s.id}>{new Date(s.start_time).toLocaleString()} {s.end_time ? `- ${new Date(s.end_time).toLocaleString()}` : ''}</div>
+                  ))}
+                </div>
               </div>
             ))}
           </CardContent>
