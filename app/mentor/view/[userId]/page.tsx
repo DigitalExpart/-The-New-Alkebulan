@@ -97,10 +97,11 @@ export default function PublicMentorProfilePage() {
 
         // capacity and joined count (program or standalone)
         // group sessions by program
-        const groupsMap: Record<string, { programId: string | null; sessionIds: string[]; sessions: SessionItem[] }> = {}
+        const groupsMap: Record<string, { programId: string | null; title: string; price?: number; sessionIds: string[]; sessions: SessionItem[] }> = {}
         ;(sessions || []).forEach((s: any) => {
-          const key = s.program_id || `single:${s.id}`
-          const arr = groupsMap[key] || { programId: s.program_id || null, sessionIds: [], sessions: [] }
+          const nonProgKey = `title:${(s.title || '').toLowerCase()}|price:${Number(s.price || 0)}`
+          const key = s.program_id ? `prog:${s.program_id}` : nonProgKey
+          const arr = groupsMap[key] || { programId: s.program_id || null, title: s.title || 'Session', price: s.price, sessionIds: [], sessions: [] }
           arr.sessionIds.push(s.id)
           arr.sessions.push({ id: s.id, title: s.title, start_time: s.start_time, end_time: s.end_time, price: s.price })
           groupsMap[key] = arr
@@ -121,7 +122,9 @@ export default function PublicMentorProfilePage() {
             joined = count || 0
             groups.push({ programId: g.programId, title: info?.title || 'Program', priceTotal: info?.price_total, capacity: info?.capacity, joined, sessionIds: g.sessionIds, sessions: g.sessions })
           } else {
-            groups.push({ programId: null, title: g.sessions[0]?.title || 'Session', priceTotal: g.sessions[0]?.price, capacity: undefined, joined: undefined, sessionIds: g.sessionIds, sessions: g.sessions })
+            const totalPrice = (g.price || 0) * g.sessions.length
+            const { count } = await supabase.from('mentor_bookings').select('id', { count: 'exact', head: true }).in('session_id', g.sessionIds).eq('status','confirmed')
+            groups.push({ programId: null, title: g.title || g.sessions[0]?.title || 'Session', priceTotal: totalPrice, capacity: undefined, joined: count || 0, sessionIds: g.sessionIds, sessions: g.sessions })
           }
         }
         // set summary totals for header
@@ -235,7 +238,7 @@ export default function PublicMentorProfilePage() {
                       <div className="text-xs text-muted-foreground">{g.joined} joined / {g.capacity} total · {Math.max(0, (g.capacity || 0) - (g.joined || 0))} left</div>
                     )}
                   </div>
-                  {/* Book any session in the group leads to the same program booking */}
+                  {/* Book any session in the group; for non-program groups, booking first session will enroll for the grouped series */}
                   <Button onClick={() => router.push(`/mentor/book/${g.sessions[0].id}`)}>Book</Button>
                 </div>
                 <div className="px-3 pb-3 text-xs text-muted-foreground space-y-1">
