@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { getSupabaseClient } from "@/lib/supabase"
 import { UserAvatar } from "@/components/user-avatar"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Progress } from "@/components/ui/progress"
 
 interface SessionItem {
   id: string
@@ -250,6 +251,11 @@ export default function PublicMentorProfilePage() {
                     Book
                   </Button>
                 </div>
+                {g.capacity !== undefined && (
+                  <div className="px-4 pb-2">
+                    <Progress value={Math.min(100, Math.round(((g.joined || 0) / Math.max(1, g.capacity || 1)) * 100))} />
+                  </div>
+                )}
                 <div className="px-4 pb-4 text-xs text-muted-foreground space-y-1">
                   {g.sessions.map(s => (
                     <div key={s.id}>{new Date(s.start_time).toLocaleString()} {s.end_time ? `- ${new Date(s.end_time).toLocaleString()}` : ''}</div>
