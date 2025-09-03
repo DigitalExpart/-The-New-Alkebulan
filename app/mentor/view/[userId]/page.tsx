@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { getSupabaseClient } from "@/lib/supabase"
 import { UserAvatar } from "@/components/user-avatar"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 
 interface SessionItem {
   id: string
@@ -145,18 +146,20 @@ export default function PublicMentorProfilePage() {
   if (loading) return <div className="p-8">Loading...</div>
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <Card className="mb-6">
+        <Card className="mb-6 shadow-lg border-border/50">
           <CardHeader>
             <div className="flex items-center gap-4">
               <UserAvatar imageUrl={avatarUrl || undefined} size="lg" fallbackName={name} />
-              <CardTitle className="text-2xl">{name}</CardTitle>
+              <div>
+                <CardTitle className="text-2xl">{name}</CardTitle>
+                {headline && <p className="text-sm text-muted-foreground mt-1">{headline}</p>}
+              </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
-            {headline && <p className="text-sm text-muted-foreground">{headline}</p>}
-            {bio && <p className="text-sm">{bio}</p>}
+            {bio && <p className="text-sm leading-6">{bio}</p>}
             {expertise.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {expertise.map((x) => (
@@ -178,48 +181,49 @@ export default function PublicMentorProfilePage() {
             {yearsExperience !== null && (
               <div className="text-sm">Years of experience: <span className="font-medium">{yearsExperience}</span></div>
             )}
-            <div>
-              <div className="text-sm font-medium">Work experience</div>
-              {workItems.length === 0 && !workExperience && (
-                <div className="text-sm text-muted-foreground">Not provided</div>
-              )}
-              {workItems.length > 0 && (
-                <div className="space-y-1">
-                  {workItems.map((w, idx) => (
-                    <div key={idx} className="text-sm text-muted-foreground">{w.company} — {w.role} · {w.years} yrs</div>
-                  ))}
-                </div>
-              )}
-            </div>
-            {workExperience && (
-              <div>
-                <div className="text-sm font-medium">Work experience (summary)</div>
-                <div className="text-sm text-muted-foreground whitespace-pre-wrap">{workExperience}</div>
-              </div>
-            )}
-            <div>
-              <div className="text-sm font-medium">Educational experience</div>
-              {eduItems.length === 0 && !educationExperience && (
-                <div className="text-sm text-muted-foreground">Not provided</div>
-              )}
-              {eduItems.length > 0 && (
-                <div className="space-y-1">
-                  {eduItems.map((ed, idx) => (
-                    <div key={idx} className="text-sm text-muted-foreground">{ed.university} ({ed.country}) — {ed.course}, {ed.degree} · {ed.graduationYear}</div>
-                  ))}
-                </div>
-              )}
-            </div>
-            {educationExperience && (
-              <div>
-                <div className="text-sm font-medium">Educational experience (summary)</div>
-                <div className="text-sm text-muted-foreground whitespace-pre-wrap">{educationExperience}</div>
-              </div>
-            )}
+
+            <Accordion type="single" collapsible className="w-full mt-2">
+              <AccordionItem value="work">
+                <AccordionTrigger className="text-sm">Work experience</AccordionTrigger>
+                <AccordionContent>
+                  {workItems.length === 0 && !workExperience && (
+                    <div className="text-sm text-muted-foreground">Not provided</div>
+                  )}
+                  {workItems.length > 0 && (
+                    <div className="space-y-1">
+                      {workItems.map((w, idx) => (
+                        <div key={idx} className="text-sm text-muted-foreground">{w.company} — {w.role} · {w.years} yrs</div>
+                      ))}
+                    </div>
+                  )}
+                  {workExperience && (
+                    <div className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">{workExperience}</div>
+                  )}
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="edu">
+                <AccordionTrigger className="text-sm">Educational experience</AccordionTrigger>
+                <AccordionContent>
+                  {eduItems.length === 0 && !educationExperience && (
+                    <div className="text-sm text-muted-foreground">Not provided</div>
+                  )}
+                  {eduItems.length > 0 && (
+                    <div className="space-y-1">
+                      {eduItems.map((ed, idx) => (
+                        <div key={idx} className="text-sm text-muted-foreground">{ed.university} ({ed.country}) — {ed.course}, {ed.degree} · {ed.graduationYear}</div>
+                      ))}
+                    </div>
+                  )}
+                  {educationExperience && (
+                    <div className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">{educationExperience}</div>
+                  )}
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="shadow-md border-border/50">
           <CardHeader>
             <CardTitle>Upcoming Sessions</CardTitle>
           </CardHeader>
@@ -228,8 +232,8 @@ export default function PublicMentorProfilePage() {
               <div className="text-sm text-muted-foreground">No upcoming sessions</div>
             )}
             {programGroups.map((g, idx) => (
-              <div key={idx} className="border rounded-md">
-                <div className="flex items-center justify-between px-3 py-2">
+              <div key={idx} className="rounded-lg border bg-card/50 backdrop-blur-sm">
+                <div className="flex items-center justify-between px-4 py-3">
                   <div className="text-sm">
                     <div className="font-medium">
                       {g.title} {typeof g.priceTotal === 'number' ? `· $${Number(g.priceTotal).toFixed(2)}` : ''}
@@ -242,10 +246,11 @@ export default function PublicMentorProfilePage() {
                       </div>
                     )}
                   </div>
-                  {/* Book any session in the group; for non-program groups, booking first session will enroll for the grouped series */}
-                  <Button onClick={() => router.push(`/mentor/book/${g.sessions[0].id}`)}>Book</Button>
+                  <Button onClick={() => router.push(`/mentor/book/${g.sessions[0].id}`)}>
+                    Book
+                  </Button>
                 </div>
-                <div className="px-3 pb-3 text-xs text-muted-foreground space-y-1">
+                <div className="px-4 pb-4 text-xs text-muted-foreground space-y-1">
                   {g.sessions.map(s => (
                     <div key={s.id}>{new Date(s.start_time).toLocaleString()} {s.end_time ? `- ${new Date(s.end_time).toLocaleString()}` : ''}</div>
                   ))}
