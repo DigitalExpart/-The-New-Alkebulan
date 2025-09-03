@@ -122,9 +122,9 @@ export default function PublicMentorProfilePage() {
             joined = count || 0
             groups.push({ programId: g.programId, title: info?.title || 'Program', priceTotal: info?.price_total, capacity: info?.capacity, joined, sessionIds: g.sessionIds, sessions: g.sessions })
           } else {
-            const totalPrice = (g.price || 0) * g.sessions.length
+            const singlePrice = g.price || g.sessions[0]?.price || 0
             const { count } = await supabase.from('mentor_bookings').select('id', { count: 'exact', head: true }).in('session_id', g.sessionIds).eq('status','confirmed')
-            groups.push({ programId: null, title: g.title || g.sessions[0]?.title || 'Session', priceTotal: totalPrice, capacity: undefined, joined: count || 0, sessionIds: g.sessionIds, sessions: g.sessions })
+            groups.push({ programId: null, title: g.title || g.sessions[0]?.title || 'Session', priceTotal: singlePrice, capacity: undefined, joined: count || 0, sessionIds: g.sessionIds, sessions: g.sessions })
           }
         }
         // set summary totals for header
