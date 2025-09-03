@@ -234,8 +234,12 @@ export default function PublicMentorProfilePage() {
                     <div className="font-medium">
                       {g.title} {typeof g.priceTotal === 'number' ? `· $${Number(g.priceTotal).toFixed(2)}` : ''}
                     </div>
-                    {(g.capacity !== undefined && g.joined !== undefined) && (
-                      <div className="text-xs text-muted-foreground">{g.joined} joined / {g.capacity} total · {Math.max(0, (g.capacity || 0) - (g.joined || 0))} left</div>
+                    {g.joined !== undefined && (
+                      <div className="text-xs text-muted-foreground">
+                        {g.capacity !== undefined
+                          ? `${g.joined} joined / ${g.capacity} total · ${Math.max(0, (g.capacity || 0) - (g.joined || 0))} left`
+                          : `${g.joined} joined`}
+                      </div>
                     )}
                   </div>
                   {/* Book any session in the group; for non-program groups, booking first session will enroll for the grouped series */}
