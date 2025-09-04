@@ -108,7 +108,7 @@ export default function BookSessionPage() {
       const paypal = (window as any).paypal
       paypal.Buttons({
         createOrder: (_: any, actions: any) => {
-          const amount = Number(sessionInfo?.price || 0).toFixed(2)
+          const amount = Number((programInfo?.price_total ?? sessionInfo?.price ?? 0)).toFixed(2)
           return actions.order.create({ purchase_units: [{ amount: { value: amount } }] })
         },
         onApprove: async (_: any, actions: any) => {
@@ -118,7 +118,7 @@ export default function BookSessionPage() {
           if (!userId) { toast.error('Please sign in'); return }
           const { error } = await getSupabaseClient()
             .from('mentor_bookings')
-            .insert({ session_id: params.sessionId, mentee_user_id: userId, status: 'confirmed' })
+            .insert({ session_id: params.sessionId, mentee_user_id: userId, status: 'confirmed', program_id: sessionInfo?.program_id || programInfo?.id || null })
           if (error) throw error
           toast.success('Payment successful via PayPal. You have been added to this session')
           router.replace('/mentor/dashboard')
@@ -166,12 +166,41 @@ export default function BookSessionPage() {
       if (!userId) return
       const { error } = await getSupabaseClient()
         .from('mentor_bookings')
-        .insert({ session_id: params.sessionId, mentee_user_id: userId, status: 'confirmed', program_id: sessionInfo?.program_id || programInfo?.id || null })
+        .upsert(
+          { session_id: params.sessionId, mentee_user_id: userId, status: 'confirmed', program_id: sessionInfo?.program_id || programInfo?.id || null },
+          { onConflict: 'session_id,mentee_user_id', ignoreDuplicates: true }
+        )
       if (error) throw error
       toast.success('Payment successful. You have been added to this session')
       router.replace('/mentor/dashboard')
     } catch (e: any) {
       toast.error(e?.message || 'Failed to finalize booking')
+    }
+  }
+
+  const payWithCrypto = async () => {
+    try {
+      const { data: { session } } = await getSupabaseClient().auth.getSession()
+      const userId = session?.user?.id
+      if (!userId) { toast.error('Please sign in'); return }
+      const res = await fetch('/api/payments/nowpayments/create-invoice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'mentor', mentorSessionId: params.sessionId, menteeUserId: userId })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Failed to create crypto invoice')
+      if (data?.free) {
+        await onCardPaid()
+        return
+      }
+      if (data?.invoice_url) {
+        window.location.href = data.invoice_url as string
+      } else {
+        throw new Error('Missing invoice URL')
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Crypto payment failed')
     }
   }
 
@@ -235,6 +264,7 @@ export default function BookSessionPage() {
                   <div className="border-t pt-3">
                     <div id="paypal-button-container" />
                     <Button className="w-full mt-2" variant="outline" onClick={() => initPayPal()}>Pay with PayPal</Button>
+                    <Button className="w-full mt-2" variant="secondary" onClick={() => payWithCrypto()}>Pay with Crypto (NOWPayments)</Button>
                   </div>
                 </div>
               </DialogContent>

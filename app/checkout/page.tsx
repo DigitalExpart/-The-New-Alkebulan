@@ -12,7 +12,7 @@ import { toast } from "sonner"
 export default function CheckoutPage() {
   const { items, subtotal, clear } = useCart()
   const [placing, setPlacing] = useState(false)
-  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "paypal">("stripe")
+  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "paypal" | "crypto">("stripe")
   const [useDifferentBilling, setUseDifferentBilling] = useState(false)
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const confirmPaymentRef = useRef<null | (() => Promise<void>)>(null)
@@ -188,6 +188,10 @@ export default function CheckoutPage() {
                   <input type="radio" name="payment_method" checked={paymentMethod === "paypal"} onChange={() => setPaymentMethod("paypal")} />
                   PayPal
                 </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="payment_method" checked={paymentMethod === "crypto"} onChange={() => setPaymentMethod("crypto")} />
+                  Crypto (NOWPayments)
+                </label>
               </div>
             </div>
 
@@ -278,12 +282,41 @@ export default function CheckoutPage() {
               }} disabled={items.length === 0}>
                 Place Order
               </Button>
-            ) : (
+            ) : paymentMethod === "paypal" ? (
               <div className="space-y-2">
                 <div id="paypal-button-container"></div>
                 {!paypalClientId && (
                   <p className="text-xs text-red-500">PayPal not configured.</p>
                 )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Button className="w-full" variant="secondary" onClick={async () => {
+                  try {
+                    const res = await fetch('/api/payments/nowpayments/create-invoice', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ kind: 'checkout', amount: subtotal })
+                    })
+                    const data = await res.json()
+                    if (!res.ok) throw new Error(data?.error || 'Failed to create crypto invoice')
+                    if (data?.free) {
+                      clear();
+                      toast.success('Order placed (no payment needed)')
+                      window.location.href = '/marketplace'
+                      return
+                    }
+                    if (data?.invoice_url) {
+                      window.location.href = data.invoice_url
+                    } else {
+                      throw new Error('Missing invoice URL')
+                    }
+                  } catch (e: any) {
+                    toast.error(e?.message || 'Crypto payment failed')
+                  }
+                }} disabled={items.length === 0}>
+                  Pay with Crypto (NOWPayments)
+                </Button>
               </div>
             )}
           </CardContent>

@@ -1,0 +1,33 @@
+Category,Task,Priority,Owner,Est Hours,Status,Notes
+Auth & RBAC,Implement Supabase Auth with email/password and social logins,High,Backend,6,Not Started,Use Supabase Auth UI or custom forms; enforce email verification
+Auth & RBAC,Enable optional 2FA (TOTP) for user accounts,Medium,Backend,8,Not Started,Start with TOTP via authenticator app; SMS optional later
+Auth & RBAC,Define RBAC roles (admin/user/creator/investor) and gate routes,High,Backend,6,Not Started,Use Supabase auth role claims or a roles table; enforce in API and UI
+Data & DB Security,Enable RLS on all public tables (mentor_sessions/mentor_bookings/mentor_programs),Critical,Backend,6,Not Started,Default deny; explicit policies for read/write per role
+Data & DB Security,Add policies: only owners can insert/update their profiles and programs,Critical,Backend,4,Not Started,Check auth.uid() against row owner columns
+Data & DB Security,Encrypt sensitive fields at rest (where applicable),Medium,Backend,4,Not Started,Prefer not storing secrets; for PII use Postgres column-level encryption if needed
+Data & DB Security,Create audit logs for auth and critical mutations,High,Backend,5,Not Started,Use Postgres triggers or Supabase logs; store actor, action, timestamp
+API & BFF Security,Secure all API endpoints with JWT verification server-side,High,Backend,5,Not Started,Verify Supabase JWT in API handlers; reject unauthenticated
+API & BFF Security,Add global rate limiting (IP+user) via Upstash Redis,High,Backend,6,Not Started,Apply in Next middleware for /api and auth-sensitive routes
+API & BFF Security,Restrict CORS/Origin to the DMH frontend domain,High,Backend,2,Not Started,Validate Origin/Host in middleware; block unknown origins
+API & BFF Security,Input validation with Zod for all API routes,High,Backend,5,Not Started,Validate bodies/queries; reject on failure with 400
+API & BFF Security,Disable error detail leakage in production,Medium,Backend,1,Not Started,Return generic messages; log detail server-side only
+Payments,Keep all prices server-calculated from DB (no client-provided amounts),Done,Backend,0,Completed,Already implemented in create-payment-intent and checkout routes
+Payments,Add Stripe webhooks with signature verification,High,Backend,6,Not Started,Handle payment_succeeded and update bookings; use signing secret
+Payments,Use idempotency keys for Stripe operations,Medium,Backend,2,Not Started,Pass Idempotency-Key header for create intents/sessions
+Payments,Do not store raw card data (Stripe only),Critical,Backend,1,Not Started,Confirm PCI scope limited to Stripe; document in SECURITY.md
+Wallets & Web3,Defer custodial/non-custodial wallet integration to Phase 2,Low,Web3,0,Not Started,Plan architecture; do not self-custody keys in MVP
+Infrastructure,Force HTTPS and add HSTS via security headers,High,DevOps,2,Not Started,Set Strict-Transport-Security max-age>=15552000 includeSubDomains preload
+Infrastructure,Add WAF/DDoS protection (Cloudflare/Vercel),High,DevOps,3,Not Started,Protect /api; enable bot fight mode/rate limits at edge
+Infrastructure,Daily automated backups for DB and storage,High,DevOps,2,Not Started,Enable Supabase backups; test restore procedure monthly
+Infrastructure,Centralized logging/monitoring (Sentry + Supabase logs),High,DevOps,4,Not Started,Sentry for FE/BE exceptions; alerts to Slack/Email
+Headers & CSP,Add strict security headers in Next config,High,Backend,3,Not Started,Set CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, etc.
+Headers & CSP,Implement CSP with nonces/hashes for scripts/styles,High,Backend,6,Not Started,Start with report-only; then enforce after fixing violations
+Repo & Dependencies,Re-enable TypeScript/ESLint checks (remove ignore flags),High,Backend,2,Not Started,Remove ignoreDuringBuilds and ignoreBuildErrors; fix critical findings
+Repo & Dependencies,Enable secret scanning and dependency audit,High,DevOps,2,Not Started,GitHub Advanced Security or Gitleaks; npm audit CI step
+Privacy & Compliance,Publish Privacy Policy and Terms (GDPR-friendly),High,Compliance,6,Not Started,Include data retention, lawful basis, DPO contact
+Privacy & Compliance,Implement cookie/consent banner and analytics opt-out,Medium,Frontend,4,Not Started,Use Consent Mode; do not load analytics before consent
+Privacy & Compliance,Gate finance features with basic KYC/AML (stub),Medium,Compliance,8,Not Started,Integrate provider later; for MVP add manual review flagging
+Incident Response,Create incident response runbook and on-call rotation,Medium,DevOps,3,Not Started,Define severity levels, SLAs, comms templates
+Testing,Add basic security tests (authz, input validation, rate limits),High,Backend,6,Not Started,Automate with Playwright/API tests for negative scenarios
+Testing,Perform pre-launch light pen-test and fix criticals,High,Security,10,Not Started,OWASP Top 10 checklist; prioritize auth/IDOR/XSS/SSRF
+Documentation,Create SECURITY.md with threat model and controls,Medium,Security,4,Not Started,Document risks, mitigations, and residual risk for MVP
