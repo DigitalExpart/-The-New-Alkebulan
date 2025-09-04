@@ -13,7 +13,6 @@ import { AuthProvider } from "@/hooks/use-auth"
 import { PrototypePopup } from "@/components/prototype-popup"
 import { FriendRequestNotification } from "@/components/notifications/friend-request-notification"
 import { Toaster } from "sonner"
-import ShortcutBar from "@/components/shortcutbar"
 
 
 const inter = Inter({ subsets: ["latin"] })
@@ -51,7 +50,6 @@ export default function RootLayout({
                 <AIAssistantProvider>
                 <OverlayProvider>
                   <div className="min-h-screen flex flex-col theme-transition">
-                    <ShortcutBar />
                     <Navbar />
                     <main className="flex-1 md:pt-16 mt-4 pt-10 md:mt-12 theme-transition mb-6">{children}</main>
                     <Footer />

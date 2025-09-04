@@ -239,7 +239,7 @@ export default function HomePage() {
                 Welcome to <span className="text-primary">The New Alkebulan</span>
               </h1>
 
-              <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
+              <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto font-agrandir">
                 Empowering the African diaspora through community, culture, and connection. Join our global network of
                 entrepreneurs, learners, and changemakers.
               </p>
@@ -285,7 +285,7 @@ export default function HomePage() {
               <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-12">What is The New Alkebulan?</h2>
 
               <div className="prose prose-lg max-w-none text-center">
-                <p className="text-lg md:text-xl text-muted-foreground leading-relaxed mb-8">
+                <p className="text-lg md:text-xl text-muted-foreground leading-relaxed mb-8 font-agrandir">
                   The New Alkebulan is more than a platform — it's a global digital home for people of African descent.
                   Spread across continents, yet united by shared history, culture, and a collective future vision.
                 </p>
@@ -296,7 +296,7 @@ export default function HomePage() {
                   and educationally.
                 </p>
 
-                <p className="text-lg md:text-xl text-foreground leading-relaxed font-medium">
+                <p className="text-lg md:text-xl text-foreground leading-relaxed font-medium font-agrandir">
                   Here, you're not just building your future — you're helping shape a future for generations to come.
                 </p>
               </div>
@@ -308,8 +308,8 @@ export default function HomePage() {
         <section className="py-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-foreground mb-4">Everything You Need to Thrive</h2>
-              <p className="text-muted-foreground max-w-2xl mx-auto">
+              <h2 className="text-3xl font-bold text-foreground mb-4 font-agrandir">Everything You Need to Thrive</h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto font-agrandir">
                 Discover our comprehensive platform designed to support every aspect of your journey
               </p>
             </div>
