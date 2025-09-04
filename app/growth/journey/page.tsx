@@ -112,7 +112,7 @@ export default function JourneyPage() {
 
       setMilestones(prev => [...prev, created])
       setNewMilestone({ title: "", description: "", date: "", category: "", impact: "medium", location: "" })
-      setShowAddForm(false)
+    setShowAddForm(false)
       toast.success('Milestone added')
     } catch (e) {
       console.error('Unexpected error adding milestone:', e)

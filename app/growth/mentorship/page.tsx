@@ -228,6 +228,9 @@ export default function MentorshipPage() {
                   </div>
                 </div>
 
+                {/* Compact capacity badge (joined/capacity) if program info exists - computed server-side on profile page, but we hint here */}
+                {/* This card list does not compute counts to keep it light; users click Book Session to see details. */}
+
                 {/* Upcoming Sessions */}
                 {mentor.upcomingSessions && mentor.upcomingSessions.length > 0 && (
                   <div className="mb-4">
@@ -246,18 +249,14 @@ export default function MentorshipPage() {
 
                 {/* Action Buttons */}
                 <div className="flex gap-2">
-                  {mentor.firstUpcomingSessionId ? (
-                    <Button asChild className="bg-indigo-600 hover:bg-indigo-700 text-white flex-1">
-                      <Link href={`/mentor/book/${mentor.firstUpcomingSessionId}`}>
-                        <MessageCircle className="h-4 w-4 mr-2" />
-                        Book Session
-                      </Link>
-                    </Button>
-                  ) : (
-                    <Button disabled className="flex-1">No Upcoming Sessions</Button>
-                  )}
+                  <Button asChild className="bg-indigo-600 hover:bg-indigo-700 text-white flex-1">
+                    <Link href={`/mentor/view/${mentor.id}`}>
+                      <MessageCircle className="h-4 w-4 mr-2" />
+                      Book Session
+                    </Link>
+                  </Button>
                   <Button variant="outline" asChild className="flex-1">
-                    <Link href="/mentor/dashboard">
+                    <Link href={`/mentor/view/${mentor.id}`}>
                       <Users className="h-4 w-4 mr-2" />
                       View Profile
                     </Link>
