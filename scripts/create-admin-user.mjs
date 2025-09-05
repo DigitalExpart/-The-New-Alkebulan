@@ -18,6 +18,7 @@ async function main() {
 
   console.log("Creating admin user:", adminEmail)
 
+  let userId = null
   const { data: created, error: createErr } = await supabase.auth.admin.createUser({
     email: adminEmail,
     password: adminPassword,
@@ -31,37 +32,66 @@ async function main() {
   })
 
   if (createErr) {
-    console.error("Failed to create admin user:", createErr.message)
-    process.exit(1)
+    const alreadyExists = /already been registered|User already registered/i.test(createErr.message)
+    if (!alreadyExists) {
+      console.error("Failed to create admin user:", createErr.message)
+      process.exit(1)
+    }
+    console.log("User already exists, promoting profile:")
+  } else {
+    userId = created?.user?.id || null
+    console.log("User created:", userId)
   }
-
-  const userId = created?.user?.id
-  if (!userId) {
-    console.error("No user id returned from createUser")
-    process.exit(1)
-  }
-
-  console.log("User created:", userId)
 
   // Ensure profile exists and is marked as admin
-  const profilePayload = {
-    id: userId,
-    user_id: userId,
-    first_name: adminFirstName,
-    last_name: adminLastName,
-    email: adminEmail,
-    is_admin: true,
-    buyer_enabled: true,
-    business_enabled: false,
-    account_type: "buyer",
-    selected_roles: ["admin"],
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+  // Try to find existing profile by email
+  const { data: existingProfile, error: findErr } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('email', adminEmail)
+    .maybeSingle()
+
+  let profilePayload
+  if (existingProfile) {
+    profilePayload = {
+      ...existingProfile,
+      is_admin: true,
+      selected_roles: Array.isArray(existingProfile.selected_roles)
+        ? Array.from(new Set([...(existingProfile.selected_roles || []), 'admin']))
+        : ['admin'],
+      updated_at: new Date().toISOString(),
+    }
+  } else {
+    // If we don't have a profile by email, try to ensure we have a userId to seed a profile
+    if (!userId) {
+      try {
+        // Fallback: scan first page of users to find email (small projects)
+        const { data: usersPage } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 })
+        const match = usersPage?.users?.find(u => u.email?.toLowerCase() === adminEmail.toLowerCase())
+        userId = match?.id || null
+      } catch {}
+    }
+
+    profilePayload = {
+      id: userId || undefined,
+      user_id: userId || undefined,
+      first_name: adminFirstName,
+      last_name: adminLastName,
+      email: adminEmail,
+      is_admin: true,
+      buyer_enabled: true,
+      business_enabled: false,
+      account_type: "buyer",
+      selected_roles: ["admin"],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
   }
 
+  // Upsert by email (more robust if id/user_id unknown)
   const { error: upsertErr } = await supabase
     .from("profiles")
-    .upsert(profilePayload, { onConflict: "id" })
+    .upsert(profilePayload, { onConflict: "email" })
 
   if (upsertErr) {
     console.error("Failed to upsert profile:", upsertErr.message)

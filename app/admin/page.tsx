@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Shield, Users, Store, Settings, BarChart3, Package, MessageSquare } from "lucide-react"
+import { Shield, Users, Store, Settings, BarChart3, Package, MessageSquare, TrendingUp } from "lucide-react"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 
@@ -173,6 +173,21 @@ export default function AdminDashboardPage() {
                   <div className="flex gap-2">
                     <Button asChild size="sm"><Link href="/admin/orders">Open</Link></Button>
                     <Button asChild variant="outline" size="sm"><Link href="/marketplace">Marketplace</Link></Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5" /> Investments
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">Create investable projects and track funding.</p>
+                  <div className="flex gap-2">
+                    <Button asChild size="sm"><Link href="/admin/investments">Open</Link></Button>
+                    <Button asChild variant="outline" size="sm"><Link href="/investing/more-projects">Explore</Link></Button>
                   </div>
                 </CardContent>
               </Card>
