@@ -118,6 +118,12 @@ export function Navbar() {
     return getFirstName((user as any)?.user_metadata?.full_name || profile?.first_name || user?.email?.split('@')[0])
   }
 
+  const isAdmin = Boolean(
+    profile?.is_admin === true ||
+    profile?.role === 'admin' ||
+    (Array.isArray(profile?.selected_roles) && profile.selected_roles.includes('admin'))
+  )
+
   // Debug: Log authentication state
   useEffect(() => {
     console.log('Navbar - User state:', !!user, user?.id, user?.email, loading)
@@ -675,6 +681,14 @@ export function Navbar() {
                       Role Management
                     </Link>
                   </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin" className="cursor-pointer flex items-center gap-2">
+                        <Shield className="w-4 h-4" />
+                        Admin Console
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuLabel className="text-xs text-muted-foreground px-2 py-1.5">
                     Account Roles
