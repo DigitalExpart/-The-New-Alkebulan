@@ -14,7 +14,7 @@ import { supabase } from "@/lib/supabase"
 export default function AdminDashboardPage() {
   const router = useRouter()
   const { user, profile, loading } = useAuth()
-  const [counts, setCounts] = useState({ users: 0, communities: 0, posts: 0, items: 0 })
+  const [counts, setCounts] = useState({ users: 0, communities: 0, posts: 0, items: 0, orders: 0, companies: 0 })
 
   // Determine admin access based on available profile fields
   const isAdmin = Boolean(
@@ -51,7 +51,23 @@ export default function AdminDashboardPage() {
           const { count } = await supabase.from('marketplace_items').select('*', { count: 'exact', head: true })
           items = count || 0
         } catch {}
-        setCounts({ users: users || 0, communities: communities || 0, posts, items })
+        let products = 0
+        try {
+          const { count } = await supabase.from('products').select('*', { count: 'exact', head: true })
+          products = count || 0
+        } catch {}
+        const itemsTotal = items || products
+        let orders = 0
+        try {
+          const { count } = await supabase.from('orders').select('*', { count: 'exact', head: true })
+          orders = count || 0
+        } catch {}
+        let companies = 0
+        try {
+          const { count } = await supabase.from('companies').select('*', { count: 'exact', head: true })
+          companies = count || 0
+        } catch {}
+        setCounts({ users: users || 0, communities: communities || 0, posts, items: itemsTotal, orders, companies })
       } catch {}
     }
     loadCounts()
@@ -170,6 +186,7 @@ export default function AdminDashboardPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-sm text-muted-foreground">Manage items and order issues.</p>
+                  <div className="text-xs text-muted-foreground">Products: {counts.items} · Orders: {counts.orders}</div>
                   <div className="flex gap-2">
                     <Button asChild size="sm"><Link href="/admin/orders">Open</Link></Button>
                     <Button asChild variant="outline" size="sm"><Link href="/marketplace">Marketplace</Link></Button>
@@ -188,6 +205,21 @@ export default function AdminDashboardPage() {
                   <div className="flex gap-2">
                     <Button asChild size="sm"><Link href="/admin/investments">Open</Link></Button>
                     <Button asChild variant="outline" size="sm"><Link href="/investing/more-projects">Explore</Link></Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Store className="w-5 h-5" /> Companies
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">Browse and manage registered companies.</p>
+                  <div className="text-xs text-muted-foreground">Total: {counts.companies}</div>
+                  <div className="flex gap-2">
+                    <Button asChild size="sm"><Link href="/marketplace/companies">Open</Link></Button>
                   </div>
                 </CardContent>
               </Card>

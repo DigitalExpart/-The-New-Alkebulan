@@ -18,6 +18,8 @@ import {
   Share2
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import { useRouter } from "next/navigation"
+import { useWishlist } from "@/components/commerce/wishlist-context"
 
 export default function InvestingAlkebulanPage() {
   const [selectedCategory, setSelectedCategory] = useState('all')
@@ -38,6 +40,8 @@ export default function InvestingAlkebulanPage() {
   const [projects, setProjects] = useState<ProjectRow[]>([])
   const [investorCount, setInvestorCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
+  const router = useRouter()
+  const { has, toggle } = useWishlist()
 
   useEffect(() => {
     const load = async () => {
@@ -129,6 +133,27 @@ export default function InvestingAlkebulanPage() {
       icon: TrendingUp
     }
   ]), [totalRaised, activeProjects, investorCount, avgReturn])
+
+  const handleView = (id: string) => {
+    router.push(`/investing/project/${id}`)
+  }
+
+  const handleToggleSave = (p: ProjectRow) => {
+    toggle({ id: p.id, name: p.title || 'Project', imageUrl: p.image_url || undefined })
+  }
+
+  const handleShare = async (p: ProjectRow) => {
+    const url = typeof window !== 'undefined' ? `${window.location.origin}/investing/project/${p.id}` : `/investing/project/${p.id}`
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: p.title || 'Project', text: p.description || undefined, url })
+        return
+      }
+    } catch {}
+    try {
+      await navigator.clipboard.writeText(url)
+    } catch {}
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -251,14 +276,14 @@ export default function InvestingAlkebulanPage() {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button className="flex-1">
+                  <Button className="flex-1" onClick={() => handleView(p.id)}>
                     <Eye className="h-4 w-4 mr-2" />
                     View Details
                   </Button>
-                  <Button variant="outline" size="icon">
+                  <Button variant={has(p.id) ? "default" : "outline"} size="icon" onClick={() => handleToggleSave(p)}>
                     <Heart className="h-4 w-4" />
                   </Button>
-                  <Button variant="outline" size="icon">
+                  <Button variant="outline" size="icon" onClick={() => handleShare(p)}>
                     <Share2 className="h-4 w-4" />
                   </Button>
                 </div>

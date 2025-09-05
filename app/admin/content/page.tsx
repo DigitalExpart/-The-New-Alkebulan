@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { MessageSquare, Flag, Users } from "lucide-react"
+import { MessageSquare, Flag, Users, Trash2, EyeOff, Eye } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 
@@ -29,7 +29,7 @@ export default function AdminContentPage() {
     try {
       const { data: p } = await supabase
         .from("posts")
-        .select("id, title, content")
+        .select("id, title, content, is_published")
         .order("id", { ascending: false })
         .limit(20)
       setPosts(p || [])
@@ -78,7 +78,10 @@ export default function AdminContentPage() {
                       <Badge variant="secondary">ID: {c.id.slice(0, 8)}...</Badge>
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline">View</Button>
-                        <Button size="sm" variant="destructive">Remove</Button>
+                        <Button size="sm" variant="destructive" onClick={async () => {
+                          const { error } = await supabase.from('communities').delete().eq('id', c.id)
+                          if (error) { toast.error('Delete failed') } else { toast.success('Deleted'); load() }
+                        }}>Remove</Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -99,7 +102,14 @@ export default function AdminContentPage() {
                       <Badge variant="secondary">ID: {p.id.slice(0, 8)}...</Badge>
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline">View</Button>
-                        <Button size="sm" variant="destructive">Remove</Button>
+                        <Button size="sm" variant="outline" onClick={async () => {
+                          const { error } = await supabase.from('posts').update({ is_published: !(p as any).is_published }).eq('id', p.id)
+                          if (error) { toast.error('Update failed') } else { toast.success('Toggled'); load() }
+                        }}>{(p as any).is_published ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</Button>
+                        <Button size="sm" variant="destructive" onClick={async () => {
+                          const { error } = await supabase.from('posts').delete().eq('id', p.id)
+                          if (error) { toast.error('Delete failed') } else { toast.success('Deleted'); load() }
+                        }}><Trash2 className="w-4 h-4" /></Button>
                       </div>
                     </CardContent>
                   </Card>

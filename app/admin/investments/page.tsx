@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { TrendingUp } from "lucide-react"
+import { TrendingUp, Trash2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 import { useAuth } from "@/hooks/use-auth"
@@ -92,20 +92,27 @@ export default function AdminInvestmentsPage() {
     if (!file || !supabase || !user) return
     setUploading(true)
     try {
-      const ext = file.name.split('.').pop() || 'jpg'
+      const ext = file.name.split('.').pop() || 'bin'
       const path = `${user.id}/${Date.now()}.${ext}`
-      const { error: upErr } = await supabase.storage.from('projects').upload(path, file, {
-        cacheControl: '3600', upsert: false
-      })
-      if (upErr) throw upErr
-      const { data } = supabase.storage.from('projects').getPublicUrl(path)
-      const publicUrl = data?.publicUrl
-      if (publicUrl) {
-        setForm((p) => ({ ...p, image_url: publicUrl }))
-        toast.success('Image uploaded')
+      // Try preferred bucket 'projects', then fallback to 'product-images'
+      let upErr = null as any
+      let uploaded = false
+      const tryBuckets = ['projects', 'product-images']
+      for (const bucket of tryBuckets) {
+        const { error } = await supabase.storage.from(bucket).upload(path, file, { cacheControl: '3600', upsert: false })
+        if (!error) {
+          const { data } = supabase.storage.from(bucket).getPublicUrl(path)
+          const publicUrl = data?.publicUrl
+          if (publicUrl) setForm((p) => ({ ...p, image_url: publicUrl }))
+          uploaded = true
+          break
+        }
+        upErr = error
       }
+      if (upErr && !uploaded) throw upErr
+      toast.success('File uploaded')
     } catch (err: any) {
-      toast.error(err?.message || 'Upload failed. Ensure a storage bucket named "projects" exists and is public.')
+      toast.error(err?.message || 'Upload failed. Ensure a public storage bucket (projects/product-images) exists.')
     } finally {
       setUploading(false)
       ;(e.target as HTMLInputElement).value = ''
@@ -155,10 +162,10 @@ export default function AdminInvestmentsPage() {
                   </div>
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="image">Image Upload</Label>
+                  <Label htmlFor="file">File Upload</Label>
                   <div className="flex items-center gap-3 flex-wrap">
-                    <Input id="image" type="file" accept="image/*" onChange={handleFileChange} disabled={uploading} />
-                    <Input placeholder="Or paste image URL" value={form.image_url} onChange={(e) => setForm((p) => ({ ...p, image_url: e.target.value }))} />
+                    <Input id="file" type="file" accept="*/*" onChange={handleFileChange} disabled={uploading} />
+                    <Input placeholder="Or paste file/image URL" value={form.image_url} onChange={(e) => setForm((p) => ({ ...p, image_url: e.target.value }))} />
                   </div>
                 </div>
                 <div className="space-y-2 md:col-span-2">
@@ -190,6 +197,12 @@ export default function AdminInvestmentsPage() {
                   <div className="mt-2 text-sm">Category: {r.category || 'N/A'}</div>
                   <div className="mt-1 text-sm">Return: {r.return_rate_min ?? '-'}% – {r.return_rate_max ?? '-'}%</div>
                   <div className="mt-1 text-sm">Goal: ${r.funding_goal ?? 0} · Raised: ${r.current_funding ?? 0}</div>
+                  <div className="mt-3 flex gap-2">
+                    <Button size="sm" variant="destructive" onClick={async () => {
+                      const { error } = await supabase.from('projects').delete().eq('id', r.id)
+                      if (error) { toast.error('Delete failed') } else { toast.success('Deleted'); load() }
+                    }}><Trash2 className="w-4 h-4" /></Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}

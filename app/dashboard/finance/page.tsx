@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { FinanceOverviewCards } from "@/components/finance/finance-overview-cards"
 import { TransactionsTable } from "@/components/finance/transactions-table"
 import { InvestmentsSection } from "@/components/finance/investments-section"
@@ -26,19 +26,111 @@ import {
   Wallet,
   Lock,
 } from "lucide-react"
-import {
-  financeOverview,
-  transactions,
-  investments,
-  incomeStreams,
-  walletConnections,
-  financeTips,
-  financeAnalytics,
-} from "@/data/finance-data"
+import { incomeStreams, walletConnections, financeTips, financeAnalytics } from "@/data/finance-data"
+import type { FinanceOverview, Transaction, Investment } from "@/types/finance"
+import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 
 export default function FinancePage() {
   const [selectedCurrency, setSelectedCurrency] = useState<"eur" | "usd" | "dmh">("eur")
+  const [overview, setOverview] = useState<FinanceOverview | null>(null)
+  const [txs, setTxs] = useState<Transaction[]>([])
+  const [invs, setInvs] = useState<Investment[]>([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const load = async () => {
+      if (!supabase) return
+      setLoading(true)
+      try {
+        // Load projects as proxy for investments
+        const { data: projects } = await supabase
+          .from('projects')
+          .select('id,title,description,current_funding,funding_goal,category,return_rate_min,return_rate_max,updated_at')
+          .order('updated_at', { ascending: false })
+          .limit(10)
+
+        const mappedInvs: Investment[] = (projects || []).map((p: any) => ({
+          id: String(p.id),
+          projectTitle: p.title || 'Project',
+          investedAmount: Number(p.current_funding) || 0,
+          currentValue: Number(p.current_funding) || 0,
+          returnPercentage: p.return_rate_min != null && p.return_rate_max != null
+            ? (Number(p.return_rate_min) + Number(p.return_rate_max)) / 2
+            : 0,
+          projections: {
+            oneYear: (Number(p.current_funding) || 0) * 1.1,
+            threeYear: (Number(p.current_funding) || 0) * 1.5,
+            fiveYear: (Number(p.current_funding) || 0) * 2,
+          },
+          status: 'active',
+          investmentDate: p.updated_at || new Date().toISOString(),
+          category: p.category || 'General',
+        }))
+
+        setInvs(mappedInvs)
+
+        // Try to load orders as transactions; fallback to projects activity
+        let tx: Transaction[] = []
+        try {
+          const { data: orders } = await supabase
+            .from('orders')
+            .select('id,total,created_at,status')
+            .order('created_at', { ascending: false })
+            .limit(20) as any
+          if (orders) {
+            tx = orders.map((o: any) => ({
+              id: String(o.id),
+              date: o.created_at,
+              description: 'Marketplace order',
+              amount: Number(o.total) || 0,
+              type: 'earned',
+              status: (o.status || 'completed') as any,
+              category: 'Marketplace',
+              reference: String(o.id),
+            }))
+          }
+        } catch {}
+
+        if (tx.length === 0) {
+          tx = (projects || []).map((p: any) => ({
+            id: String(p.id),
+            date: p.updated_at || new Date().toISOString(),
+            description: `Project update: ${p.title}`,
+            amount: Number(p.current_funding) || 0,
+            type: 'invested',
+            status: 'completed',
+            category: 'Projects',
+            reference: String(p.id),
+          }))
+        }
+
+        setTxs(tx)
+
+        const totalInvested = mappedInvs.reduce((s, i) => s + i.investedAmount, 0)
+        const totalEarned = tx.filter(t => t.type === 'earned').reduce((s, t) => s + Number(t.amount || 0), 0)
+        const ov: FinanceOverview = {
+          walletBalance: { eur: 0, usd: 0, dmhTokens: 0 },
+          totalInvested,
+          totalEarned,
+          pendingPayments: tx.filter(t => t.status === 'pending').reduce((s, t) => s + Number(t.amount || 0), 0),
+          monthlyGrowth: { invested: 0, earned: 0 }
+        }
+        setOverview(ov)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
+  const overviewData = useMemo<FinanceOverview>(() => overview || {
+    walletBalance: { eur: 0, usd: 0, dmhTokens: 0 },
+    totalInvested: 0,
+    totalEarned: 0,
+    pendingPayments: 0,
+    monthlyGrowth: { invested: 0, earned: 0 }
+  }, [overview])
 
   const upcomingFeatures = [
     {
@@ -211,7 +303,7 @@ export default function FinancePage() {
 
       {/* Financial Overview Cards */}
       <div className="mb-8">
-        <FinanceOverviewCards data={financeOverview} selectedCurrency={selectedCurrency} />
+        <FinanceOverviewCards data={overviewData} selectedCurrency={selectedCurrency} />
       </div>
 
       {/* Add this after the FinanceOverviewCards component */}
@@ -240,15 +332,15 @@ export default function FinancePage() {
             <IncomeStreams incomeStreams={incomeStreams} />
             <FinanceTips tips={financeTips} />
           </div>
-          <TransactionsTable transactions={transactions.slice(0, 5)} />
+          <TransactionsTable transactions={txs.slice(0, 5)} />
         </TabsContent>
 
         <TabsContent value="transactions">
-          <TransactionsTable transactions={transactions} />
+          <TransactionsTable transactions={txs} />
         </TabsContent>
 
         <TabsContent value="investments">
-          <InvestmentsSection investments={investments} />
+          <InvestmentsSection investments={invs} />
         </TabsContent>
 
         <TabsContent value="analytics">
