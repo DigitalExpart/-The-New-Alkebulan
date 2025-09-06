@@ -13,14 +13,13 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- Authors can manage their own projects
+-- Authors can view active projects (creation restricted to admins)
 DO $$ BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='projects' AND policyname='Authors can manage own projects'
+    SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='projects' AND policyname='Authors can view active projects'
   ) THEN
-    CREATE POLICY "Authors can manage own projects" ON public.projects
-      FOR ALL USING (author_id = auth.uid())
-      WITH CHECK (author_id = auth.uid());
+    CREATE POLICY "Authors can view active projects" ON public.projects
+      FOR SELECT USING (status = 'active');
   END IF;
 END $$;
 
@@ -32,6 +31,16 @@ DO $$ BEGIN
     CREATE POLICY "Admins can manage projects" ON public.projects
       FOR ALL USING (public.is_admin(auth.uid()))
       WITH CHECK (true);
+  END IF;
+END $$;
+
+-- Restrict INSERT to admins only (explicit insert policy)
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='projects' AND policyname='Admins can create projects'
+  ) THEN
+    CREATE POLICY "Admins can create projects" ON public.projects
+      FOR INSERT WITH CHECK (public.is_admin(auth.uid()));
   END IF;
 END $$;
 

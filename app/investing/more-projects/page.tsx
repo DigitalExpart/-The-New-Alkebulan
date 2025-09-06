@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -29,127 +29,45 @@ import {
   Music,
   Palette
 } from "lucide-react"
+import { supabase } from "@/lib/supabase"
+import { useRouter } from "next/navigation"
 
 export default function MoreProjectsPage() {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [sortBy, setSortBy] = useState('trending')
+  const [projects, setProjects] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
 
-  const categories = [
-    { id: 'all', name: 'All Categories', icon: Globe, count: 156 },
-    { id: 'technology', name: 'Technology', icon: Building2, count: 45 },
-    { id: 'real-estate', name: 'Real Estate', icon: Home, count: 32 },
-    { id: 'agriculture', name: 'Agriculture', icon: Leaf, count: 28 },
-    { id: 'renewable-energy', name: 'Renewable Energy', icon: Zap, count: 18 },
-    { id: 'transportation', name: 'Transportation', icon: Car, count: 15 },
-    { id: 'education', name: 'Education', icon: BookOpen, count: 12 },
-    { id: 'entertainment', name: 'Entertainment', icon: Music, count: 6 }
-  ]
-
-  const projects = [
-    {
-      id: 1,
-      title: "Digital Learning Platform",
-      description: "Comprehensive online education platform for African students",
-      category: "Education",
-      location: "Lagos, Nigeria",
-      targetAmount: 300000,
-      raisedAmount: 180000,
-      investors: 89,
-      daysLeft: 45,
-      returnRate: "18-25%",
-      riskLevel: "Medium",
-      trending: "up",
-      change: "+15.2%",
-      image: "/api/placeholder/400/250",
-      tags: ["EdTech", "Digital", "Africa"]
-    },
-    {
-      id: 2,
-      title: "Smart City Infrastructure",
-      description: "IoT-based smart city solutions for urban development",
-      category: "Technology",
-      location: "Nairobi, Kenya",
-      targetAmount: 800000,
-      raisedAmount: 520000,
-      investors: 156,
-      daysLeft: 28,
-      returnRate: "20-30%",
-      riskLevel: "High",
-      trending: "up",
-      change: "+22.8%",
-      image: "/api/placeholder/400/250",
-      tags: ["Smart City", "IoT", "Urban"]
-    },
-    {
-      id: 3,
-      title: "Organic Farm Network",
-      description: "Sustainable organic farming cooperative across West Africa",
-      category: "Agriculture",
-      location: "Accra, Ghana",
-      targetAmount: 250000,
-      raisedAmount: 175000,
-      investors: 67,
-      daysLeft: 38,
-      returnRate: "12-18%",
-      riskLevel: "Low",
-      trending: "up",
-      change: "+8.9%",
-      image: "/api/placeholder/400/250",
-      tags: ["Organic", "Sustainable", "Cooperative"]
-    },
-    {
-      id: 4,
-      title: "Electric Vehicle Charging",
-      description: "Network of EV charging stations across major cities",
-      category: "Transportation",
-      location: "Cape Town, South Africa",
-      targetAmount: 600000,
-      raisedAmount: 420000,
-      investors: 134,
-      daysLeft: 52,
-      returnRate: "16-22%",
-      riskLevel: "Medium",
-      trending: "up",
-      change: "+11.4%",
-      image: "/api/placeholder/400/250",
-      tags: ["EV", "Charging", "Infrastructure"]
-    },
-    {
-      id: 5,
-      title: "Creative Arts Studio",
-      description: "Modern art and music production facility",
-      category: "Entertainment",
-      location: "Dakar, Senegal",
-      targetAmount: 150000,
-      raisedAmount: 95000,
-      investors: 43,
-      daysLeft: 25,
-      returnRate: "14-20%",
-      riskLevel: "Medium",
-      trending: "down",
-      change: "-3.2%",
-      image: "/api/placeholder/400/250",
-      tags: ["Arts", "Music", "Creative"]
-    },
-    {
-      id: 6,
-      title: "Biodiversity Conservation",
-      description: "Wildlife protection and habitat restoration project",
-      category: "Agriculture",
-      location: "Tanzania",
-      targetAmount: 400000,
-      raisedAmount: 280000,
-      investors: 78,
-      daysLeft: 41,
-      returnRate: "10-15%",
-      riskLevel: "Low",
-      trending: "up",
-      change: "+6.7%",
-      image: "/api/placeholder/400/250",
-      tags: ["Conservation", "Wildlife", "Eco"]
+  useEffect(() => {
+    const load = async () => {
+      if (!supabase) return
+      setLoading(true)
+      try {
+        const { data } = await supabase
+          .from('projects')
+          .select('id,title,description,category,image_url,funding_goal,current_funding,return_rate_min,return_rate_max,status,updated_at')
+          .eq('status', 'active')
+          .order('updated_at', { ascending: false })
+          .limit(60)
+        setProjects(data || [])
+      } finally {
+        setLoading(false)
+      }
     }
-  ]
+    load()
+  }, [])
+
+  const categories = useMemo(() => {
+    const counts: Record<string, number> = {}
+    projects.forEach(p => {
+      const c = (p.category || 'Other').toLowerCase()
+      counts[c] = (counts[c] || 0) + 1
+    })
+    const list = Object.entries(counts).map(([id, count]) => ({ id, name: id.replace(/\b\w/g, c => c.toUpperCase()), icon: Globe, count }))
+    return [{ id: 'all', name: 'All Categories', icon: Globe, count: projects.length }, ...list]
+  }, [projects])
 
   const getRiskColor = (risk: string) => {
     switch (risk) {
@@ -173,23 +91,22 @@ export default function MoreProjectsPage() {
   }
 
   const filteredProjects = projects.filter(project => {
-    const matchesSearch = project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         project.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         project.location.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesCategory = selectedCategory === 'all' || project.category.toLowerCase() === selectedCategory
+    const matchesSearch = (project.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (project.description || '').toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesCategory = selectedCategory === 'all' || (project.category || '').toLowerCase() === selectedCategory
     return matchesSearch && matchesCategory
   })
 
   const sortedProjects = [...filteredProjects].sort((a, b) => {
     switch (sortBy) {
       case 'trending':
-        return parseFloat(b.change.replace(/[+\-%]/g, '')) - parseFloat(a.change.replace(/[+\-%]/g, ''))
+        return 0
       case 'funding':
-        return (b.raisedAmount / b.targetAmount) - (a.raisedAmount / a.targetAmount)
+        return ((Number(b.current_funding)||0) / (Number(b.funding_goal)||1)) - ((Number(a.current_funding)||0) / (Number(a.funding_goal)||1))
       case 'investors':
-        return b.investors - a.investors
+        return 0
       case 'daysLeft':
-        return a.daysLeft - b.daysLeft
+        return 0
       default:
         return 0
     }
@@ -272,17 +189,14 @@ export default function MoreProjectsPage() {
                 <Badge variant="secondary" className="text-xs">
                   {project.category}
                 </Badge>
-                <Badge className={getRiskColor(project.riskLevel)}>
-                  {project.riskLevel}
-                </Badge>
               </div>
               <div className="absolute bottom-3 left-3 flex items-center gap-2">
                 <div className="flex items-center gap-1 bg-background/80 px-2 py-1 rounded-full">
-                  {getTrendIcon(project.trending)}
+                  {getTrendIcon('up')}
                   <span className={`text-xs font-medium ${
-                    project.trending === 'up' ? 'text-green-500' : 'text-red-500'
+                    'text-green-500'
                   }`}>
-                    {project.change}
+                    +
                   </span>
                 </div>
               </div>
@@ -292,25 +206,21 @@ export default function MoreProjectsPage() {
               <div className="mb-4">
                 <h3 className="text-lg font-semibold text-foreground mb-2">{project.title}</h3>
                 <p className="text-muted-foreground text-sm mb-3">{project.description}</p>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-                  <Globe className="h-4 w-4" />
-                  {project.location}
-                </div>
               </div>
 
               {/* Funding Progress */}
               <div className="space-y-3 mb-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Target Amount</span>
-                  <span className="font-medium">${project.targetAmount.toLocaleString()}</span>
+                  <span className="font-medium">${(project.funding_goal ?? 0).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Raised</span>
-                  <span className="font-medium">${project.raisedAmount.toLocaleString()}</span>
+                  <span className="font-medium">${(project.current_funding ?? 0).toLocaleString()}</span>
                 </div>
                 <div className="w-full">
                   <Progress 
-                    value={(project.raisedAmount / project.targetAmount) * 100} 
+                    value={((Number(project.current_funding)||0)/(Number(project.funding_goal)||1))*100} 
                     className="h-2"
                   />
                 </div>
@@ -319,35 +229,17 @@ export default function MoreProjectsPage() {
               {/* Project Details */}
               <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
                 <div>
-                  <span className="text-muted-foreground">Investors:</span>
-                  <span className="font-medium ml-1">{project.investors}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Days Left:</span>
-                  <span className="font-medium ml-1">{project.daysLeft}</span>
-                </div>
-                <div>
                   <span className="text-muted-foreground">Return Rate:</span>
-                  <span className="font-medium ml-1">{project.returnRate}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Risk Level:</span>
-                  <span className="font-medium ml-1">{project.riskLevel}</span>
+                  <span className="font-medium ml-1">{project.return_rate_min ?? '-'}% – {project.return_rate_max ?? '-'}%</span>
                 </div>
               </div>
 
               {/* Tags */}
-              <div className="flex flex-wrap gap-2 mb-4">
-                {project.tags.map((tag, index) => (
-                  <Badge key={index} variant="outline" className="text-xs">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
+              <div className="flex flex-wrap gap-2 mb-4"></div>
 
               {/* Action Buttons */}
               <div className="flex gap-2">
-                <Button className="flex-1">
+                <Button className="flex-1" onClick={() => router.push(`/investing/project/${project.id}`)}>
                   <Eye className="h-4 w-4 mr-2" />
                   View Details
                 </Button>
