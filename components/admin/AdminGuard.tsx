@@ -9,11 +9,8 @@ export function AdminGuard({ children }: { children: ReactNode }) {
   const router = useRouter()
   const { user, profile, loading } = useAuth()
 
-  const isAdmin = Boolean(
-    profile?.is_admin === true ||
-    profile?.role === "admin" ||
-    (Array.isArray(profile?.selected_roles) && profile.selected_roles.includes("admin"))
-  )
+  // Only true admins (profiles.is_admin) may access admin routes
+  const isAdmin = profile?.is_admin === true
 
   useEffect(() => {
     if (!loading) {

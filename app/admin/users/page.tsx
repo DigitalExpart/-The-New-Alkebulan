@@ -12,7 +12,8 @@ import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 
 interface AdminUser {
-  id: string
+  id?: string | null
+  user_id?: string | null
   first_name?: string | null
   last_name?: string | null
   email?: string | null
@@ -57,16 +58,30 @@ export default function AdminUsersPage() {
   const toggleAdmin = async (id: string, next: boolean) => {
     if (!supabase) return
     try {
-      const { error } = await supabase
+      // Use returning select to verify the update actually happened (and not blocked by RLS)
+      const { data, error } = await supabase
         .from("profiles")
         .update({ is_admin: next, updated_at: new Date().toISOString() })
         .eq("id", id)
+        .select("id, user_id, is_admin")
+        .maybeSingle()
+
       if (error) throw error
-      setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, is_admin: next } : u)))
+      if (!data) {
+        throw new Error("No rows updated. You might not have permission to change this user.")
+      }
+
+      setUsers((prev) => prev.map((u) => {
+        const uid = u.id ?? ''
+        const uuser = u.user_id ?? ''
+        return (uid === id || uuser === id) ? { ...u, is_admin: data.is_admin ?? next } : u
+      }))
       toast.success(next ? "Granted admin" : "Revoked admin")
-    } catch (e) {
+      // Refresh list to avoid stale state from concurrent updates
+      fetchUsers()
+    } catch (e: any) {
       console.error(e)
-      toast.error("Update failed")
+      toast.error(e?.message || "Update failed")
     }
   }
 
@@ -126,7 +141,7 @@ export default function AdminUsersPage() {
                     <span className="text-xs">Admin</span>
                     <Switch
                       checked={!!u.is_admin}
-                      onCheckedChange={(next) => toggleAdmin(u.id, next)}
+                      onCheckedChange={(next) => toggleAdmin((u.id || u.user_id || ''), next)}
                     />
                   </div>
                 </CardContent>
