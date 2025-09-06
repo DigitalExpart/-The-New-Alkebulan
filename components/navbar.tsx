@@ -546,9 +546,21 @@ export function Navbar() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
+                  <Link href="/funding" className="cursor-pointer flex items-center gap-2">
+                    <Coins className="w-4 h-4" />
+                    Funding
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
                   <Link href="/investing/my-investments" className="cursor-pointer flex items-center gap-2">
                     <BarChart3 className="w-4 h-4" />
                     My Investments
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/dashboard/investments" className="cursor-pointer flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4" />
+                    Investments Dashboard
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>

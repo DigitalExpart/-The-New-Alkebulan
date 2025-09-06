@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -34,6 +34,7 @@ import {
 import { InvestmentChart } from "@/components/funding/investment-chart"
 import { FundingProgress } from "@/components/funding/funding-progress"
 import { InvestmentCalculator } from "@/components/funding/investment-calculator"
+import { supabase } from "@/lib/supabase"
 
 export default function FundingPage() {
   const [investmentAmount, setInvestmentAmount] = useState("")
@@ -68,18 +69,45 @@ export default function FundingPage() {
     },
   }
 
-  // Mock global funding data
+  // Live aggregates from projects/investments
+  const [currentRaised, setCurrentRaised] = useState(0)
+  const [goalAmount, setGoalAmount] = useState(0)
+  const [investors, setInvestors] = useState<number | null>(null)
+  const [daysLeft, setDaysLeft] = useState<number | null>(null)
   const fundingData = {
-    currentRaised: 1100000,
-    goalAmount: 3600000,
-    investors: 1247,
-    daysLeft: 45,
-    currentRound: "Series A",
     minInvestment: 100,
     maxInvestment: 10000,
+    currentRound: "Series A",
   }
+  useEffect(() => {
+    const load = async () => {
+      if (!supabase) return
+      try {
+        const { data: projects } = await supabase
+          .from('projects')
+          .select('funding_goal,current_funding,end_date,status')
+        let raised = 0, goal = 0, minDays: number | null = null
+        ;(projects || []).forEach((p: any) => {
+          raised += Number(p.current_funding) || 0
+          goal += Number(p.funding_goal) || 0
+          if (p.end_date) {
+            const d = Math.ceil((new Date(p.end_date).getTime() - Date.now())/(1000*60*60*24))
+            if (!isNaN(d)) minDays = minDays == null ? d : Math.min(minDays, d)
+          }
+        })
+        setCurrentRaised(raised)
+        setGoalAmount(goal)
+        if (minDays != null) setDaysLeft(Math.max(0, minDays))
+        try {
+          const { count } = await supabase.from('investments').select('*', { count: 'exact', head: true })
+          if (typeof count === 'number') setInvestors(count)
+        } catch {}
+      } catch {}
+    }
+    load()
+  }, [])
 
-  const progressPercentage = (fundingData.currentRaised / fundingData.goalAmount) * 100
+  const progressPercentage = useMemo(() => goalAmount ? (currentRaised / goalAmount) * 100 : 0, [currentRaised, goalAmount])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -275,10 +303,10 @@ export default function FundingPage() {
 
         {/* Global Funding Progress */}
         <FundingProgress
-          currentRaised={fundingData.currentRaised}
-          goalAmount={fundingData.goalAmount}
-          investors={fundingData.investors}
-          daysLeft={fundingData.daysLeft}
+          currentRaised={currentRaised}
+          goalAmount={goalAmount}
+          investors={investors ?? undefined}
+          daysLeft={daysLeft ?? undefined}
           currentRound={fundingData.currentRound}
         />
 
@@ -300,9 +328,9 @@ export default function FundingPage() {
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{formatLargeCurrency(fundingData.currentRaised)}</div>
+                  <div className="text-2xl font-bold">{formatLargeCurrency(currentRaised)}</div>
                   <p className="text-xs text-muted-foreground">
-                    {progressPercentage.toFixed(1)}% of {formatLargeCurrency(fundingData.goalAmount)} goal
+                    {progressPercentage.toFixed(1)}% of {formatLargeCurrency(goalAmount)} goal
                   </p>
                 </CardContent>
               </Card>
@@ -313,7 +341,7 @@ export default function FundingPage() {
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{fundingData.investors.toLocaleString()}</div>
+                  <div className="text-2xl font-bold">{(investors ?? 0).toLocaleString()}</div>
                   <p className="text-xs text-muted-foreground">Active investors</p>
                 </CardContent>
               </Card>
@@ -324,7 +352,7 @@ export default function FundingPage() {
                   <Clock className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{fundingData.daysLeft}</div>
+                  <div className="text-2xl font-bold">{daysLeft ?? '—'}</div>
                   <p className="text-xs text-muted-foreground">Days remaining</p>
                 </CardContent>
               </Card>
