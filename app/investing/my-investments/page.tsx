@@ -166,7 +166,7 @@ export default function MyInvestmentsPage() {
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">My Investments</h1>
+        <h1 className="text-3xl font-bold text-foreground mb-2">Investor Dashboard</h1>
         <p className="text-muted-foreground text-lg">
           Track your investment portfolio and monitor performance
         </p>
@@ -209,7 +209,7 @@ export default function MyInvestmentsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview">Portfolio Overview</TabsTrigger>
-          <TabsTrigger value="investments">My Investments</TabsTrigger>
+          <TabsTrigger value="investments">Investor Dashboard</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
         </TabsList>
 
@@ -279,7 +279,7 @@ export default function MyInvestmentsPage() {
           </div>
         </TabsContent>
 
-        {/* My Investments Tab */}
+        {/* Investor Dashboard Tab */}
         <TabsContent value="investments" className="space-y-6">
           {/* Search and Filters */}
           <div className="flex flex-col sm:flex-row gap-4">

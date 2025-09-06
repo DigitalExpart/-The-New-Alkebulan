@@ -8,8 +8,8 @@ import { Users, Clock, Target } from "lucide-react"
 interface FundingProgressProps {
   currentRaised: number
   goalAmount: number
-  investors: number
-  daysLeft: number
+  investors?: number
+  daysLeft?: number
   currentRound: string
 }
 
@@ -20,7 +20,7 @@ export function FundingProgress({
   daysLeft,
   currentRound,
 }: FundingProgressProps) {
-  const progressPercentage = (currentRaised / goalAmount) * 100
+  const progressPercentage = goalAmount ? (currentRaised / goalAmount) * 100 : 0
 
   const formatLargeCurrency = (amount: number) => {
     if (amount >= 1000000) {
@@ -48,11 +48,11 @@ export function FundingProgress({
               </Badge>
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
                 <Users className="h-4 w-4" />
-                {investors.toLocaleString()} investors
+                {(investors ?? 0).toLocaleString()} investors
               </div>
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
                 <Clock className="h-4 w-4" />
-                {daysLeft} days left
+                {daysLeft ?? 0} days left
               </div>
             </div>
           </div>

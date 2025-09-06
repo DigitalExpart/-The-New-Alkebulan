@@ -284,9 +284,11 @@ export default function MoreProjectsPage() {
             Let us know about specific investment opportunities you'd like to see, or explore our other investment categories.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="bg-primary hover:bg-primary/90">
-              <TrendingUp className="h-5 w-5 mr-2" />
-              Suggest Project
+            <Button size="lg" className="bg-primary hover:bg-primary/90" asChild>
+              <a href="/investing/suggest-project">
+                <TrendingUp className="h-5 w-5 mr-2" />
+                Suggest Project
+              </a>
             </Button>
             <Button variant="outline" size="lg">
               Contact Us

@@ -212,6 +212,19 @@ export default function AdminDashboardPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
+                    <Mail className="w-5 h-5" /> Project Requests
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">Review user-submitted project suggestions.</p>
+                  <div className="flex gap-2">
+                    <Button asChild size="sm"><Link href="/admin/requests">Open</Link></Button>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
                     <Store className="w-5 h-5" /> Companies
                   </CardTitle>
                 </CardHeader>

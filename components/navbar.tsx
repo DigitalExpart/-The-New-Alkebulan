@@ -554,13 +554,13 @@ export function Navbar() {
                 <DropdownMenuItem asChild>
                   <Link href="/investing/my-investments" className="cursor-pointer flex items-center gap-2">
                     <BarChart3 className="w-4 h-4" />
-                    My Investments
+                    Investor Dashboard
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/dashboard/investments" className="cursor-pointer flex items-center gap-2">
                     <BarChart3 className="w-4 h-4" />
-                    Investments Dashboard
+                    My Investments
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
@@ -920,7 +920,7 @@ export function Navbar() {
                 </CollapsibleTrigger>
                 <CollapsibleContent className="space-y-2 pl-4 pt-2">
                   <Link href="/investing/alkebulan" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">Investing Alkebulan</Link>
-                  <Link href="/investing/my-investments" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">My Investments</Link>
+                  <Link href="/investing/my-investments" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">Investor Dashboard</Link>
                   <Link href="/investing/more-projects" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">More Projects</Link>
                 </CollapsibleContent>
               </Collapsible>
