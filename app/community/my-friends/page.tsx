@@ -32,6 +32,39 @@ export default function MyFriendsPage() {
   const [friends, setFriends] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [onlineUserIds, setOnlineUserIds] = useState<string[]>([])
+
+  // Presence: track online users via Supabase Realtime
+  useEffect(() => {
+    if (!user) return
+    const supabase = getSupabaseClient()
+
+    // Create a presence channel keyed by user id
+    const channel = supabase.channel('presence-friends', {
+      config: { presence: { key: user.id } },
+    })
+
+    channel.on('presence', { event: 'sync' }, () => {
+      const state = channel.presenceState() as Record<string, Array<{ user_id?: string }>>
+      const ids: string[] = []
+      Object.values(state).forEach((arr) => {
+        arr.forEach((p) => {
+          if (p.user_id) ids.push(p.user_id)
+        })
+      })
+      setOnlineUserIds(ids)
+    })
+
+    channel.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await channel.track({ user_id: user.id, at: Date.now() })
+      }
+    })
+
+    return () => {
+      channel.unsubscribe()
+    }
+  }, [user])
 
   // Fetch friends data from database
   useEffect(() => {
@@ -78,6 +111,7 @@ export default function MyFriendsPage() {
           return
         }
 
+        const onlineSet = new Set(onlineUserIds)
         const transformedFriends = (friendships || []).map(friendship => {
           const otherId = friendship.user_id === user.id ? friendship.friend_id : friendship.user_id
           const friend = profiles?.find(p => p.id === otherId)
@@ -93,6 +127,7 @@ export default function MyFriendsPage() {
             friendSince: friendship.created_at,
             lastActive: friend?.updated_at || friend?.created_at || friendship.created_at,
             isOnline: (() => {
+              if (onlineSet.has(otherId)) return true
               const last = new Date(friend?.updated_at || friend?.created_at || friendship.created_at).getTime()
               const fiveMin = 5 * 60 * 1000
               return Date.now() - last < fiveMin
@@ -114,7 +149,7 @@ export default function MyFriendsPage() {
     }
     
     fetchFriends()
-  }, [user])
+  }, [user, onlineUserIds])
   
   // Filter and sort friends
   const filteredFriends = useMemo(() => {

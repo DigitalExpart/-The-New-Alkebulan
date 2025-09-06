@@ -66,9 +66,11 @@ export function FriendCard({ friend, viewMode, onRemoveFriend }: FriendCardProps
                       .join("")}
                   </AvatarFallback>
                 </Avatar>
-                {friend.isOnline && (
-                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full"></div>
-                )}
+                <div
+                  className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white dark:border-gray-800 ${
+                    friend.isOnline ? 'bg-green-500' : 'bg-gray-200/80'
+                  }`}
+                />
               </div>
 
               <div className="flex-1 min-w-0">
@@ -169,9 +171,11 @@ export function FriendCard({ friend, viewMode, onRemoveFriend }: FriendCardProps
                     .join("")}
                 </AvatarFallback>
               </Avatar>
-              {friend.isOnline && (
-                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-3 border-white dark:border-gray-800 rounded-full"></div>
-              )}
+              <div
+                className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-3 border-white dark:border-gray-800 ${
+                  friend.isOnline ? 'bg-green-500' : 'bg-gray-200/80'
+                }`}
+              />
             </div>
 
             
