@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -17,94 +17,143 @@ import {
   Heart,
   Share2
 } from "lucide-react"
+import { supabase } from "@/lib/supabase"
+import { useRouter } from "next/navigation"
+import { useWishlist } from "@/components/commerce/wishlist-context"
 
 export default function InvestingAlkebulanPage() {
   const [selectedCategory, setSelectedCategory] = useState('all')
 
-  const investmentCategories = [
-    { id: 'all', name: 'All Investments', count: 24 },
-    { id: 'real-estate', name: 'Real Estate', count: 8 },
-    { id: 'business', name: 'Business Ventures', count: 6 },
-    { id: 'technology', name: 'Technology', count: 5 },
-    { id: 'agriculture', name: 'Agriculture', count: 3 },
-    { id: 'renewable-energy', name: 'Renewable Energy', count: 2 }
-  ]
+  type ProjectRow = {
+    id: string
+    title: string | null
+    description: string | null
+    funding_goal: number | null
+    current_funding: number | null
+    category: string | null
+    image_url: string | null
+    return_rate_min: number | null
+    return_rate_max: number | null
+    status: string | null
+  }
 
-  const featuredInvestments = [
-    {
-      id: 1,
-      title: "Alkebulan Tech Hub",
-      description: "Modern technology incubator in Lagos, Nigeria",
-      category: "Technology",
-      targetAmount: 500000,
-      raisedAmount: 375000,
-      investors: 127,
-      daysLeft: 15,
-      returnRate: "12-18%",
-      image: "/api/placeholder/400/250",
-      trending: "up",
-      change: "+8.5%"
-    },
-    {
-      id: 2,
-      title: "Green Energy Farm",
-      description: "Solar and wind energy project in Kenya",
-      category: "Renewable Energy",
-      targetAmount: 750000,
-      raisedAmount: 520000,
-      investors: 89,
-      daysLeft: 8,
-      returnRate: "15-22%",
-      image: "/api/placeholder/400/250",
-      trending: "up",
-      change: "+12.3%"
-    },
-    {
-      id: 3,
-      title: "Urban Housing Complex",
-      description: "Affordable housing development in Accra, Ghana",
-      category: "Real Estate",
-      targetAmount: 1200000,
-      raisedAmount: 890000,
-      investors: 203,
-      daysLeft: 22,
-      returnRate: "18-25%",
-      image: "/api/placeholder/400/250",
-      trending: "down",
-      change: "-2.1%"
+  const [projects, setProjects] = useState<ProjectRow[]>([])
+  const [investorCount, setInvestorCount] = useState<number | null>(null)
+  const [loading, setLoading] = useState(false)
+  const router = useRouter()
+  const { has, toggle } = useWishlist()
+
+  useEffect(() => {
+    const load = async () => {
+      if (!supabase) return
+      setLoading(true)
+      try {
+        const [{ data: proj }, invCountRes] = await Promise.all([
+          supabase
+            .from('projects')
+            .select('id,title,description,funding_goal,current_funding,category,image_url,return_rate_min,return_rate_max,status')
+            .eq('status', 'active')
+            .order('created_at', { ascending: false })
+            .limit(30),
+          // count investors if investments table exists
+          supabase.from('investments').select('*', { count: 'exact', head: true })
+        ])
+        setProjects(proj || [])
+        setInvestorCount(invCountRes.count ?? null)
+      } catch {
+        setProjects([])
+        setInvestorCount(null)
+      } finally {
+        setLoading(false)
+      }
     }
-  ]
+    load()
+  }, [])
 
-  const stats = [
+  const categories = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const p of projects) {
+      const cat = (p.category || 'Other').toLowerCase()
+      counts[cat] = (counts[cat] || 0) + 1
+    }
+    const entries = Object.entries(counts)
+    entries.sort((a, b) => b[1] - a[1])
+    return [{ id: 'all', name: 'All Investments', count: projects.length },
+      ...entries.map(([id, count]) => ({ id, name: id.replace(/\b\w/g, c => c.toUpperCase()), count }))]
+  }, [projects])
+
+  const filteredProjects = useMemo(() => {
+    if (selectedCategory === 'all') return projects
+    return projects.filter(p => (p.category || 'other').toLowerCase() === selectedCategory)
+  }, [projects, selectedCategory])
+
+  const totalRaised = useMemo(() => {
+    return projects.reduce((sum, p) => sum + (Number(p.current_funding) || 0), 0)
+  }, [projects])
+
+  const activeProjects = projects.length
+  const avgReturn = useMemo(() => {
+    const rs: number[] = []
+    for (const p of projects) {
+      if (p.return_rate_min != null && p.return_rate_max != null) {
+        rs.push((Number(p.return_rate_min) + Number(p.return_rate_max)) / 2)
+      }
+    }
+    if (!rs.length) return null
+    return rs.reduce((a, b) => a + b, 0) / rs.length
+  }, [projects])
+
+  const stats = useMemo(() => ([
     {
       title: "Total Investments",
-      value: "$2.4M",
-      change: "+15.3%",
+      value: totalRaised > 0 ? `$${totalRaised.toLocaleString()}` : "$0",
+      change: "",
       trend: "up",
       icon: DollarSign
     },
     {
       title: "Active Projects",
-      value: "24",
-      change: "+3",
+      value: String(activeProjects),
+      change: "",
       trend: "up",
       icon: Target
     },
     {
       title: "Total Investors",
-      value: "1,247",
-      change: "+89",
+      value: investorCount != null ? investorCount.toLocaleString() : "—",
+      change: "",
       trend: "up",
       icon: Users
     },
     {
       title: "Avg. Return Rate",
-      value: "16.8%",
-      change: "+2.1%",
+      value: avgReturn != null ? `${avgReturn.toFixed(1)}%` : "—",
+      change: "",
       trend: "up",
       icon: TrendingUp
     }
-  ]
+  ]), [totalRaised, activeProjects, investorCount, avgReturn])
+
+  const handleView = (id: string) => {
+    router.push(`/investing/project/${id}`)
+  }
+
+  const handleToggleSave = (p: ProjectRow) => {
+    toggle({ id: p.id, name: p.title || 'Project', imageUrl: p.image_url || undefined })
+  }
+
+  const handleShare = async (p: ProjectRow) => {
+    const url = typeof window !== 'undefined' ? `${window.location.origin}/investing/project/${p.id}` : `/investing/project/${p.id}`
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: p.title || 'Project', text: p.description || undefined, url })
+        return
+      }
+    } catch {}
+    try {
+      await navigator.clipboard.writeText(url)
+    } catch {}
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -151,7 +200,7 @@ export default function InvestingAlkebulanPage() {
       <div className="mb-8">
         <h2 className="text-xl font-semibold text-foreground mb-4">Investment Categories</h2>
         <div className="flex flex-wrap gap-3">
-          {investmentCategories.map((category) => (
+          {categories.map((category) => (
             <Button
               key={category.id}
               variant={selectedCategory === category.id ? 'default' : 'outline'}
@@ -171,45 +220,41 @@ export default function InvestingAlkebulanPage() {
       <div className="mb-8">
         <h2 className="text-xl font-semibold text-foreground mb-6">Featured Investment Opportunities</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {featuredInvestments.map((investment) => (
-            <Card key={investment.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+          {filteredProjects.map((p) => (
+            <Card key={p.id} className="overflow-hidden hover:shadow-lg transition-shadow">
               <div className="aspect-video bg-muted relative">
                 <div className="absolute top-3 right-3">
                   <Badge variant="secondary" className="text-xs">
-                    {investment.category}
+                    {p.category || 'N/A'}
                   </Badge>
                 </div>
                 <div className="absolute bottom-3 left-3 flex items-center gap-2">
                   <div className="flex items-center gap-1 bg-background/80 px-2 py-1 rounded-full">
-                    {investment.trending === 'up' ? (
                       <ArrowUpRight className="h-3 w-3 text-green-500" />
-                    ) : (
-                      <ArrowDownRight className="h-3 w-3 text-red-500" />
-                    )}
                     <span className={`text-xs font-medium ${
-                      investment.trending === 'up' ? 'text-green-500' : 'text-red-500'
+                      'text-green-500'
                     }`}>
-                      {investment.change}
+                      +
                     </span>
                   </div>
                 </div>
               </div>
               <CardContent className="p-6">
-                <h3 className="text-lg font-semibold text-foreground mb-2">{investment.title}</h3>
-                <p className="text-muted-foreground text-sm mb-4">{investment.description}</p>
+                <h3 className="text-lg font-semibold text-foreground mb-2">{p.title}</h3>
+                <p className="text-muted-foreground text-sm mb-4">{p.description}</p>
                 
                 <div className="space-y-3 mb-4">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Target Amount</span>
-                    <span className="font-medium">${investment.targetAmount.toLocaleString()}</span>
+                    <span className="font-medium">${(p.funding_goal ?? 0).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Raised</span>
-                    <span className="font-medium">${investment.raisedAmount.toLocaleString()}</span>
+                    <span className="font-medium">${(p.current_funding ?? 0).toLocaleString()}</span>
                   </div>
                   <div className="w-full">
                     <Progress 
-                      value={(investment.raisedAmount / investment.targetAmount) * 100} 
+                      value={((Number(p.current_funding) || 0) / (Number(p.funding_goal) || 1)) * 100} 
                       className="h-2"
                     />
                   </div>
@@ -218,27 +263,27 @@ export default function InvestingAlkebulanPage() {
                 <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Investors:</span>
-                    <span className="font-medium ml-1">{investment.investors}</span>
+                    <span className="font-medium ml-1">—</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Days Left:</span>
-                    <span className="font-medium ml-1">{investment.daysLeft}</span>
+                    <span className="font-medium ml-1">—</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Return Rate:</span>
-                    <span className="font-medium ml-1">{investment.returnRate}</span>
+                    <span className="font-medium ml-1">{p.return_rate_min ?? '-'}% – {p.return_rate_max ?? '-'}%</span>
                   </div>
                 </div>
 
                 <div className="flex gap-2">
-                  <Button className="flex-1">
+                  <Button className="flex-1" onClick={() => handleView(p.id)}>
                     <Eye className="h-4 w-4 mr-2" />
                     View Details
                   </Button>
-                  <Button variant="outline" size="icon">
+                  <Button variant={has(p.id) ? "default" : "outline"} size="icon" onClick={() => handleToggleSave(p)}>
                     <Heart className="h-4 w-4" />
                   </Button>
-                  <Button variant="outline" size="icon">
+                  <Button variant="outline" size="icon" onClick={() => handleShare(p)}>
                     <Share2 className="h-4 w-4" />
                   </Button>
                 </div>

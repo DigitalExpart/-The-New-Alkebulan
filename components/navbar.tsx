@@ -118,6 +118,12 @@ export function Navbar() {
     return getFirstName((user as any)?.user_metadata?.full_name || profile?.first_name || user?.email?.split('@')[0])
   }
 
+  const isAdmin = Boolean(
+    profile?.is_admin === true ||
+    profile?.role === 'admin' ||
+    (Array.isArray(profile?.selected_roles) && profile.selected_roles.includes('admin'))
+  )
+
   // Debug: Log authentication state
   useEffect(() => {
     console.log('Navbar - User state:', !!user, user?.id, user?.email, loading)
@@ -534,13 +540,19 @@ export function Navbar() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56">
                 <DropdownMenuItem asChild>
-                  <Link href="/investing/alkebulan" className="cursor-pointer flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4" />
-                    Investing Alkebulan
+                  <Link href="/funding" className="cursor-pointer flex items-center gap-2">
+                    <Coins className="w-4 h-4" />
+                    Funding
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/investing/my-investments" className="cursor-pointer flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4" />
+                    Investor Dashboard
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/dashboard/investments" className="cursor-pointer flex items-center gap-2">
                     <BarChart3 className="w-4 h-4" />
                     My Investments
                   </Link>
@@ -675,6 +687,14 @@ export function Navbar() {
                       Role Management
                     </Link>
                   </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin" className="cursor-pointer flex items-center gap-2">
+                        <Shield className="w-4 h-4" />
+                        Admin Console
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuLabel className="text-xs text-muted-foreground px-2 py-1.5">
                     Account Roles
@@ -893,8 +913,7 @@ export function Navbar() {
                   <ChevronDown className={`h-4 w-4 transition-transform ${mobileInvestingOpen ? 'rotate-180' : 'rotate-0'}`} />
                 </CollapsibleTrigger>
                 <CollapsibleContent className="space-y-2 pl-4 pt-2">
-                  <Link href="/investing/alkebulan" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">Investing Alkebulan</Link>
-                  <Link href="/investing/my-investments" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">My Investments</Link>
+                  <Link href="/investing/my-investments" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">Investor Dashboard</Link>
                   <Link href="/investing/more-projects" onClick={closeMobileNav} className="block px-2 py-2 rounded-md hover:bg-accent hover:text-black text-white">More Projects</Link>
                 </CollapsibleContent>
               </Collapsible>

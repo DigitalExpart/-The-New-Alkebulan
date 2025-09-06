@@ -74,7 +74,7 @@ export default function InvestmentsDashboardPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Investment Dashboard</h1>
+          <h1 className="text-3xl font-bold mb-2">My Investments</h1>
           <p className="text-muted-foreground">Track your investments and portfolio performance</p>
         </div>
         <Button asChild>

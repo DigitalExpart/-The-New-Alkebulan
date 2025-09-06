@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -21,123 +21,122 @@ import {
   PieChart,
   Activity
 } from "lucide-react"
+import { supabase } from "@/lib/supabase"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function MyInvestmentsPage() {
   const [activeTab, setActiveTab] = useState('overview')
   const [searchQuery, setSearchQuery] = useState('')
+  const { user } = useAuth()
 
-  const portfolioStats = [
-    {
-      title: "Total Portfolio Value",
-      value: "$47,250",
-      change: "+$3,420",
-      trend: "up",
-      percentage: "+7.8%"
-    },
-    {
-      title: "Total Invested",
-      value: "$42,000",
-      change: "$0",
-      trend: "neutral",
-      percentage: "0%"
-    },
-    {
-      title: "Total Returns",
-      value: "$5,250",
-      change: "+$3,420",
-      trend: "up",
-      percentage: "+186%"
-    },
-    {
-      title: "Avg. Return Rate",
-      value: "12.5%",
-      change: "+2.1%",
-      trend: "up",
-      percentage: "+20.2%"
-    }
-  ]
+  type Position = {
+    id: string
+    title: string
+    category: string | null
+    investedAmount: number
+    currentValue: number
+    returnRate: number
+    status: string
+    startDate: string | null
+    endDate: string | null
+    progress: number
+    lastUpdate?: string | null
+  }
 
-  const myInvestments = [
-    {
-      id: 1,
-      title: "Alkebulan Tech Hub",
-      category: "Technology",
-      investedAmount: 15000,
-      currentValue: 17250,
-      returnRate: 15.0,
-      status: "Active",
-      startDate: "2024-03-15",
-      endDate: "2026-03-15",
-      progress: 35,
-      lastUpdate: "2 days ago"
-    },
-    {
-      id: 2,
-      title: "Green Energy Farm",
-      category: "Renewable Energy",
-      investedAmount: 12000,
-      currentValue: 13800,
-      returnRate: 15.0,
-      status: "Active",
-      startDate: "2024-02-20",
-      endDate: "2027-02-20",
-      progress: 28,
-      lastUpdate: "1 week ago"
-    },
-    {
-      id: 3,
-      title: "Urban Housing Complex",
-      category: "Real Estate",
-      investedAmount: 8000,
-      currentValue: 8400,
-      returnRate: 5.0,
-      status: "Active",
-      startDate: "2024-01-10",
-      endDate: "2028-01-10",
-      progress: 15,
-      lastUpdate: "3 days ago"
-    },
-    {
-      id: 4,
-      title: "AgriTech Solutions",
-      category: "Agriculture",
-      investedAmount: 7000,
-      currentValue: 7800,
-      returnRate: 11.4,
-      status: "Active",
-      startDate: "2024-04-05",
-      endDate: "2026-04-05",
-      progress: 45,
-      lastUpdate: "5 days ago"
-    }
-  ]
+  type Txn = {
+    id: string
+    type: string
+    project: string | null
+    amount: number
+    date: string
+    status: string
+  }
 
-  const recentTransactions = [
-    {
-      id: 1,
-      type: "Investment",
-      project: "Alkebulan Tech Hub",
-      amount: 15000,
-      date: "2024-03-15",
-      status: "Completed"
-    },
-    {
-      id: 2,
-      type: "Return",
-      project: "Green Energy Farm",
-      amount: 1800,
-      date: "2024-03-10",
-      status: "Completed"
-    },
-    {
-      id: 3,
-      type: "Investment",
-      project: "Urban Housing Complex",
-      amount: 8000,
-      date: "2024-01-10",
-      status: "Completed"
+  const [positions, setPositions] = useState<Position[]>([])
+  const [transactions, setTransactions] = useState<Txn[]>([])
+  const [portfolio, setPortfolio] = useState<{ total_invested: number; total_value: number; total_returns: number; avg_return_rate: number } | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!user || !supabase) return
+      setLoading(true)
+      try {
+        const [{ data: posData }, { data: txData }, { data: statsData }] = await Promise.all([
+          supabase
+            .from('investment_positions')
+            .select('id, invested_amount, current_value, return_rate, status, start_date, end_date, progress, last_update, investments:investments(id, title, category)')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('investment_transactions')
+            .select('id, type, amount, occurred_at, status, investments:investments(title)')
+            .eq('user_id', user.id)
+            .order('occurred_at', { ascending: false })
+            .limit(25),
+          supabase
+            .from('v_investment_portfolio_stats')
+            .select('*')
+            .eq('user_id', user.id)
+            .maybeSingle()
+        ])
+
+        const mappedPositions: Position[] = (posData || []).map((p: any) => ({
+          id: p.id,
+          title: p.investments?.title || 'Untitled Investment',
+          category: p.investments?.category ?? null,
+          investedAmount: Number(p.invested_amount || 0),
+          currentValue: Number(p.current_value || 0),
+          returnRate: Number(p.return_rate || 0),
+          status: String(p.status || 'active'),
+          startDate: p.start_date || null,
+          endDate: p.end_date || null,
+          progress: Number(p.progress || 0),
+          lastUpdate: p.last_update || null,
+        }))
+
+        const mappedTxns: Txn[] = (txData || []).map((t: any) => ({
+          id: t.id,
+          type: String(t.type || 'investment'),
+          project: t.investments?.title || null,
+          amount: Number(t.amount || 0),
+          date: (t.occurred_at || new Date().toISOString()).slice(0, 10),
+          status: String(t.status || 'completed')
+        }))
+
+        setPositions(mappedPositions)
+        setTransactions(mappedTxns)
+        if (statsData) setPortfolio({
+          total_invested: Number(statsData.total_invested || 0),
+          total_value: Number(statsData.total_value || 0),
+          total_returns: Number(statsData.total_returns || 0),
+          avg_return_rate: Number(statsData.avg_return_rate || 0)
+        })
+      } finally {
+        setLoading(false)
+      }
     }
-  ]
+    fetchData()
+  }, [user])
+
+  const portfolioStats = useMemo(() => {
+    const invested = portfolio?.total_invested ?? 0
+    const value = portfolio?.total_value ?? 0
+    const returns = portfolio?.total_returns ?? (value - invested)
+    const rate = portfolio?.avg_return_rate ?? (invested === 0 ? 0 : ((value - invested) / invested) * 100)
+
+    const trend = returns > 0 ? 'up' : returns < 0 ? 'down' : 'neutral'
+
+    return [
+      { title: 'Total Portfolio Value', value: `$${value.toLocaleString()}`, change: `${returns >= 0 ? '+' : ''}$${Math.abs(returns).toLocaleString()}`, trend, percentage: `${rate.toFixed(1)}%` },
+      { title: 'Total Invested', value: `$${invested.toLocaleString()}`, change: '$0', trend: 'neutral', percentage: '0%' },
+      { title: 'Total Returns', value: `$${returns.toLocaleString()}`, change: `${returns >= 0 ? '+' : ''}$${Math.abs(returns).toLocaleString()}`, trend, percentage: `${rate.toFixed(1)}%` },
+      { title: 'Avg. Return Rate', value: `${rate.toFixed(1)}%`, change: '', trend: trend, percentage: `${rate.toFixed(1)}%` },
+    ]
+  }, [portfolio])
+
+  const myInvestments = useMemo(() => positions, [positions])
+  const recentTransactions = useMemo(() => transactions, [transactions])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -167,7 +166,7 @@ export default function MyInvestmentsPage() {
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">My Investments</h1>
+        <h1 className="text-3xl font-bold text-foreground mb-2">Investor Dashboard</h1>
         <p className="text-muted-foreground text-lg">
           Track your investment portfolio and monitor performance
         </p>
@@ -210,7 +209,7 @@ export default function MyInvestmentsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview">Portfolio Overview</TabsTrigger>
-          <TabsTrigger value="investments">My Investments</TabsTrigger>
+          <TabsTrigger value="investments">Investor Dashboard</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
         </TabsList>
 
@@ -280,7 +279,7 @@ export default function MyInvestmentsPage() {
           </div>
         </TabsContent>
 
-        {/* My Investments Tab */}
+        {/* Investor Dashboard Tab */}
         <TabsContent value="investments" className="space-y-6">
           {/* Search and Filters */}
           <div className="flex flex-col sm:flex-row gap-4">

@@ -401,7 +401,7 @@ export default function ProfilePage() {
                 <Button asChild variant="outline" className="w-full justify-start bg-transparent">
                   <Link href="/dashboard/investments">
                     <TrendingUp className="mr-2 h-4 w-4" />
-                    My Investments
+                    Investor Dashboard
                   </Link>
                 </Button>
               </CardContent>
