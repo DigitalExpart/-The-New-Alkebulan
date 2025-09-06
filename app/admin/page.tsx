@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Shield, Users, Store, Settings, BarChart3, Package, MessageSquare, TrendingUp } from "lucide-react"
+import { Shield, Users, Store, Settings, BarChart3, Package, MessageSquare, TrendingUp, Mail } from "lucide-react"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 
