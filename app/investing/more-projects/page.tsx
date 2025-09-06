@@ -122,6 +122,75 @@ export default function MoreProjectsPage() {
         </p>
       </div>
 
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {[
+          {
+            title: "Total Investments",
+            value: projects.reduce((sum, p) => sum + (Number(p.current_funding) || 0), 0) > 0 ? `$${projects.reduce((sum, p) => sum + (Number(p.current_funding) || 0), 0).toLocaleString()}` : "$0",
+            change: "",
+            trend: "up",
+            icon: DollarSign
+          },
+          {
+            title: "Active Projects",
+            value: String(projects.length),
+            change: "",
+            trend: "up",
+            icon: Target
+          },
+          {
+            title: "Total Investors",
+            value: "—",
+            change: "",
+            trend: "up",
+            icon: Users
+          },
+          {
+            title: "Avg. Return Rate",
+            value: (() => {
+              const rates: number[] = []
+              for (const p of projects) {
+                if (p.return_rate_min != null && p.return_rate_max != null) {
+                  rates.push((Number(p.return_rate_min) + Number(p.return_rate_max)) / 2)
+                }
+              }
+              if (!rates.length) return "—"
+              return `${(rates.reduce((a, b) => a + b, 0) / rates.length).toFixed(1)}%`
+            })(),
+            change: "",
+            trend: "up",
+            icon: TrendingUp
+          }
+        ].map((stat, index) => (
+          <Card key={index}>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
+                  <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <stat.icon className="h-8 w-8 text-primary" />
+                  <div className="flex items-center gap-1">
+                    {stat.trend === 'up' ? (
+                      <ArrowUpRight className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <ArrowDownRight className="h-4 w-4 text-red-500" />
+                    )}
+                    <span className={`text-sm font-medium ${
+                      stat.trend === 'up' ? 'text-green-500' : 'text-red-500'
+                    }`}>
+                      {stat.change}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
       {/* Search and Filters */}
       <div className="mb-8 space-y-6">
         {/* Search Bar */}

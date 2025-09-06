@@ -230,7 +230,7 @@ export default function InvestingAlkebulanPage() {
                 </div>
                 <div className="absolute bottom-3 left-3 flex items-center gap-2">
                   <div className="flex items-center gap-1 bg-background/80 px-2 py-1 rounded-full">
-                    <ArrowUpRight className="h-3 w-3 text-green-500" />
+                      <ArrowUpRight className="h-3 w-3 text-green-500" />
                     <span className={`text-xs font-medium ${
                       'text-green-500'
                     }`}>
