@@ -427,7 +427,7 @@ export default function BusinessDashboardPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-4xl md:text-5xl font-bold mb-4 text-white">Business Dashboard</h1>
+              <h1 className="text-4xl md:text-5xl font-bold mb-4 dark:text-white">Business Dashboard</h1>
               <p className="text-xl text-muted-foreground max-w-3xl">
                 Welcome back, {profile?.first_name || profile?.business_name || 'Business Owner'}! 
                 Manage your business operations, track performance, and grow your presence in the diaspora marketplace.

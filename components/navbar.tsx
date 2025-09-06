@@ -403,7 +403,7 @@ export function Navbar() {
           </div>
 
           {/* Desktop Navigation Links */}
-          <div className="hidden md:flex items-center space-x-6 font-agrandir tracking-wider">
+          <div className="hidden md:flex items-center space-x-6">
             {/* Community Dropdown */}
             <DropdownMenu open={isCommunityOpen} onOpenChange={setIsCommunityOpen}>
               <DropdownMenuTrigger asChild>
@@ -479,7 +479,7 @@ export function Navbar() {
             {/* Growth Dropdown */}
               <DropdownMenu open={isGrowthOpen} onOpenChange={setIsGrowthOpen}>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors duration-200 font-medium text-white font-agrandir">
+                <button className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors duration-200 font-medium text-white">
                   <span>Growth</span>
                   <ChevronDown className="h-4 w-4" />
                 </button>
