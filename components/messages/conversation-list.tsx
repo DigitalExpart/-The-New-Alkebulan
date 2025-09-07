@@ -178,7 +178,14 @@ export function ConversationList({
       if (!chatPartnerId) {
         setLoading(true)
       }
-      const supabase = getSupabaseClient()
+      
+      // Check if Supabase is configured
+      if (!supabase) {
+        console.warn('Supabase not configured - skipping conversation fetch')
+        setConversations([])
+        setLoading(false)
+        return
+      }
       
       // Get current user
       const { data: { user } } = await supabase.auth.getUser()
@@ -195,6 +202,13 @@ export function ConversationList({
 
       if (partErr) {
         console.warn('Supabase Error (Step 1 - Fetching participant conversations):', partErr.message || partErr)
+        
+        // Check if this is a "table doesn't exist" error
+        if (partErr.message?.includes('relation "conversation_participants" does not exist')) {
+          console.warn('Messaging tables not set up yet. Please run the setup-messaging-tables.sql script in Supabase.')
+          toast.error("Messaging system not set up. Please contact support.")
+        }
+        
         setLoading(false)
         return
       }
@@ -539,7 +553,12 @@ export function ConversationList({
         <div className="flex-1 overflow-y-auto">
           {filteredConversations.length === 0 ? (
             <div className="p-4 text-center text-muted-foreground">
-              {searchQuery ? "No conversations found" : "No messages yet"}
+              {searchQuery ? "No conversations found" : (
+                <div>
+                  <p className="mb-2">No messages yet</p>
+                  <p className="text-xs">Start a conversation by messaging someone!</p>
+                </div>
+              )}
             </div>
           ) : (
             filteredConversations.map((conversation) => {
