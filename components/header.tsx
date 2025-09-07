@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { Menu, X, Search, ChevronDown, Heart, Monitor, UserCheck, Shield, ShoppingCart, Building2, CheckCircle, LogOut, MessageCircle } from "lucide-react"
+import { Menu, X, Search, ChevronDown, Heart, Monitor, UserCheck, Shield, ShoppingCart, Building2, CheckCircle, LogOut, MessageCircle, Users, Store, UserPlus, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CartDropdown } from "@/components/commerce/cart-dropdown"
 import { NotificationsDropdown } from "@/components/notifications/notifications-dropdown"
@@ -30,6 +30,14 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState("All")
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false)
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [searchFilters, setSearchFilters] = useState({
+    postTitle: true,
+    comments: false
+  })
 
   // Keyboard shortcut for search
   useEffect(() => {
@@ -46,6 +54,84 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [isSearchOpen])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isCategoryDropdownOpen) {
+        const target = event.target as Element
+        if (!target.closest('.category-dropdown')) {
+          setIsCategoryDropdownOpen(false)
+        }
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isCategoryDropdownOpen])
+
+  // Search functionality with debouncing
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([])
+      return
+    }
+
+    const searchTimeout = setTimeout(async () => {
+      setIsSearching(true)
+      try {
+        const results = await performSearch(searchQuery, selectedCategory, searchFilters)
+        setSearchResults(results)
+      } catch (error) {
+        console.error('Search error:', error)
+        setSearchResults([])
+      } finally {
+        setIsSearching(false)
+      }
+    }, 300) // 300ms debounce
+
+    return () => clearTimeout(searchTimeout)
+  }, [searchQuery, selectedCategory, searchFilters])
+
+  // Search function
+  const performSearch = async (query: string, category: string, filters: any) => {
+    // This would integrate with your backend search API
+    // For now, returning mock data based on category
+    const mockResults = {
+      All: [
+        { id: 1, type: 'post', title: 'Welcome to The New Alkebulan', content: 'Join our community...', author: 'Admin', date: '2024-01-15' },
+        { id: 2, type: 'community', name: 'Tech Entrepreneurs', description: 'Connect with tech entrepreneurs...', members: 150 },
+        { id: 3, type: 'company', name: 'Alkebulan Tech', description: 'Leading tech company...', industry: 'Technology' },
+        { id: 4, type: 'product', name: 'Community Platform', description: 'Our main platform...', price: '$99/month' },
+        { id: 5, type: 'user', name: 'John Doe', title: 'Software Engineer', location: 'Lagos, Nigeria' }
+      ],
+      Communities: [
+        { id: 2, type: 'community', name: 'Tech Entrepreneurs', description: 'Connect with tech entrepreneurs...', members: 150 },
+        { id: 6, type: 'community', name: 'Business Network', description: 'Business networking community...', members: 89 }
+      ],
+      Companies: [
+        { id: 3, type: 'company', name: 'Alkebulan Tech', description: 'Leading tech company...', industry: 'Technology' },
+        { id: 7, type: 'company', name: 'Afro Digital', description: 'Digital solutions provider...', industry: 'Digital Services' }
+      ],
+      Products: [
+        { id: 4, type: 'product', name: 'Community Platform', description: 'Our main platform...', price: '$99/month' },
+        { id: 8, type: 'product', name: 'Business Tools', description: 'Essential business tools...', price: '$49/month' }
+      ],
+      Friends: [
+        { id: 5, type: 'user', name: 'John Doe', title: 'Software Engineer', location: 'Lagos, Nigeria' },
+        { id: 9, type: 'user', name: 'Sarah Johnson', title: 'Marketing Manager', location: 'Accra, Ghana' }
+      ],
+      Post: [
+        { id: 1, type: 'post', title: 'Welcome to The New Alkebulan', content: 'Join our community...', author: 'Admin', date: '2024-01-15' },
+        { id: 10, type: 'post', title: 'Building Your Business', content: 'Tips for entrepreneurs...', author: 'Expert', date: '2024-01-14' }
+      ]
+    }
+
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500))
+    
+    return mockResults[category as keyof typeof mockResults] || []
+  }
 
   const getDisplayName = () => {
     if (!user) return 'User'
@@ -338,47 +424,94 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={() => setIsSearchOpen(false)}>
           <div className="fixed left-1/2 top-[calc(300%+2rem)] transform -translate-x-1/2 -translate-y-1/2 w-full max-w-lg mx-4">
             <div className="bg-background border border-border rounded-lg shadow-lg p-4" onClick={(e) => e.stopPropagation()}>
-              {/* Search Input Bar - Always Visible */}
+              {/* Search Input Bar with Category Dropdown */}
               <div className="mb-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <input
-                    type="text"
-                    placeholder="Search for anything..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-10 py-3 bg-muted border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                    autoFocus
-                  />
-                  {searchQuery && (
+                <div className="flex items-center gap-2">
+                  {/* Search Input */}
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Search for anything..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-10 py-3 bg-muted border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      autoFocus
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery("")}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Category Dropdown */}
+                  <div className="relative category-dropdown">
                     <button
-                      onClick={() => setSearchQuery("")}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+                      className="flex items-center gap-2 px-3 py-3 bg-muted border border-border rounded-lg hover:bg-accent transition-colors text-xs font-medium"
                     >
-                      <X className="h-4 w-4" />
+                      <span>{selectedCategory}</span>
+                      <ChevronDown className={`h-3 w-3 transition-transform ${isCategoryDropdownOpen ? 'rotate-180' : ''}`} />
                     </button>
-                  )}
+                    
+                    {isCategoryDropdownOpen && (
+                      <div className="absolute top-full right-0 mt-1 bg-background border border-border rounded-lg shadow-lg py-1 z-10 min-w-[140px]">
+                        {[
+                          { name: "All", icon: Search },
+                          { name: "Communities", icon: Users },
+                          { name: "Companies", icon: Building2 },
+                          { name: "Products", icon: Store },
+                          { name: "Friends", icon: UserPlus },
+                          { name: "Post", icon: FileText }
+                        ].map((category) => (
+                          <button
+                            key={category.name}
+                            onClick={() => {
+                              setSelectedCategory(category.name)
+                              setIsCategoryDropdownOpen(false)
+                            }}
+                            className={`w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent transition-colors ${
+                              selectedCategory === category.name ? 'bg-accent text-accent-foreground' : 'text-foreground'
+                            }`}
+                          >
+                            <category.icon className="h-3 w-3" />
+                            <span>{category.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* Search Filters */}
               <div className="mb-4">
-                <div className="flex items-center gap-3 mb-2">
+                <div className="flex items-center gap-3">
                   <span className="text-xs font-medium text-muted-foreground">Search in:</span>
                   <div className="flex items-center gap-3">
                     <label className="flex items-center gap-1 text-xs">
-                      <input type="checkbox" defaultChecked className="rounded" />
+                      <input 
+                        type="checkbox" 
+                        checked={searchFilters.postTitle}
+                        onChange={(e) => setSearchFilters(prev => ({ ...prev, postTitle: e.target.checked }))}
+                        className="rounded" 
+                      />
                       Post Title & Content
                     </label>
                     <label className="flex items-center gap-1 text-xs">
-                      <input type="checkbox" className="rounded" />
+                      <input 
+                        type="checkbox" 
+                        checked={searchFilters.comments}
+                        onChange={(e) => setSearchFilters(prev => ({ ...prev, comments: e.target.checked }))}
+                        className="rounded" 
+                      />
                       Comments
                     </label>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">All Posts</span>
-                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
                 </div>
               </div>
 
@@ -392,10 +525,73 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
                     Tip: Quick-launch search with ⌘ + K (Mac) or Ctrl + K (Windows/Linux)
                   </p>
                 </div>
+              ) : isSearching ? (
+                <div className="py-4">
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                    <p className="text-muted-foreground text-sm">Searching...</p>
+                  </div>
+                </div>
+              ) : searchResults.length > 0 ? (
+                <div className="py-4 max-h-60 overflow-y-auto">
+                  <div className="space-y-2">
+                    {searchResults.map((result) => (
+                      <div key={result.id} className="p-3 bg-muted rounded-lg hover:bg-accent transition-colors cursor-pointer">
+                        {result.type === 'post' && (
+                          <div>
+                            <h4 className="font-medium text-sm mb-1">{result.title}</h4>
+                            <p className="text-xs text-muted-foreground mb-1">{result.content}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span>By {result.author}</span>
+                              <span>•</span>
+                              <span>{result.date}</span>
+                            </div>
+                          </div>
+                        )}
+                        {result.type === 'community' && (
+                          <div>
+                            <h4 className="font-medium text-sm mb-1">{result.name}</h4>
+                            <p className="text-xs text-muted-foreground mb-1">{result.description}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span>{result.members} members</span>
+                            </div>
+                          </div>
+                        )}
+                        {result.type === 'company' && (
+                          <div>
+                            <h4 className="font-medium text-sm mb-1">{result.name}</h4>
+                            <p className="text-xs text-muted-foreground mb-1">{result.description}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span>{result.industry}</span>
+                            </div>
+                          </div>
+                        )}
+                        {result.type === 'product' && (
+                          <div>
+                            <h4 className="font-medium text-sm mb-1">{result.name}</h4>
+                            <p className="text-xs text-muted-foreground mb-1">{result.description}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span>{result.price}</span>
+                            </div>
+                          </div>
+                        )}
+                        {result.type === 'user' && (
+                          <div>
+                            <h4 className="font-medium text-sm mb-1">{result.name}</h4>
+                            <p className="text-xs text-muted-foreground mb-1">{result.title}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span>{result.location}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               ) : (
                 <div className="py-4">
                   <p className="text-center text-muted-foreground text-sm">
-                    Search results for "{searchQuery}" will appear here...
+                    No results found for "{searchQuery}"
                   </p>
                 </div>
               )}
