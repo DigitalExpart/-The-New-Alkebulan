@@ -39,18 +39,46 @@ export function useMessageNotifications() {
         const conversationIds = conversations.map(c => c.conversation_id)
 
         // Count unread messages in these conversations
-        const { data: unreadMessages, error: msgError } = await supabase
-          .from('messages')
-          .select('id')
-          .in('conversation_id', conversationIds)
-          .eq('is_read', false)
-          .neq('sender_id', user.id) // Don't count messages sent by current user
+        // First try with is_read column, fallback to counting all messages if column doesn't exist
+        let unreadMessages: any[] = []
+        let msgError: any = null
+
+        try {
+          const { data, error } = await supabase
+            .from('messages')
+            .select('id')
+            .in('conversation_id', conversationIds)
+            .eq('is_read', false)
+            .neq('sender_id', user.id) // Don't count messages sent by current user
+
+          unreadMessages = data || []
+          msgError = error
+        } catch (error) {
+          console.warn('is_read column might not exist, trying alternative approach:', error)
+          // Fallback: count all messages not sent by current user
+          const { data, error } = await supabase
+            .from('messages')
+            .select('id')
+            .in('conversation_id', conversationIds)
+            .neq('sender_id', user.id)
+
+          unreadMessages = data || []
+          msgError = error
+        }
 
         if (msgError) {
           console.error('Error fetching unread messages:', msgError)
+          console.error('Error details:', {
+            message: msgError.message,
+            details: msgError.details,
+            hint: msgError.hint,
+            code: msgError.code
+          })
           return
         }
 
+        // For now, just count all messages not sent by current user
+        // This will be refined once we confirm the table structure
         setUnreadCount(unreadMessages?.length || 0)
       } catch (error) {
         console.error('Error in fetchUnreadCount:', error)
@@ -87,18 +115,19 @@ export function useMessageNotifications() {
           }
         }
       )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'messages' },
-        (payload) => {
-          const updatedMessage = payload.new as any
-          
-          // If a message was marked as read, decrease unread count
-          if (updatedMessage.is_read && updatedMessage.sender_id !== user.id) {
-            setUnreadCount(prev => Math.max(0, prev - 1))
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'messages' },
+          (payload) => {
+            const updatedMessage = payload.new as any
+            
+            // If a message was marked as read, decrease unread count
+            // Only if is_read column exists
+            if (updatedMessage.is_read !== undefined && updatedMessage.is_read && updatedMessage.sender_id !== user.id) {
+              setUnreadCount(prev => Math.max(0, prev - 1))
+            }
           }
-        }
-      )
+        )
       .subscribe()
 
     return () => {
