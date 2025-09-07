@@ -4,6 +4,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
+import { LayoutWrapper } from "@/components/layout-wrapper"
 import { ThemeProvider } from "@/components/theme-provider"
 import { CartProvider } from "@/components/commerce/cart-context"
 import { WishlistProvider } from "@/components/commerce/wishlist-context"
@@ -50,8 +51,9 @@ export default function RootLayout({
                 <AIAssistantProvider>
                 <OverlayProvider>
                   <div className="min-h-screen flex flex-col theme-transition">
-                    <Navbar />
-                    <main className="flex-1 md:pt-16 mt-4 pt-10 md:mt-12 theme-transition mb-6">{children}</main>
+                    <LayoutWrapper>
+                      {children}
+                    </LayoutWrapper>
                     <Footer />
                   </div>
                 </OverlayProvider>

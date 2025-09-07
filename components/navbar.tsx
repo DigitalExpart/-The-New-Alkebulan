@@ -379,7 +379,7 @@ export function Navbar() {
   }
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 dark:bg-background border-b border-border transition-all duration-300 py-2 bg-[#07370d] overflow-y-visible">
+    <nav className="hidden lg:block dark:bg-background border-b border-border transition-all duration-300 py-2 bg-[#07370d] overflow-y-visible">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo and Brand */}
