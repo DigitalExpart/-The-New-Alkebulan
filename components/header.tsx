@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useState } from "react"
-import { Menu, X, Search, ChevronDown, Heart, Monitor, UserCheck, Shield, ShoppingCart, Building2, CheckCircle, LogOut } from "lucide-react"
+import React, { useState, useEffect } from "react"
+import { Menu, X, Search, ChevronDown, Heart, Monitor, UserCheck, Shield, ShoppingCart, Building2, CheckCircle, LogOut, MessageCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CartDropdown } from "@/components/commerce/cart-dropdown"
 import { NotificationsDropdown } from "@/components/notifications/notifications-dropdown"
@@ -28,6 +28,24 @@ interface HeaderProps {
 export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
   const { user, profile, signOut } = useAuth()
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+
+  // Keyboard shortcut for search
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+        event.preventDefault()
+        setIsSearchOpen(true)
+      }
+      if (event.key === 'Escape' && isSearchOpen) {
+        setIsSearchOpen(false)
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isSearchOpen])
 
   const getDisplayName = () => {
     if (!user) return 'User'
@@ -117,13 +135,25 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
             
             {/* Logo */}
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-lg">A</span>
+              <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center overflow-hidden">
+                <img 
+                  src="/logo.png" 
+                  alt="Alkebulan Logo" 
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    const parent = target.parentElement;
+                    if (parent) {
+                      parent.innerHTML = '<span class="text-primary-foreground font-bold text-lg">A</span>';
+                    }
+                  }}
+                />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-foreground">The New</h1>
                 <h2 className="text-lg font-extrabold text-primary">Alkebulan</h2>
-              </div>
+        </div>
             </div>
           </div>
 
@@ -134,8 +164,21 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
               variant="ghost"
               size="icon"
               className="hover:bg-accent"
+              onClick={() => setIsSearchOpen(true)}
             >
               <Search className="h-5 w-5 text-foreground" />
+            </Button>
+            
+            {/* Message icon */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hover:bg-accent"
+              asChild
+            >
+              <a href="/messages">
+                <MessageCircle className="h-5 w-5 text-foreground" />
+              </a>
             </Button>
             
             {/* Cart */}
@@ -289,6 +332,84 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
           </div>
         </div>
       </div>
+
+      {/* Search Popup Modal */}
+      {isSearchOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={() => setIsSearchOpen(false)}>
+          <div className="fixed left-1/2 top-[calc(300%+2rem)] transform -translate-x-1/2 -translate-y-1/2 w-full max-w-lg mx-4">
+            <div className="bg-background border border-border rounded-lg shadow-lg p-4" onClick={(e) => e.stopPropagation()}>
+              {/* Search Input Bar - Always Visible */}
+              <div className="mb-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Search for anything..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-10 py-3 bg-muted border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    autoFocus
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Search Filters */}
+              <div className="mb-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-xs font-medium text-muted-foreground">Search in:</span>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-1 text-xs">
+                      <input type="checkbox" defaultChecked className="rounded" />
+                      Post Title & Content
+                    </label>
+                    <label className="flex items-center gap-1 text-xs">
+                      <input type="checkbox" className="rounded" />
+                      Comments
+                    </label>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">All Posts</span>
+                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                </div>
+              </div>
+
+              {/* Search Content */}
+              {!searchQuery ? (
+                <div className="text-center py-6">
+                  <Search className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                  <h3 className="text-base font-semibold mb-1">Search for anything</h3>
+                  <p className="text-muted-foreground mb-2 text-sm">Try searching for keywords in posts</p>
+                  <p className="text-xs text-muted-foreground">
+                    Tip: Quick-launch search with ⌘ + K (Mac) or Ctrl + K (Windows/Linux)
+                  </p>
+                </div>
+              ) : (
+                <div className="py-4">
+                  <p className="text-center text-muted-foreground text-sm">
+                    Search results for "{searchQuery}" will appear here...
+                  </p>
+                </div>
+              )}
+
+              {/* Close Button */}
+              <div className="flex justify-end mt-3">
+                <Button variant="outline" size="sm" onClick={() => setIsSearchOpen(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   )
 }
