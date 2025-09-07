@@ -127,8 +127,12 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
   // Fallback Supabase search function
   const performSupabaseSearch = async (query: string, category: string, filters: any) => {
     try {
-      const { createClient } = await import('@/lib/supabase')
-      const supabase = createClient()
+      const { supabase } = await import('@/lib/supabase')
+      
+      if (!supabase) {
+        console.error('Supabase client not available')
+        return []
+      }
       
       let results: any[] = []
 
@@ -136,19 +140,29 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
         // Search posts
         const { data: posts, error: postsError } = await supabase
           .from('posts')
-          .select('id, title, content, author_id, created_at, user:author_id(first_name, last_name)')
-          .or(`title.ilike.%${query}%, content.ilike.%${query}%`)
-          .limit(10)
+          .select(`
+            id,
+            title,
+            content,
+            author_id,
+            created_at,
+            user:author_id (
+              first_name,
+              last_name
+            )
+          `)
+          .or(`title.ilike.%${query}%,content.ilike.%${query}%`)
+          .limit(10);
 
         if (!postsError && posts) {
-          results.push(...posts.map(post => ({
+          results.push(...posts.map((post: any) => ({
             id: post.id,
             type: 'post',
             title: post.title,
             content: post.content?.substring(0, 100) + '...',
-            author: post.user ? `${post.user.first_name} ${post.user.last_name}` : 'Unknown',
-            date: new Date(post.created_at).toLocaleDateString()
-          })))
+            author: post.user ? `${post.user.first_name || ''} ${post.user.last_name || ''}`.trim() || 'Unknown' : 'Unknown',
+                    date: new Date(post.created_at).toLocaleDateString()
+                  })))
         }
       }
 
@@ -161,7 +175,7 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
           .limit(10)
 
         if (!communitiesError && communities) {
-          results.push(...communities.map(community => ({
+          results.push(...communities.map((community: any) => ({
             id: community.id,
             type: 'community',
             name: community.name,
@@ -180,7 +194,7 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
           .limit(10)
 
         if (!companiesError && companies) {
-          results.push(...companies.map(company => ({
+          results.push(...companies.map((company: any) => ({
             id: company.id,
             type: 'company',
             name: company.name,
@@ -199,7 +213,7 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
           .limit(10)
 
         if (!productsError && products) {
-          results.push(...products.map(product => ({
+          results.push(...products.map((product: any) => ({
             id: product.id,
             type: 'product',
             name: product.name,
@@ -218,7 +232,7 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
           .limit(10)
 
         if (!profilesError && profiles) {
-          results.push(...profiles.map(profile => ({
+          results.push(...profiles.map((profile: any) => ({
             id: profile.id,
             type: 'user',
             name: `${profile.first_name} ${profile.last_name}`,
@@ -237,12 +251,12 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
           .limit(10)
 
         if (!commentsError && comments) {
-          results.push(...comments.map(comment => ({
+          results.push(...comments.map((comment: any) => ({
             id: comment.id,
             type: 'comment',
             title: `Comment on: ${comment.post?.title || 'Unknown Post'}`,
             content: comment.content?.substring(0, 100) + '...',
-            author: comment.user ? `${comment.user.first_name} ${comment.user.last_name}` : 'Unknown',
+            author: comment.user ? `${comment.user.first_name || ''} ${comment.user.last_name || ''}`.trim() || 'Unknown' : 'Unknown',
             date: new Date(comment.created_at).toLocaleDateString()
           })))
         }
@@ -296,15 +310,15 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
       }
       
       // Update the profile in Supabase
-      const { error } = await fetch('/api/profile/update', {
+      const response = await fetch('/api/profile/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData)
       })
       
-      if (error) {
-        console.error('Error updating account type:', error)
-        alert(`Failed to switch to ${newRole} mode: ${error.message}`)
+      if (!response.ok) {
+        console.error('Error updating account type:', response.statusText)
+        alert(`Failed to switch to ${newRole} mode: ${response.statusText}`)
         return
       }
       
