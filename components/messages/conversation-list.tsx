@@ -89,6 +89,27 @@ export function ConversationList({
     }
   }, [])
 
+  // Listen for new messages to refresh conversation list
+  useEffect(() => {
+    if (!supabase) return
+
+    const messageChannel = supabase
+      .channel('conversation-updates')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          // Refresh conversations when new messages arrive
+          fetchConversations()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(messageChannel)
+    }
+  }, [supabase])
+
   // Effect to handle initial chat setup if a chatPartnerId is provided via URL
   useEffect(() => {
     const handleInitialChatSetup = async () => {
@@ -178,14 +199,24 @@ export function ConversationList({
       if (!chatPartnerId) {
         setLoading(true)
       }
-      const supabase = getSupabaseClient()
+      
+      // Check if Supabase is configured
+      if (!supabase) {
+        console.warn('Supabase not configured - skipping conversation fetch')
+        setConversations([])
+        setLoading(false)
+        return
+      }
       
       // Get current user
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         toast.error("Please sign in to view messages")
+        setLoading(false)
         return
       }
+
+      console.log('Fetching conversations for user:', user.id)
 
       // Step 1: find conversation ids where user participates
       const { data: myParticipantRows, error: partErr } = await supabase
@@ -195,9 +226,18 @@ export function ConversationList({
 
       if (partErr) {
         console.warn('Supabase Error (Step 1 - Fetching participant conversations):', partErr.message || partErr)
+        
+        // Check if this is a "table doesn't exist" error
+        if (partErr.message?.includes('relation "conversation_participants" does not exist')) {
+          console.warn('Messaging tables not set up yet. Please run the setup-messaging-tables.sql script in Supabase.')
+          toast.error("Messaging system not set up. Please contact support.")
+        }
+        
         setLoading(false)
         return
       }
+
+      console.log('Found participant rows:', myParticipantRows?.length || 0)
 
       const conversationIdsRaw = (myParticipantRows || [])
         .filter(r => (showArchived ? r.is_archived === true : r.is_archived !== true))
@@ -208,8 +248,11 @@ export function ConversationList({
         )
       )
 
+      console.log('Found conversation IDs:', conversationIds)
+
       // If no conversations found for the user and no specific chat partner is requested, return early.
       if (conversationIds.length === 0 && !chatPartnerId) {
+        console.log('No conversations found for user')
         setConversations([])
         setLoading(false)
         return
@@ -539,7 +582,12 @@ export function ConversationList({
         <div className="flex-1 overflow-y-auto">
           {filteredConversations.length === 0 ? (
             <div className="p-4 text-center text-muted-foreground">
-              {searchQuery ? "No conversations found" : "No messages yet"}
+              {searchQuery ? "No conversations found" : (
+                <div>
+                  <p className="mb-2">No messages yet</p>
+                  <p className="text-xs">Start a conversation by messaging someone!</p>
+                </div>
+              )}
             </div>
           ) : (
             filteredConversations.map((conversation) => {
