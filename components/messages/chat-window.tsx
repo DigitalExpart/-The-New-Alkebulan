@@ -249,6 +249,30 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
+  // Mark messages as read when conversation is opened
+  useEffect(() => {
+    if (!conversationId || !currentUser?.id || !supabase) return
+
+    const markMessagesAsRead = async () => {
+      try {
+        const { error } = await supabase
+          .from('messages')
+          .update({ is_read: true })
+          .eq('conversation_id', conversationId)
+          .eq('is_read', false)
+          .neq('sender_id', currentUser.id)
+
+        if (error) {
+          console.error('Error marking messages as read:', error)
+        }
+      } catch (error) {
+        console.error('Error in markMessagesAsRead:', error)
+      }
+    }
+
+    markMessagesAsRead()
+  }, [conversationId, currentUser?.id, supabase])
+
   useEffect(() => {
     if (isSearchOpen) {
       setTimeout(() => searchInputRef.current?.focus(), 0)
@@ -357,7 +381,7 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
         is_read: false,
         type: 'text',
         message_type: 'text', // Ensure message_type is set for text messages
-      }).select('id, sender_id, content, timestamp, is_read, type').single()
+      }).select('id, sender_id, content, timestamp, is_read, type, message_type').single()
 
       if (error) {
         console.error("Supabase error sending message:", error)
@@ -424,7 +448,7 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
         file_extension: fileExtension,
         media_url: publicUrl, // Store public URL in media_url
         created_at: new Date().toISOString(),
-      }).select().single();
+      }).select('id, sender_id, content, timestamp, is_read, type, message_type, media_url, file_extension').single();
  
       if (messageError) throw messageError;
  
@@ -933,8 +957,69 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
                         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                       )}
                     </div>
+                  ) : message.message_type === 'audio' || 
+                       message.content?.includes('voice_') || 
+                       message.content?.includes('.webm') || 
+                       message.content?.includes('.mp3') || 
+                       message.content?.includes('.wav') || 
+                       message.content?.includes('.ogg') ? (
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const audio = new Audio(message.content);
+                          audio.play().catch(err => {
+                            console.error('Error playing audio:', err);
+                            toast.error('Failed to play voice note');
+                          });
+                        }}
+                        className="flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white"
+                      >
+                        <Mic className="h-4 w-4" />
+                        <span>🎤 Play Voice Note</span>
+                      </Button>
+                    </div>
+                  ) : message.message_type === 'image' ? (
+                    <div className="max-w-xs">
+                      <img 
+                        src={message.content} 
+                        alt="Shared image" 
+                        className="rounded-lg max-w-full h-auto"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          target.parentElement!.innerHTML = '<p class="text-sm text-muted-foreground">Image failed to load</p>';
+                        }}
+                      />
+                    </div>
+                  ) : message.message_type === 'video' ? (
+                    <div className="max-w-xs">
+                      <video 
+                        src={message.content} 
+                        controls 
+                        className="rounded-lg max-w-full h-auto"
+                        onError={(e) => {
+                          const target = e.target as HTMLVideoElement;
+                          target.style.display = 'none';
+                          target.parentElement!.innerHTML = '<p class="text-sm text-muted-foreground">Video failed to load</p>';
+                        }}
+                      />
+                    </div>
+                  ) : message.message_type === 'file' ? (
+                    <div className="flex items-center space-x-2">
+                      <FileIcon className="h-4 w-4" />
+                      <a 
+                        href={message.content} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-500 hover:underline"
+                      >
+                        Download File
+                      </a>
+                    </div>
                   ) : (
-                  <p className="text-sm">{message.content}</p>
+                    <p className="text-sm">{message.content}</p>
                   )}
                 </div>
                 <span className="text-xs text-muted-foreground mt-1">

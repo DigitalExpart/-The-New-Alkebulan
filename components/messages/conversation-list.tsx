@@ -89,6 +89,27 @@ export function ConversationList({
     }
   }, [])
 
+  // Listen for new messages to refresh conversation list
+  useEffect(() => {
+    if (!supabase) return
+
+    const messageChannel = supabase
+      .channel('conversation-updates')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          // Refresh conversations when new messages arrive
+          fetchConversations()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(messageChannel)
+    }
+  }, [supabase])
+
   // Effect to handle initial chat setup if a chatPartnerId is provided via URL
   useEffect(() => {
     const handleInitialChatSetup = async () => {
@@ -191,8 +212,11 @@ export function ConversationList({
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         toast.error("Please sign in to view messages")
+        setLoading(false)
         return
       }
+
+      console.log('Fetching conversations for user:', user.id)
 
       // Step 1: find conversation ids where user participates
       const { data: myParticipantRows, error: partErr } = await supabase
@@ -213,6 +237,8 @@ export function ConversationList({
         return
       }
 
+      console.log('Found participant rows:', myParticipantRows?.length || 0)
+
       const conversationIdsRaw = (myParticipantRows || [])
         .filter(r => (showArchived ? r.is_archived === true : r.is_archived !== true))
         .map(r => r.conversation_id)
@@ -222,8 +248,11 @@ export function ConversationList({
         )
       )
 
+      console.log('Found conversation IDs:', conversationIds)
+
       // If no conversations found for the user and no specific chat partner is requested, return early.
       if (conversationIds.length === 0 && !chatPartnerId) {
+        console.log('No conversations found for user')
         setConversations([])
         setLoading(false)
         return

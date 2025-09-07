@@ -5,6 +5,7 @@ import { Menu, X, Search, ChevronDown, Heart, Monitor, UserCheck, Shield, Shoppi
 import { Button } from "@/components/ui/button"
 import { CartDropdown } from "@/components/commerce/cart-dropdown"
 import { NotificationsDropdown } from "@/components/notifications/notifications-dropdown"
+import { useMessageNotifications } from "@/hooks/use-message-notifications"
 import { UserAvatarFixed } from "@/components/user-avatar-fixed"
 import { ThemeToggleDropdownItems } from "@/components/theme-toggle"
 import { useAuth } from "@/hooks/use-auth"
@@ -27,6 +28,7 @@ interface HeaderProps {
 
 export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
   const { user, profile, signOut } = useAuth()
+  const { unreadCount: messageUnreadCount } = useMessageNotifications()
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
@@ -391,17 +393,22 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
               <Search className="h-12 w-12 text-foreground" />
             </Button>
             
-            {/* Message icon */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hover:bg-accent"
-              asChild
-            >
-              <a href="/messages">
-                <MessageCircle className="h-12 w-12 text-foreground" />
-              </a>
-            </Button>
+          {/* Message icon */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hover:bg-accent relative"
+            asChild
+          >
+            <a href="/messages">
+              <MessageCircle className="h-12 w-12 text-foreground" />
+              {messageUnreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                  {messageUnreadCount > 99 ? '99+' : messageUnreadCount}
+                </span>
+              )}
+            </a>
+          </Button>
             
             {/* Cart */}
             <CartDropdown />
