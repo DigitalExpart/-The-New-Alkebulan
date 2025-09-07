@@ -342,43 +342,113 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          {/* Left side - Menu button and Logo */}
-          <div className="flex items-center space-x-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onMenuToggle}
-              className="hover:bg-accent"
-            >
-              {sidebarOpen ? (
-                <X className="h-6 w-6 text-foreground" />
-              ) : (
-                <Menu className="h-6 w-6 text-foreground" />
-              )}
-            </Button>
-            
-            {/* Logo */}
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center overflow-hidden">
-                <img 
-                  src="/logo.png" 
-                  alt="Alkebulan Logo" 
-                  className="w-full h-full object-contain"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                    const parent = target.parentElement;
-                    if (parent) {
-                      parent.innerHTML = '<span class="text-primary-foreground font-bold text-lg">A</span>';
-                    }
-                  }}
-                />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-foreground">The New</h1>
-                <h2 className="text-lg font-extrabold text-primary">Alkebulan</h2>
-        </div>
+        {/* Left side - Menu button and Logo */}
+        <div className="flex items-center space-x-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onMenuToggle}
+            className="hover:bg-accent"
+          >
+            {sidebarOpen ? (
+              <X className="h-6 w-6 text-foreground" />
+            ) : (
+              <Menu className="h-6 w-6 text-foreground" />
+            )}
+          </Button>
+
+          {/* Logo */}
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center overflow-hidden">
+              <img
+                src="/logo.png"
+                alt="Alkebulan Logo"
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  const parent = target.parentElement;
+                  if (parent) {
+                    parent.innerHTML = '<span class="text-primary-foreground font-bold text-lg">A</span>';
+                  }
+                }}
+              />
             </div>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">The New</h1>
+              <h2 className="text-lg font-extrabold text-primary">Alkebulan</h2>
+            </div>
+          </div>
+        </div>
+
+        {/* Center - Navigation Links */}
+        <nav className="hidden lg:flex items-center space-x-8">
+          <a 
+            href="/community" 
+            className="text-sm font-medium text-foreground hover:text-primary transition-colors flex items-center"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Social Feeds
+          </a>
+          <a 
+            href="/marketplace" 
+            className="text-sm font-medium text-foreground hover:text-primary transition-colors flex items-center"
+          >
+            <Store className="h-4 w-4 mr-2" />
+            Browse Products
+          </a>
+          <a 
+            href="/communities" 
+            className="text-sm font-medium text-foreground hover:text-primary transition-colors flex items-center"
+          >
+            <Users className="h-4 w-4 mr-2" />
+            Communities
+          </a>
+          <a 
+            href="/investing/more-projects" 
+            className="text-sm font-medium text-foreground hover:text-primary transition-colors flex items-center"
+          >
+            <Building2 className="h-4 w-4 mr-2" />
+            More Projects
+          </a>
+        </nav>
+
+          {/* Mobile Navigation Dropdown */}
+          <div className="lg:hidden">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-foreground">
+                  <Menu className="h-5 w-5 mr-2" />
+                  Menu
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem asChild>
+                  <a href="/community" className="flex items-center">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Social Feeds
+                  </a>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <a href="/marketplace" className="flex items-center">
+                    <Store className="h-4 w-4 mr-2" />
+                    Browse Products
+                  </a>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <a href="/communities" className="flex items-center">
+                    <Users className="h-4 w-4 mr-2" />
+                    Communities
+                  </a>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <a href="/investing/more-projects" className="flex items-center">
+                    <Building2 className="h-4 w-4 mr-2" />
+                    More Projects
+                  </a>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Right side - Actions */}

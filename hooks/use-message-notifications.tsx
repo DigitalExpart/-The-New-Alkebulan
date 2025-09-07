@@ -53,17 +53,17 @@ export function useMessageNotifications() {
 
           unreadMessages = data || []
           msgError = error
-        } catch (error) {
-          console.warn('is_read column might not exist, trying alternative approach:', error)
+        } catch (catchError) {
+          console.warn('is_read column might not exist, trying alternative approach:', catchError)
           // Fallback: count all messages not sent by current user
-          const { data, error } = await supabase
+          const { data, error: fallbackError } = await supabase
             .from('messages')
             .select('id')
             .in('conversation_id', conversationIds)
             .neq('sender_id', user.id)
 
           unreadMessages = data || []
-          msgError = error
+          msgError = fallbackError
         }
 
         if (msgError) {
