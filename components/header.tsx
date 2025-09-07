@@ -93,44 +93,166 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
     return () => clearTimeout(searchTimeout)
   }, [searchQuery, selectedCategory, searchFilters])
 
-  // Search function
+  // Search function - pulls live data from backend
   const performSearch = async (query: string, category: string, filters: any) => {
-    // This would integrate with your backend search API
-    // For now, returning mock data based on category
-    const mockResults = {
-      All: [
-        { id: 1, type: 'post', title: 'Welcome to The New Alkebulan', content: 'Join our community...', author: 'Admin', date: '2024-01-15' },
-        { id: 2, type: 'community', name: 'Tech Entrepreneurs', description: 'Connect with tech entrepreneurs...', members: 150 },
-        { id: 3, type: 'company', name: 'Alkebulan Tech', description: 'Leading tech company...', industry: 'Technology' },
-        { id: 4, type: 'product', name: 'Community Platform', description: 'Our main platform...', price: '$99/month' },
-        { id: 5, type: 'user', name: 'John Doe', title: 'Software Engineer', location: 'Lagos, Nigeria' }
-      ],
-      Communities: [
-        { id: 2, type: 'community', name: 'Tech Entrepreneurs', description: 'Connect with tech entrepreneurs...', members: 150 },
-        { id: 6, type: 'community', name: 'Business Network', description: 'Business networking community...', members: 89 }
-      ],
-      Companies: [
-        { id: 3, type: 'company', name: 'Alkebulan Tech', description: 'Leading tech company...', industry: 'Technology' },
-        { id: 7, type: 'company', name: 'Afro Digital', description: 'Digital solutions provider...', industry: 'Digital Services' }
-      ],
-      Products: [
-        { id: 4, type: 'product', name: 'Community Platform', description: 'Our main platform...', price: '$99/month' },
-        { id: 8, type: 'product', name: 'Business Tools', description: 'Essential business tools...', price: '$49/month' }
-      ],
-      Friends: [
-        { id: 5, type: 'user', name: 'John Doe', title: 'Software Engineer', location: 'Lagos, Nigeria' },
-        { id: 9, type: 'user', name: 'Sarah Johnson', title: 'Marketing Manager', location: 'Accra, Ghana' }
-      ],
-      Post: [
-        { id: 1, type: 'post', title: 'Welcome to The New Alkebulan', content: 'Join our community...', author: 'Admin', date: '2024-01-15' },
-        { id: 10, type: 'post', title: 'Building Your Business', content: 'Tips for entrepreneurs...', author: 'Expert', date: '2024-01-14' }
-      ]
-    }
+    try {
+      const searchParams = new URLSearchParams({
+        q: query,
+        category: category.toLowerCase(),
+        postTitle: filters.postTitle.toString(),
+        comments: filters.comments.toString()
+      })
 
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
-    return mockResults[category as keyof typeof mockResults] || []
+      const response = await fetch(`/api/search?${searchParams}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.status}`)
+      }
+
+      const data = await response.json()
+      return data.results || []
+    } catch (error) {
+      console.error('Search API error:', error)
+      
+      // Fallback to Supabase direct search if API fails
+      return await performSupabaseSearch(query, category, filters)
+    }
+  }
+
+  // Fallback Supabase search function
+  const performSupabaseSearch = async (query: string, category: string, filters: any) => {
+    try {
+      const { createClient } = await import('@/lib/supabase')
+      const supabase = createClient()
+      
+      let results: any[] = []
+
+      if (category === 'All' || category === 'Post') {
+        // Search posts
+        const { data: posts, error: postsError } = await supabase
+          .from('posts')
+          .select('id, title, content, author_id, created_at, user:author_id(first_name, last_name)')
+          .or(`title.ilike.%${query}%, content.ilike.%${query}%`)
+          .limit(10)
+
+        if (!postsError && posts) {
+          results.push(...posts.map(post => ({
+            id: post.id,
+            type: 'post',
+            title: post.title,
+            content: post.content?.substring(0, 100) + '...',
+            author: post.user ? `${post.user.first_name} ${post.user.last_name}` : 'Unknown',
+            date: new Date(post.created_at).toLocaleDateString()
+          })))
+        }
+      }
+
+      if (category === 'All' || category === 'Communities') {
+        // Search communities
+        const { data: communities, error: communitiesError } = await supabase
+          .from('communities')
+          .select('id, name, description, member_count')
+          .or(`name.ilike.%${query}%, description.ilike.%${query}%`)
+          .limit(10)
+
+        if (!communitiesError && communities) {
+          results.push(...communities.map(community => ({
+            id: community.id,
+            type: 'community',
+            name: community.name,
+            description: community.description?.substring(0, 100) + '...',
+            members: community.member_count || 0
+          })))
+        }
+      }
+
+      if (category === 'All' || category === 'Companies') {
+        // Search companies
+        const { data: companies, error: companiesError } = await supabase
+          .from('companies')
+          .select('id, name, description, industry')
+          .or(`name.ilike.%${query}%, description.ilike.%${query}%, industry.ilike.%${query}%`)
+          .limit(10)
+
+        if (!companiesError && companies) {
+          results.push(...companies.map(company => ({
+            id: company.id,
+            type: 'company',
+            name: company.name,
+            description: company.description?.substring(0, 100) + '...',
+            industry: company.industry
+          })))
+        }
+      }
+
+      if (category === 'All' || category === 'Products') {
+        // Search products
+        const { data: products, error: productsError } = await supabase
+          .from('products')
+          .select('id, name, description, price')
+          .or(`name.ilike.%${query}%, description.ilike.%${query}%`)
+          .limit(10)
+
+        if (!productsError && products) {
+          results.push(...products.map(product => ({
+            id: product.id,
+            type: 'product',
+            name: product.name,
+            description: product.description?.substring(0, 100) + '...',
+            price: product.price ? `$${product.price}` : 'Price not available'
+          })))
+        }
+      }
+
+      if (category === 'All' || category === 'Friends') {
+        // Search users/profiles
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, title, location')
+          .or(`first_name.ilike.%${query}%, last_name.ilike.%${query}%, title.ilike.%${query}%`)
+          .limit(10)
+
+        if (!profilesError && profiles) {
+          results.push(...profiles.map(profile => ({
+            id: profile.id,
+            type: 'user',
+            name: `${profile.first_name} ${profile.last_name}`,
+            title: profile.title || 'No title',
+            location: profile.location || 'Location not specified'
+          })))
+        }
+      }
+
+      if (filters.comments && (category === 'All' || category === 'Post')) {
+        // Search comments
+        const { data: comments, error: commentsError } = await supabase
+          .from('comments')
+          .select('id, content, post_id, user_id, created_at, user:user_id(first_name, last_name), post:post_id(title)')
+          .ilike('content', `%${query}%`)
+          .limit(10)
+
+        if (!commentsError && comments) {
+          results.push(...comments.map(comment => ({
+            id: comment.id,
+            type: 'comment',
+            title: `Comment on: ${comment.post?.title || 'Unknown Post'}`,
+            content: comment.content?.substring(0, 100) + '...',
+            author: comment.user ? `${comment.user.first_name} ${comment.user.last_name}` : 'Unknown',
+            date: new Date(comment.created_at).toLocaleDateString()
+          })))
+        }
+      }
+
+      return results.slice(0, 20) // Limit total results
+    } catch (error) {
+      console.error('Supabase search error:', error)
+      return []
+    }
   }
 
   const getDisplayName = () => {
@@ -244,7 +366,7 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
           </div>
 
           {/* Right side - Actions */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center gap-0.5">
             {/* Search icon */}
             <Button
               variant="ghost"
@@ -252,7 +374,7 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
               className="hover:bg-accent"
               onClick={() => setIsSearchOpen(true)}
             >
-              <Search className="h-5 w-5 text-foreground" />
+              <Search className="h-12 w-12 text-foreground" />
             </Button>
             
             {/* Message icon */}
@@ -263,7 +385,7 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
               asChild
             >
               <a href="/messages">
-                <MessageCircle className="h-5 w-5 text-foreground" />
+                <MessageCircle className="h-12 w-12 text-foreground" />
               </a>
             </Button>
             
@@ -422,7 +544,7 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
       {/* Search Popup Modal */}
       {isSearchOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={() => setIsSearchOpen(false)}>
-          <div className="fixed left-1/2 top-[calc(300%+2rem)] transform -translate-x-1/2 -translate-y-1/2 w-full max-w-lg mx-4">
+          <div className="fixed left-1/4 top-20 w-full max-w-lg mx-4 transform translate-x-8">
             <div className="bg-background border border-border rounded-lg shadow-lg p-4" onClick={(e) => e.stopPropagation()}>
               {/* Search Input Bar with Category Dropdown */}
               <div className="mb-4">
@@ -581,6 +703,17 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
                             <p className="text-xs text-muted-foreground mb-1">{result.title}</p>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                               <span>{result.location}</span>
+                            </div>
+                          </div>
+                        )}
+                        {result.type === 'comment' && (
+                          <div>
+                            <h4 className="font-medium text-sm mb-1">{result.title}</h4>
+                            <p className="text-xs text-muted-foreground mb-1">{result.content}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span>By {result.author}</span>
+                              <span>•</span>
+                              <span>{result.date}</span>
                             </div>
                           </div>
                         )}

@@ -127,7 +127,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
           onClick={onToggle}
           className="fixed top-4 left-4 z-50 bg-background border border-border hover:bg-accent shadow-lg"
         >
-          <Menu className="h-6 w-6 text-foreground" />
+          <Menu className="h-10 w-10 text-foreground" />
         </Button>
       )}
 
