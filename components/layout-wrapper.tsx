@@ -102,9 +102,12 @@ export function LayoutWrapper({ children }: LayoutWrapperProps) {
                 </Button>
               </div>
 
-              {/* Center - Section navigation items */}
+              {/* Center - Empty space */}
+              <div></div>
+
+              {/* Right side - Section navigation items */}
               {currentNavItems.length > 0 && (
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
                   {currentNavItems.map((item) => {
                     const Icon = item.icon
                     const isActive = pathname === item.href
@@ -112,22 +115,19 @@ export function LayoutWrapper({ children }: LayoutWrapperProps) {
                       <a
                         key={item.href}
                         href={item.href}
-                        className={`text-sm font-medium transition-colors px-3 py-2 rounded-md flex items-center ${
+                        className={`text-xs font-medium transition-colors px-2 py-1.5 rounded-md flex items-center ${
                           isActive 
                             ? 'text-primary bg-primary/10' 
                             : 'text-foreground hover:text-primary hover:bg-accent'
                         }`}
                       >
-                        <Icon className="h-4 w-4 mr-2" />
+                        <Icon className="h-3 w-3 mr-1.5" />
                         {item.title}
                       </a>
                     )
                   })}
                 </div>
               )}
-
-              {/* Right side - Empty for now */}
-              <div></div>
             </div>
           </div>
         </div>
