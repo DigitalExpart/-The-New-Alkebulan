@@ -36,7 +36,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
 
   const navigationItems = [
     {
-      title: "Feed",
+      title: "Home",
       href: "/",
       icon: Home,
       isActive: pathname === "/"

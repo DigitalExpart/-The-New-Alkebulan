@@ -19,14 +19,14 @@ export function LayoutWrapper({ children }: LayoutWrapperProps) {
   }
 
   // Check which section we're in
-  const isCommunityPage = pathname?.startsWith('/community') || pathname === '/' || pathname === '/messages'
+  const isHomePage = pathname === '/'
+  const isCommunityPage = pathname?.startsWith('/community') || pathname === '/messages'
   const isMarketplacePage = pathname?.startsWith('/marketplace')
   const isGrowthPage = pathname?.startsWith('/growth') || pathname?.startsWith('/dashboard/my-manifesting')
   const isInvestingPage = pathname?.startsWith('/investing') || pathname?.startsWith('/funding') || pathname?.startsWith('/dashboard/investments')
 
   // Community navigation items
   const communityNavItems = [
-    { title: "Feed", href: "/", icon: Home },
     { title: "Social Feed", href: "/community", icon: Users },
     { title: "My Friends", href: "/community/my-friends", icon: UserPlus },
     { title: "My Communities", href: "/community/my-communities", icon: Building2 },
@@ -61,6 +61,7 @@ export function LayoutWrapper({ children }: LayoutWrapperProps) {
 
   // Get current navigation items based on page type
   const getCurrentNavItems = () => {
+    if (isHomePage) return [] // No navigation items for Home page
     if (isCommunityPage) return communityNavItems
     if (isMarketplacePage) return marketplaceNavItems
     if (isGrowthPage) return growthNavItems
