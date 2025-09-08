@@ -12,28 +12,10 @@ import {
   Users, 
   Store, 
   TrendingUp, 
-  Sparkles,
-  FolderOpen,
-  BookOpen,
-  BarChart3,
-  Coins,
-  Calendar,
-  Target,
-  Building2,
-  Globe,
-  UserPlus,
-  MessageCircle,
-  MapPin,
-  Ribbon,
-  ClipboardList,
-  Scale,
-  Map,
-  ChevronDown,
-  ChevronRight
+  Sparkles
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { UserAvatarFixed } from "@/components/user-avatar-fixed"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
 interface SidebarProps {
   isOpen: boolean
@@ -43,20 +25,6 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onToggle }: SidebarProps) {
   const pathname = usePathname()
   const { user, profile, signOut } = useAuth()
-  
-  const [expandedSections, setExpandedSections] = useState({
-    community: false,
-    marketplace: false,
-    growth: false,
-    investing: false
-  })
-
-  const toggleSection = (section: keyof typeof expandedSections) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }))
-  }
 
   const getDisplayName = () => {
     if (!user) return 'User'
@@ -75,45 +43,27 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
     },
     {
       title: "Community",
+      href: "/community",
       icon: Users,
-      children: [
-        { title: "Social Feed", href: "/community", icon: Users },
-        { title: "My Friends", href: "/community/my-friends", icon: UserPlus },
-        { title: "My Communities", href: "/community/my-communities", icon: Building2 },
-        { title: "My Alkebulan", href: "/community/my-alkebulan", icon: Globe },
-        { title: "Messenger", href: "/messages", icon: MessageCircle },
-        { title: "Events", href: "/community/events", icon: Calendar }
-      ]
+      isActive: pathname?.startsWith('/community') || pathname === '/messages'
     },
     {
       title: "Marketplace",
+      href: "/marketplace",
       icon: Store,
-      children: [
-        { title: "Browse Products", href: "/marketplace", icon: Store },
-        { title: "All Companies", href: "/marketplace/companies", icon: Building2 }
-      ]
+      isActive: pathname?.startsWith('/marketplace')
     },
     {
       title: "Growth",
+      href: "/growth/daily-planner",
       icon: Sparkles,
-      children: [
-        { title: "Daily Planner", href: "/growth/daily-planner", icon: ClipboardList },
-        { title: "Progress", href: "/growth/progress", icon: TrendingUp },
-        { title: "Journey", href: "/growth/journey", icon: Map },
-        { title: "Learning Hub", href: "/growth/learning-hub", icon: BookOpen },
-        { title: "Mentorship", href: "/growth/mentorship", icon: Users },
-        { title: "The Manifest Lab", href: "/dashboard/my-manifesting", icon: Sparkles }
-      ]
+      isActive: pathname?.startsWith('/growth') || pathname?.startsWith('/dashboard/my-manifesting')
     },
     {
       title: "Investing",
+      href: "/funding",
       icon: TrendingUp,
-      children: [
-        { title: "Funding", href: "/funding", icon: Coins },
-        { title: "Investor Dashboard", href: "/investing/my-investments", icon: BarChart3 },
-        { title: "My Investments", href: "/dashboard/investments", icon: BarChart3 },
-        { title: "More Projects", href: "/investing/more-projects", icon: FolderOpen }
-      ]
+      isActive: pathname?.startsWith('/investing') || pathname?.startsWith('/funding') || pathname?.startsWith('/dashboard/investments')
     }
   ]
 
@@ -171,61 +121,20 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
           <ScrollArea className="flex-1 px-4 py-4">
             <nav className="space-y-2">
               {navigationItems.map((item) => (
-                <div key={item.title}>
-                  {item.children ? (
-                    <Collapsible 
-                      open={expandedSections[item.title.toLowerCase() as keyof typeof expandedSections]}
-                      onOpenChange={() => toggleSection(item.title.toLowerCase() as keyof typeof expandedSections)}
-                    >
-                      <CollapsibleTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="w-full justify-start h-10 px-3"
-                        >
-                          <item.icon className="mr-3 h-4 w-4" />
-                          <span className="flex-1 text-left">{item.title}</span>
-                          {expandedSections[item.title.toLowerCase() as keyof typeof expandedSections] ? (
-                            <ChevronDown className="h-4 w-4" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="space-y-1 ml-6">
-                        {item.children.map((child) => (
-                          <Button
-                            key={child.href}
-                            variant="ghost"
-                            asChild
-                            className={cn(
-                              "w-full justify-start h-9 px-3",
-                              pathname === child.href && "bg-accent text-accent-foreground"
-                            )}
-                          >
-                            <Link href={child.href}>
-                              <child.icon className="mr-3 h-4 w-4" />
-                              <span className="text-sm">{child.title}</span>
-                            </Link>
-                          </Button>
-                        ))}
-                      </CollapsibleContent>
-                    </Collapsible>
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      asChild
-                      className={cn(
-                        "w-full justify-start h-10 px-3",
-                        item.isActive && "bg-accent text-accent-foreground"
-                      )}
-                    >
-                      <Link href={item.href}>
-                        <item.icon className="mr-3 h-4 w-4" />
-                        <span>{item.title}</span>
-                      </Link>
-                    </Button>
+                <Button
+                  key={item.title}
+                  variant="ghost"
+                  asChild
+                  className={cn(
+                    "w-full justify-start h-10 px-3",
+                    item.isActive && "bg-accent text-accent-foreground"
                   )}
-                </div>
+                >
+                  <Link href={item.href}>
+                    <item.icon className="mr-3 h-4 w-4" />
+                    <span>{item.title}</span>
+                  </Link>
+                </Button>
               ))}
             </nav>
           </ScrollArea>

@@ -21,12 +21,9 @@ import {
   DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu"
 
-interface HeaderProps {
-  onMenuToggle: () => void
-  sidebarOpen: boolean
-}
+interface HeaderProps {}
 
-export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
+export function Header({}: HeaderProps) {
   const { user, profile, signOut } = useAuth()
   const { unreadCount: messageUnreadCount } = useMessageNotifications()
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
@@ -342,21 +339,8 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-        {/* Left side - Menu button and Logo */}
+        {/* Left side - Logo */}
         <div className="flex items-center space-x-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onMenuToggle}
-            className="hover:bg-accent"
-          >
-            {sidebarOpen ? (
-              <X className="h-6 w-6 text-foreground" />
-            ) : (
-              <Menu className="h-6 w-6 text-foreground" />
-            )}
-          </Button>
-
           {/* Logo */}
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center overflow-hidden">
@@ -381,7 +365,7 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
           </div>
         </div>
 
-        {/* Center - Navigation Links */}
+        {/* Center - Navigation Links (Desktop) */}
         <nav className="hidden lg:flex items-center space-x-8">
           <a 
             href="/community" 
@@ -413,43 +397,6 @@ export function Header({ onMenuToggle, sidebarOpen }: HeaderProps) {
           </a>
         </nav>
 
-          {/* Mobile Navigation Dropdown */}
-          <div className="lg:hidden">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-foreground">
-                  <Menu className="h-5 w-5 mr-2" />
-                  Menu
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem asChild>
-                  <a href="/community" className="flex items-center">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Social Feeds
-                  </a>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <a href="/marketplace" className="flex items-center">
-                    <Store className="h-4 w-4 mr-2" />
-                    Browse Products
-                  </a>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <a href="/communities" className="flex items-center">
-                    <Users className="h-4 w-4 mr-2" />
-                    Communities
-                  </a>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <a href="/investing/more-projects" className="flex items-center">
-                    <Building2 className="h-4 w-4 mr-2" />
-                    More Projects
-                  </a>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
 
           {/* Right side - Actions */}
           <div className="flex items-center gap-0.5">
