@@ -769,10 +769,8 @@ export function LayoutWrapper({ children }: LayoutWrapperProps) {
                   )}
                 </Button>
               </div>
-
               {/* Center - Empty space */}
               <div></div>
-
               {/* Right side - Section navigation items */}
               {currentNavItems.length > 0 && (
                 <div className="flex items-center space-x-2">
