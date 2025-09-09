@@ -19,7 +19,7 @@ export function CartDropdown() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="sm" className="relative p-2 dark:hover:bg-gold hover:text-black">
-          <ShoppingCart className="w-5 h-5 text-white" />
+          <ShoppingCart className="w-3 h-3 md:w-5 md:h-5 text-white" />
           {totalQuantity > 0 && (
             <span className="absolute -top-1 -right-1 text-xs bg-red-500 text-white rounded-full h-5 w-5 flex items-center justify-center">
               {totalQuantity > 9 ? "9+" : totalQuantity}

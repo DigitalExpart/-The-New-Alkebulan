@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -30,11 +30,18 @@ import {
   CheckCircle,
   AlertCircle,
   Info,
+  Sparkles,
 } from "lucide-react"
 import { InvestmentChart } from "@/components/funding/investment-chart"
 import { FundingProgress } from "@/components/funding/funding-progress"
 import { InvestmentCalculator } from "@/components/funding/investment-calculator"
 import { supabase } from "@/lib/supabase"
+import Link from "next/link"
+import { motion } from "framer-motion";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import { Building2, Coins, Activity, BarChart3 } from "lucide-react";
+
+
 
 export default function FundingPage() {
   const [investmentAmount, setInvestmentAmount] = useState("")
@@ -187,6 +194,9 @@ export default function FundingPage() {
   const getCurrentTier = (amount: number) => {
     return investmentTiers.find((tier) => amount >= tier.min && amount <= tier.max)
   }
+
+  const investRef = useRef<HTMLDivElement>(null)
+  const [isInvestVisible, setIsInvestVisible] = useState(true)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
@@ -389,6 +399,183 @@ export default function FundingPage() {
                 ))}
               </div>
             </div>
+
+            {/* Invest Highlight */}
+            <div className="py-20 invest-gradient overflow-hidden z-10" >
+                      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div
+                          ref={investRef}
+                          className={`transition-all duration-1000 ${isInvestVisible ? "fade-in-up" : "opacity-0 translate-y-8"}`}
+                        >
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                            {/* Left Side - Text Block */}
+                            <div className="text-left">
+                              <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+                                Invest in the Future of The New Alkebulan
+                              </h2>
+            
+                              <p className="text-xl md:text-2xl italic text-primary mb-8">
+                                You're not just funding a platform — you're fueling a movement.
+                              </p>
+            
+                              <div className="prose prose-lg max-w-none">
+                                <p className="text-lg text-gray-200 leading-relaxed mb-6">
+                                  Every contribution builds the digital foundation for a united African diaspora.
+                                </p>
+            
+                                <p className="text-lg text-gray-200 leading-relaxed mb-6">
+                                  From decentralized education and finance to global commerce and culture — your investment powers a
+                                  future designed by us, for us.
+                                </p>
+            
+                                <p className="text-lg text-gray-200 leading-relaxed mb-6">
+                                  Whether you're giving €10 or €10,000, you're shaping a new economic reality.
+                                </p>
+            
+                                <p className="text-lg font-medium text-white leading-relaxed">
+                                  Built on <span className="text-primary font-bold">purpose</span>. Backed by{" "}
+                                  <span className="text-primary font-bold">vision</span>. Powered by{" "}
+                                  <span className="text-primary font-bold">the people</span>.
+                                </p>
+                              </div>
+                            </div>
+            
+                            {/* Right Side - Action Box with CTA */}
+                            <div className="flex justify-center lg:justify-end">
+                              <div className="relative">
+                                {/* Sparkle Effects */}
+                                <div className="absolute -top-4 -left-4 w-8 h-8 text-primary sparkle-effect">
+                                  <Sparkles className="w-full h-full" />
+                                </div>
+                                <div
+                                  className="absolute -bottom-4 -right-4 w-6 h-6 text-primary sparkle-effect"
+                                  style={{ animationDelay: "1s" }}
+                                >
+                                  <Sparkles className="w-full h-full" />
+                                </div>
+                                <div
+                                  className="absolute top-1/2 -left-6 w-4 h-4 text-primary sparkle-effect"
+                                  style={{ animationDelay: "0.5s" }}
+                                >
+                                  <Sparkles className="w-full h-full" />
+                                </div>
+            
+                                {/* CTA Box */}
+                                <Card className="bg-card/90 backdrop-blur-sm border-primary/30 p-8 text-center glow-effect max-w-sm">
+                                  <CardContent className="space-y-6">
+                                    <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
+                                      <TrendingUp className="w-8 h-8 text-primary-foreground" />
+                                    </div>
+            
+                                    <h3 className="text-2xl font-bold text-foreground mb-4">Be Part of History</h3>
+            
+                                    <p className="text-muted-foreground mb-6">
+                                      Join visionary investors building the future of the African diaspora
+                                    </p>
+            
+                                    <Button
+                                      size="lg"
+                                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg py-4"
+                                    >
+                                      <Link href="/funding" className="flex items-center justify-center">
+                                        👉 Become an Investor Now
+                                      </Link>
+                                    </Button>
+            
+                                    <p className="text-sm text-muted-foreground">Starting from €10 • Secure • Transparent</p>
+                                  </CardContent>
+                                </Card>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+
+         {/* Future Features */}
+
+            <motion.section
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            viewport={{ once: true }}
+            className="mx-auto px-6 py-12 text-white"
+          >
+            
+            <h2 className="text-3xl font-bold mb-1">Why Important to Invest</h2>
+
+            
+            <p className="text-gray-300 mb-6">
+              Investing empowers individuals and communities by creating sustainable wealth, supporting projects, and ensuring long-term growth.
+            </p>
+
+            <h3 className="text-xl font-semibold mb-4">Future Features</h3>
+            <div className="max-w-4xl mx-auto">
+        {/* Community Projects */}
+       <Accordion type="single" collapsible className="w-full space-y-2">
+        <AccordionItem value="item-1">
+          <AccordionTrigger className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-amber-400" />
+            Community Projects
+          </AccordionTrigger>
+          <AccordionContent>
+            Support local and global community-driven initiatives that make lasting social impact.
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="item-2">
+          <AccordionTrigger className="flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-amber-400" />
+            Business Projects
+          </AccordionTrigger>
+          <AccordionContent>
+            Back promising businesses and startups to drive innovation and job creation.
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="item-3">
+          <AccordionTrigger className="flex items-center gap-2">
+            <Coins className="w-4 h-4 text-amber-400" />
+            Token Award System
+          </AccordionTrigger>
+          <AccordionContent>
+            Earn rewards and recognition through blockchain-based token incentives.
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="item-4">
+          <AccordionTrigger className="flex items-center gap-2">
+            <Activity className="w-4 h-4 text-amber-400" />
+            Health Tracking System
+          </AccordionTrigger>
+          <AccordionContent>
+            Monitor your wellbeing while staying engaged with community-driven health projects.
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="item-5">
+          <AccordionTrigger className="flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-amber-400" />
+            Finance Dashboard
+          </AccordionTrigger>
+          <AccordionContent>
+            Access analytics, finance tips, and manage your portfolio with an integrated dashboard.
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="item-6">
+          <AccordionTrigger className="flex items-center gap-2">
+            <Wallet className="w-4 h-4 text-amber-400" />
+            Governance & Crypto Wallet
+          </AccordionTrigger>
+          <AccordionContent>
+            Participate in decentralized governance (DAO), manage crypto securely, and contribute to future decision-making.
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+      </div>
+          </motion.section>
 
             {/* Why Invest Section */}
             <div id="learn-more">

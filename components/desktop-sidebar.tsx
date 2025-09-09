@@ -1,11 +1,12 @@
 "use client"
 
-import React, { useState, useEffect } from "react" // Added useEffect
+import React, { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { motion } from "framer-motion"
 import { 
   Menu, 
   Home,
@@ -13,39 +14,20 @@ import {
   Store, 
   TrendingUp, 
   Sparkles,
-  FileText,
-  FolderOpen,
-  Coins,
-  BarChart3
+  FileText
 } from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
 import { UserAvatarFixed } from "@/components/user-avatar-fixed"
 
-interface SidebarProps {
+interface DesktopSidebarProps {
   isOpen: boolean
   onToggle: () => void
+  user?: any
+  profile?: any
 }
 
-export function Sidebar({ isOpen, onToggle }: SidebarProps) {
+export function DesktopSidebar({ isOpen, onToggle, profile, user }: DesktopSidebarProps) {
   const pathname = usePathname()
-  const { user, profile, signOut } = useAuth()
-  const [isMobile, setIsMobile] = useState(false)
-
-  // Detect mobile devices
-  useEffect(() => {
-    const checkIsMobile = () => {
-      setIsMobile(window.innerWidth < 768) // md breakpoint is 768px
-    }
-    
-    // Check initially
-    checkIsMobile()
-    
-    // Add event listener for resize
-    window.addEventListener('resize', checkIsMobile)
-    
-    // Cleanup
-    return () => window.removeEventListener('resize', checkIsMobile)
-  }, [isMobile])
+  
 
   const getDisplayName = () => {
     if (!user) return 'User'
@@ -63,24 +45,6 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
       isActive: pathname === "/"
     },
     {
-      title: "Social Feed",
-      href: "/community",
-      icon: FileText,
-      isActive: pathname?.startsWith('/community') || pathname === '/messages'
-    },
-    {
-      title: "Marketplace",
-      href: "/marketplace",
-      icon: Store,
-      isActive: pathname?.startsWith('/marketplace')
-    },
-    {
-      title: "More Projects",
-      href: "/investing/more-projects",
-      icon: FolderOpen,
-      isActive: pathname?.startsWith('/more-projects')
-    },
-    {
       title: "Growth",
       href: "/growth/daily-planner",
       icon: Sparkles,
@@ -91,31 +55,8 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
       href: "/communities",
       icon: Users,
       isActive: pathname?.startsWith('/communities') || pathname === '/messages'
-    },
-    {
-      title: "My Investments",
-      href: "/investments",
-      icon: BarChart3,
-      isActive: pathname?.startsWith('/investments') || pathname?.startsWith('/investments') || pathname?.startsWith('/dashboard/investments')
-    },
-    {
-      title: "Funding",
-      href: "/funding",
-      icon: Coins,
-      isActive: pathname?.startsWith('/social') || pathname?.startsWith('/funding') || pathname?.startsWith('/dashboard/investments')
-    },
-     {
-      title: "Investor Dashboard",
-      href: "/my-investments",
-      icon: BarChart3,
-      isActive: pathname?.startsWith('/my-investments') || pathname?.startsWith('/my-investments') || pathname?.startsWith('/dashboard/my-investments')
     }
   ]
-
-  // Don't render mobile sidebar on desktop at all
-  if (!isMobile) {
-    return null
-  }
 
   return (
     <>
@@ -126,24 +67,26 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
           variant="ghost"
           size="icon"
           onClick={onToggle}
-          className="bg-background border border-border hover:bg-accent shadow-lg"
+          className="md:hidden bg-background border border-border hover:bg-accent shadow-lg"
         >
           <Menu className="h-10 w-10 text-foreground" />
         </Button>
         </div>
+        
       )}
 
       {/* Overlay for mobile */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40"
+          className="fixed inset-0 bg-black/50 z-40 max-md:hidden md:visible"
           onClick={onToggle}
         />
       )}
       
-      {/* Sidebar - Only rendered on mobile */}
-      <div className={cn(
-        "fixed left-0 top-0 z-50 h-full w-80 bg-background border-r border-border transition-transform duration-300 ease-in-out",
+      {/* Sidebar */}
+      <motion.div 
+      className={cn(
+        "fixed left-0 top-0 z-50 h-full w-80 bg-background border-r border-border transition-transform duration-300 ease-in-out max-md:hidden md:visible",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
@@ -192,7 +135,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
           </ScrollArea>
 
         </div>
-      </div>
+      </motion.div>
     </>
   )
 }
