@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js"
 import { loadStripe } from "@stripe/stripe-js"
 import { toast } from "sonner"
+import { apiFetch } from "@/lib/api"
 
 export default function CheckoutPage() {
   const { items, subtotal, clear } = useCart()
@@ -44,9 +45,8 @@ export default function CheckoutPage() {
   const createPaymentIntent = async () => {
     try {
       setPlacing(true)
-      const res = await fetch("/api/checkout-intent", {
+      const res = await apiFetch("/api/checkout-intent", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           items,
           customerEmail: email
@@ -293,9 +293,8 @@ export default function CheckoutPage() {
               <div className="space-y-2">
                 <Button className="w-full" variant="secondary" onClick={async () => {
                   try {
-                    const res = await fetch('/api/payments/nowpayments/create-invoice', {
+                    const res = await apiFetch('/api/payments/nowpayments/create-invoice', {
                       method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ kind: 'checkout', amount: subtotal })
                     })
                     const data = await res.json()
