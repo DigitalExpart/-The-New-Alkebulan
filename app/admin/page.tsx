@@ -158,7 +158,7 @@ export default function AdminDashboardPage() {
                   <div className="text-xs text-muted-foreground">Communities: {counts.communities} · Posts: {counts.posts}</div>
                   <div className="flex gap-2">
                     <Button asChild size="sm"><Link href="/admin/content">Open</Link></Button>
-                    <Button asChild variant="outline" size="sm"><Link href="/communities">Communities</Link></Button>
+                    <Button asChild variant="outline" size="sm"><Link href="/admin/messenger">Messenger Reports</Link></Button>
                   </div>
                 </CardContent>
               </Card>
@@ -233,6 +233,7 @@ export default function AdminDashboardPage() {
                   <div className="text-xs text-muted-foreground">Total: {counts.companies}</div>
                   <div className="flex gap-2">
                     <Button asChild size="sm"><Link href="/marketplace/companies">Open</Link></Button>
+                    <Button asChild variant="outline" size="sm"><Link href="/admin/companies">Verify</Link></Button>
                   </div>
                 </CardContent>
               </Card>

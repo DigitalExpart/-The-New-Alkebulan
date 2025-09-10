@@ -104,6 +104,23 @@ export default function AdminMarketplacePage() {
                   </div>
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline">View</Button>
+                    <Button size="sm" variant="outline" onClick={async () => {
+                      // Approve -> set status to approved on either table
+                      const up1 = await supabase!.from('products').update({ status: 'approved' }).eq('id', it.id)
+                      const up2 = await supabase!.from('marketplace_items').update({ status: 'approved' }).eq('id', it.id)
+                      if (up1.error && up2.error) {
+                        console.error(up1.error || up2.error)
+                      }
+                      load()
+                    }}>Approve</Button>
+                    <Button size="sm" variant="outline" onClick={async () => {
+                      const up1 = await supabase!.from('products').update({ status: 'rejected' }).eq('id', it.id)
+                      const up2 = await supabase!.from('marketplace_items').update({ status: 'rejected' }).eq('id', it.id)
+                      if (up1.error && up2.error) {
+                        console.error(up1.error || up2.error)
+                      }
+                      load()
+                    }}>Reject</Button>
                     <Button size="sm" variant="destructive" onClick={async () => {
                       // Try both products and marketplace_items
                       const del1 = await supabase!.from('products').delete().eq('id', it.id)

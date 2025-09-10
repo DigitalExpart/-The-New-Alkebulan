@@ -4,6 +4,7 @@ import { useState } from "react"
 import { AdminGuard } from "@/components/admin/AdminGuard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { supabase } from "@/lib/supabase"
 import { Switch } from "@/components/ui/switch"
 import { Settings } from "lucide-react"
 
@@ -45,6 +46,38 @@ export default function AdminSettingsPage() {
               <Button variant="outline" disabled>
                 Save (wire to backend later)
               </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Account Controls (MVP)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="text-sm text-muted-foreground">Suspend or unsuspend a user by Profile ID.</div>
+              <div className="flex gap-2 flex-wrap">
+                <input id="suspendUserId" className="border rounded px-2 py-1 text-sm bg-background" placeholder="Profile ID" />
+                <Button variant="outline" onClick={async () => {
+                  const el = document.getElementById('suspendUserId') as HTMLInputElement
+                  const id = (el?.value || '').trim()
+                  if (!id) return
+                  try {
+                    const { error } = await supabase!.from('profiles').update({ is_suspended: true }).eq('id', id)
+                    if (error) throw error
+                    alert('User suspended')
+                  } catch (e:any) { alert(e?.message || 'Failed') }
+                }}>Suspend</Button>
+                <Button variant="outline" onClick={async () => {
+                  const el = document.getElementById('suspendUserId') as HTMLInputElement
+                  const id = (el?.value || '').trim()
+                  if (!id) return
+                  try {
+                    const { error } = await supabase!.from('profiles').update({ is_suspended: false, suspended_until: null }).eq('id', id)
+                    if (error) throw error
+                    alert('User unsuspended')
+                  } catch (e:any) { alert(e?.message || 'Failed') }
+                }}>Unsuspend</Button>
+              </div>
             </CardContent>
           </Card>
         </div>
