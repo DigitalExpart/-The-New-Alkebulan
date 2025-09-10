@@ -443,11 +443,14 @@ export function ChatWindow({ conversationId, onOpenSidebar }: ChatWindowProps) {
       const { data: messageData, error: messageError } = await supabase.from('messages').insert({
         conversation_id: conversationId,
         sender_id: currentUser.id,
-        content: publicUrl, // Use public URL for content
-        message_type: kind, // Use message_type column
+        content: publicUrl,
+        // Keep both for compatibility with existing queries/UI
+        type: kind,                 // text | image | video | audio | file | location
+        message_type: kind,         // duplicate for compatibility
+        media_url: publicUrl,
         file_extension: fileExtension,
-        media_url: publicUrl, // Store public URL in media_url
-        created_at: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
+        is_read: false,
       }).select('id, sender_id, content, timestamp, is_read, type, message_type, media_url, file_extension').single();
  
       if (messageError) throw messageError;
