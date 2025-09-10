@@ -55,17 +55,18 @@ export default function AdminLoginPage() {
       if (error) throw error
       if (!signInData.user) throw new Error('No user returned')
 
-      // Fetch profile and verify admin
+      // Fetch profile and verify admin (use maybeSingle + order + limit to avoid multiple-row error)
       const { data: profByUser, error: profErr } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', signInData.user.id)
-        .single()
+        .order('updated_at', { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle()
       if (profErr) throw profErr
 
       if (!isAdminProfile(profByUser)) {
         toast.error('This account is not an admin')
-        // Optional: sign out to avoid leaving a normal session here
         await supabase.auth.signOut()
         return
       }

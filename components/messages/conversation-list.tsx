@@ -357,8 +357,13 @@ export function ConversationList({
           const convMsgs = messagesByConv.get(conv.id) || []
           const otherId = otherUserIdsByConv.get(conv.id)
           if (!otherId) return null
-          const prof = profiles?.find(p => p.id === otherId)
-          if (!prof) return null
+          // Be resilient: if the other user's profile row is missing, fall back to a generic display
+          const prof = (profiles || []).find((p: any) => p.id === otherId) || {
+            id: otherId,
+            first_name: 'User',
+            last_name: '',
+            avatar_url: null,
+          }
 
           const last = convMsgs.length > 0 ? convMsgs[convMsgs.length - 1] as Message : null;
           const unreadCount = convMsgs.filter(m => m.sender_id !== user.id && !m.is_read).length

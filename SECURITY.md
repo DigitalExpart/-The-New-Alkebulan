@@ -18,6 +18,28 @@ This document summarizes our MVP security controls and how to report vulnerabili
 - Secrets: Environment variables; no secrets committed.
 - Observability: Sentry for FE/BE errors; Supabase logs.
 
+## Production Domain
+- App URL: https://thenewalkebulan.com
+- Allowed Origins: https://thenewalkebulan.com
+
+Set in environment:
+- `NEXT_PUBLIC_APP_URL=https://thenewalkebulan.com`
+- `NEXT_PUBLIC_ALLOWED_ORIGINS=https://thenewalkebulan.com`
+
+## Supabase Configuration
+- URL: `https://<your-ref>.supabase.co`
+- Auth → URL Configuration:
+  - Site URL: `https://thenewalkebulan.com`
+  - Redirect URLs: include `https://thenewalkebulan.com/*` as needed
+
+## Payments Endpoints (Production)
+- Stripe Webhook: `https://thenewalkebulan.com/api/stripe/webhook`
+- NOWPayments IPN: `https://thenewalkebulan.com/api/payments/nowpayments/webhook`
+
+Ensure respective secrets are set in environment:
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
+- `NOWPAYMENTS_API_KEY`, `NOWPAYMENTS_IPN_SECRET`
+
 ## Data Protection
 - TLS for all traffic (HTTPS).
 - RLS enabled for mentor tables; owner/role-based access.
