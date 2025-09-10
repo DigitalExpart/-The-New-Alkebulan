@@ -1,42 +1,6 @@
-@font-face {
-  font-family: "Agrandir";
-  src: url("/fonts/Agrandir-GrandLight.otf") format("woff2"), url("/fonts/Agrandir-Regular.woff") format("woff");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Agrandir";
-  src: url("/fonts/Agrandir-WideLight.otf") format("woff2"), url("/fonts/Agrandir-Medium.woff") format("woff");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Agrandir";
-  src: url("/fonts/Agrandir-Regular.otf") format("woff2"), url("/fonts/Agrandir-SemiBold.woff") format("woff");
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Agrandir";
-  src: url("/fonts/Agrandir-TextBold.otf") format("woff2"), url("/fonts/Agrandir-Bold.woff") format("woff");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Agrandir";
-  src: url("/fonts/Agrandir-GrandHeavy.otf") format("woff2"), url("/fonts/Agrandir-ExtraBold.woff") format("woff");
-  font-weight: 800;
-  font-style: normal;
-  font-display: swap;
-}
+/* Custom Agrandir font files were referenced but not present in /public/fonts,
+   which caused repeated 404s in dev logs. Remove the @font-face declarations
+   to rely on system/Inter fonts until the font files are added back. */
 
 @tailwind base;
 @tailwind components;

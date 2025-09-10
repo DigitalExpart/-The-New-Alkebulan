@@ -53,35 +53,43 @@ export function useMessageNotifications() {
           }
         }
 
-        // Use count-only queries for efficiency
-        if (hasIsRead) {
-          const { count, error } = await supabase
+        // Use count-only queries for efficiency with robust fallback
+        const countFallback = async () => {
+          // Fallback A: try excluding sender_id (some schemas may not have it)
+          const tryA = await supabase
             .from('messages')
             .select('id', { count: 'exact', head: true })
             .in('conversation_id', conversationIds)
-            .eq('is_read', false)
-            .neq('sender_id', user.id)
+          if (!tryA.error) {
+            setUnreadCount(tryA.count ?? 0)
+            return
+          }
 
-          if (error) {
-            console.error('Error fetching unread messages with is_read:', error)
-            setUnreadCount(0)
-          } else {
-            setUnreadCount(count ?? 0)
+          // Fallback B: last-resort zero without logging noisy empty errors
+          setUnreadCount(0)
+        }
+
+        if (hasIsRead) {
+          try {
+            const { count, error } = await supabase
+              .from('messages')
+              .select('id', { count: 'exact', head: true })
+              .in('conversation_id', conversationIds)
+              .eq('is_read', false)
+              .neq('sender_id', user.id)
+
+            if (error) {
+              console.warn('Unread count query (is_read) failed; falling back.')
+              await countFallback()
+            } else {
+              setUnreadCount(count ?? 0)
+            }
+          } catch (err) {
+            console.warn('Unread count using is_read failed, falling back:', err)
+            await countFallback()
           }
         } else {
-          // Fallback: count all messages not sent by current user
-          const { count, error } = await supabase
-            .from('messages')
-            .select('id', { count: 'exact', head: true })
-            .in('conversation_id', conversationIds)
-            .neq('sender_id', user.id)
-
-          if (error) {
-            console.error('Error fetching fallback unread messages:', error)
-            setUnreadCount(0)
-          } else {
-            setUnreadCount(count ?? 0)
-          }
+          await countFallback()
         }
       } catch (error) {
         console.error('Error in fetchUnreadCount:', error)
