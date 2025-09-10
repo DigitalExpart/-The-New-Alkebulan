@@ -45,6 +45,18 @@ export function DesktopSidebar({ isOpen, onToggle, profile, user }: DesktopSideb
       isActive: pathname === "/"
     },
     {
+      title: "Marketplace",
+      href: "/marketplace",
+      icon: Store,
+      isActive: pathname?.startsWith('/marketplace')
+    },
+    {
+      title: "Investing",
+      href: "/funding",
+      icon: TrendingUp,
+      isActive: pathname?.startsWith('/funding') || pathname?.startsWith('/investing')
+    },
+    {
       title: "Growth",
       href: "/growth/daily-planner",
       icon: Sparkles,
