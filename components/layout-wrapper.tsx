@@ -76,7 +76,6 @@ export function LayoutWrapper({ children }: LayoutWrapperProps) {
     { title: "My Friends", href: "/community/my-friends", icon: UserPlus },
     { title: "My Communities", href: "/community/my-communities", icon: Building2 },
     { title: "My Alkebulan", href: "/community/my-alkebulan", icon: Globe },
-    { title: "Messenger", href: "/messages", icon: MessageCircle },
     { title: "Events", href: "/community/events", icon: Calendar }
   ]
 
