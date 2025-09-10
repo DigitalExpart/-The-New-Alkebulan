@@ -38,48 +38,51 @@ export function useMessageNotifications() {
 
         const conversationIds = conversations.map(c => c.conversation_id)
 
-        // Count unread messages in these conversations
-        // First try with is_read column, fallback to counting all messages if column doesn't exist
-        let unreadMessages: any[] = []
-        let msgError: any = null
+        // Detect if the messages table has an is_read column
+        let hasIsRead = true
+        const { error: isReadTestError } = await supabase
+          .from('messages')
+          .select('is_read')
+          .limit(1)
 
-        try {
-          const { data, error } = await supabase
+        if (isReadTestError) {
+          // If Postgres says the column does not exist (code 42703), disable is_read usage
+          const msg = (isReadTestError as any)?.message || ''
+          if ((isReadTestError as any)?.code === '42703' || /column\s+.*is_read.*\s+does not exist/i.test(msg)) {
+            hasIsRead = false
+          }
+        }
+
+        // Use count-only queries for efficiency
+        if (hasIsRead) {
+          const { count, error } = await supabase
             .from('messages')
-            .select('id')
+            .select('id', { count: 'exact', head: true })
             .in('conversation_id', conversationIds)
             .eq('is_read', false)
-            .neq('sender_id', user.id) // Don't count messages sent by current user
+            .neq('sender_id', user.id)
 
-          unreadMessages = data || []
-          msgError = error
-        } catch (catchError) {
-          console.warn('is_read column might not exist, trying alternative approach:', catchError)
+          if (error) {
+            console.error('Error fetching unread messages with is_read:', error)
+            setUnreadCount(0)
+          } else {
+            setUnreadCount(count ?? 0)
+          }
+        } else {
           // Fallback: count all messages not sent by current user
-          const { data, error: fallbackError } = await supabase
+          const { count, error } = await supabase
             .from('messages')
-            .select('id')
+            .select('id', { count: 'exact', head: true })
             .in('conversation_id', conversationIds)
             .neq('sender_id', user.id)
 
-          unreadMessages = data || []
-          msgError = fallbackError
+          if (error) {
+            console.error('Error fetching fallback unread messages:', error)
+            setUnreadCount(0)
+          } else {
+            setUnreadCount(count ?? 0)
+          }
         }
-
-        if (msgError) {
-          console.error('Error fetching unread messages:', msgError)
-          console.error('Error details:', {
-            message: msgError.message,
-            details: msgError.details,
-            hint: msgError.hint,
-            code: msgError.code
-          })
-          return
-        }
-
-        // For now, just count all messages not sent by current user
-        // This will be refined once we confirm the table structure
-        setUnreadCount(unreadMessages?.length || 0)
       } catch (error) {
         console.error('Error in fetchUnreadCount:', error)
       } finally {
