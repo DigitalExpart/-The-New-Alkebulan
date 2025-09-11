@@ -13,16 +13,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-
+      # Ensure pnpm is available on PATH before any caching/setup that may rely on it
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          # Remove pnpm cache linkage to avoid requiring pnpm pre-install during this step
+          cache: 'none'
 
       - name: Install deps
         run: pnpm install --frozen-lockfile
