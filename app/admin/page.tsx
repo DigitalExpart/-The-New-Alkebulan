@@ -50,13 +50,19 @@ export default function AdminDashboardPage() {
         try {
           const { count } = await supabase.from('marketplace_items').select('*', { count: 'exact', head: true })
           items = count || 0
-        } catch {}
+          console.log('📦 Marketplace items count:', items)
+        } catch (e) {
+          console.log('❌ Error counting marketplace_items:', e)
+        }
         let products = 0
         try {
           const { count } = await supabase.from('products').select('*', { count: 'exact', head: true })
           products = count || 0
-        } catch {}
-        const itemsTotal = items || products
+          console.log('📦 Products count:', products)
+        } catch (e) {
+          console.log('❌ Error counting products:', e)
+        }
+        const itemsTotal = Math.max(items, products) // Use the higher count
         let orders = 0
         try {
           const { count } = await supabase.from('orders').select('*', { count: 'exact', head: true })
@@ -107,9 +113,9 @@ export default function AdminDashboardPage() {
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="commerce">Commerce</TabsTrigger>
-            <TabsTrigger value="content">Content</TabsTrigger>
+            <TabsTrigger value="users">Users ({counts.users})</TabsTrigger>
+            <TabsTrigger value="commerce">Commerce ({counts.items})</TabsTrigger>
+            <TabsTrigger value="content">Content ({counts.posts})</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
@@ -260,8 +266,19 @@ export default function AdminDashboardPage() {
               <CardHeader>
                 <CardTitle>User Management</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">Build user moderation tools here.</p>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">Manage user accounts, roles, and moderation actions.</p>
+                <div className="flex gap-2">
+                  <Button asChild>
+                    <a href="/admin/users">
+                      <Users className="w-4 h-4 mr-2" />
+                      Manage Users
+                    </a>
+                  </Button>
+                  <Button variant="outline" asChild>
+                    <a href="/admin/users?tab=reports">View Reports</a>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -269,10 +286,21 @@ export default function AdminDashboardPage() {
           <TabsContent value="commerce">
             <Card>
               <CardHeader>
-                <CardTitle>Commerce Moderation</CardTitle>
+                <CardTitle>Commerce Management</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">Link business dashboards and add admin-only controls.</p>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">Manage products, transactions, and seller verification.</p>
+                <div className="flex gap-2">
+                  <Button asChild>
+                    <a href="/admin/commerce">
+                      <Store className="w-4 h-4 mr-2" />
+                      Manage Commerce
+                    </a>
+                  </Button>
+                  <Button variant="outline" asChild>
+                    <a href="/admin/marketplace">Product Moderation</a>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -280,10 +308,21 @@ export default function AdminDashboardPage() {
           <TabsContent value="content">
             <Card>
               <CardHeader>
-                <CardTitle>Content Moderation</CardTitle>
+                <CardTitle>Content Management</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">Integrate community and posts moderation queues.</p>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">Moderate posts, comments, and communities.</p>
+                <div className="flex gap-2">
+                  <Button asChild>
+                    <a href="/admin/content">
+                      <MessageSquare className="w-4 h-4 mr-2" />
+                      Manage Content
+                    </a>
+                  </Button>
+                  <Button variant="outline" asChild>
+                    <a href="/admin/content?tab=reports">View Reports</a>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -293,8 +332,19 @@ export default function AdminDashboardPage() {
               <CardHeader>
                 <CardTitle>Platform Settings</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">Add feature flags and configuration forms.</p>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">Configure platform features, security, and behavior.</p>
+                <div className="flex gap-2">
+                  <Button asChild>
+                    <a href="/admin/settings">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Platform Settings
+                    </a>
+                  </Button>
+                  <Button variant="outline" asChild>
+                    <a href="/admin/settings?tab=notifications">Notifications</a>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
