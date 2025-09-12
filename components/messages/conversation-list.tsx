@@ -218,11 +218,21 @@ export function ConversationList({
 
       console.log('Fetching conversations for user:', user.id)
 
-      // Step 1: find conversation ids where user participates
+      // Step 1: find conversation ids where user participates (with recent messages first)
       const { data: myParticipantRows, error: partErr } = await supabase
         .from('conversation_participants')
-        .select('conversation_id, is_archived, is_locked, is_muted, notification_level, theme, cleared_at')
+        .select(`
+          conversation_id, 
+          is_archived, 
+          is_locked, 
+          is_muted, 
+          notification_level, 
+          theme, 
+          cleared_at,
+          conversations!inner(last_message_at)
+        `)
         .eq('user_id', user.id)
+        .order('conversations(last_message_at)', { ascending: false })
 
       if (partErr) {
         console.warn('Supabase Error (Step 1 - Fetching participant conversations):', partErr.message || partErr)
@@ -238,15 +248,18 @@ export function ConversationList({
       }
 
       console.log('Found participant rows:', myParticipantRows?.length || 0)
+      console.log('Show archived:', showArchived)
 
       const conversationIdsRaw = (myParticipantRows || [])
         .filter(r => (showArchived ? r.is_archived === true : r.is_archived !== true))
         .map(r => r.conversation_id)
+      
+      console.log('Raw conversation IDs before filtering:', conversationIdsRaw?.length || 0)
       const conversationIds = Array.from(
         new Set(
           (conversationIdsRaw || []).filter((id: any) => typeof id === 'string' && id.length > 0)
         )
-      )
+      ).slice(0, 100) // Increase to 100 conversations with optimized loading
 
       console.log('Found conversation IDs:', conversationIds)
 
@@ -330,7 +343,8 @@ export function ConversationList({
               .from('messages')
               .select('id, conversation_id, sender_id, content, timestamp, is_read, type, message_type, media_url')
               .eq('conversation_id', cid)
-              .order('timestamp', { ascending: true })
+              .order('timestamp', { ascending: false })
+              .limit(1) // Only get the last message for conversation list
 
             if (error) {
               console.warn(`Supabase Error (Step 5 - messages for ${cid}):`, error.message || error)
