@@ -138,9 +138,9 @@ export function CreatePostDialog({ children, onPostCreated }: CreatePostDialogPr
     const supabase = getSupabaseClient()
     if (!supabase) throw new Error('Supabase client not available')
 
-    const fileName = `${Date.now()}-${file.name}`
+    const fileName = `${user.id}/${Date.now()}-${file.name}`
     const { data, error } = await supabase.storage
-      .from('community-media') // Use existing community-media bucket
+      .from('post-media') // Use post-media bucket for social feed posts
       .upload(fileName, file)
 
     if (error) {
@@ -149,7 +149,7 @@ export function CreatePostDialog({ children, onPostCreated }: CreatePostDialogPr
 
     // Get public URL
     const { data: { publicUrl } } = supabase.storage
-      .from('community-media')
+      .from('post-media')
       .getPublicUrl(fileName)
 
     return publicUrl
@@ -235,11 +235,13 @@ export function CreatePostDialog({ children, onPostCreated }: CreatePostDialogPr
             }
           }
 
-          // Update post with media URLs in metadata
+          // Update post with media URLs in metadata and set primary image
           if (mediaUrls.length > 0) {
             await supabase
               .from('posts')
               .update({ 
+                image_url: mediaUrls[0], // Set the first image as the primary image
+                post_type: 'image', // Update post type to image
                 metadata: {
                   ...postData.metadata,
                   media_urls: mediaUrls
