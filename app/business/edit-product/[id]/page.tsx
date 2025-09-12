@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Save, X, Loader2 } from "lucide-react"
+import { ArrowLeft, Save, X, Loader2, Upload, Image, Video, FileText } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { getSupabaseClient } from "@/lib/supabase"
 import { toast } from "sonner"
@@ -33,6 +33,7 @@ interface ProductFormData {
   inventory: number
   images: File[]
   videos: File[]
+  documents: File[]
 }
 
 const productCategories = [
@@ -103,9 +104,46 @@ export default function EditProductPage() {
     inventory: 1,
     images: [],
     videos: [],
+    documents: [],
   })
 
-  const productId = params.id as string
+  const productId = params?.id as string
+
+  // Media upload handlers
+  const handleFileUpload = (field: 'images' | 'videos' | 'documents', files: FileList | null) => {
+    if (!files) return
+    
+    const fileArray = Array.from(files)
+    const maxSizes = {
+      images: 10 * 1024 * 1024, // 10MB
+      videos: 100 * 1024 * 1024, // 100MB
+      documents: 25 * 1024 * 1024 // 25MB
+    }
+    
+    // Validate file sizes
+    const validFiles = fileArray.filter(file => {
+      if (file.size > maxSizes[field]) {
+        toast.error(`${file.name} is too large. Maximum size for ${field} is ${maxSizes[field] / (1024 * 1024)}MB`)
+        return false
+      }
+      return true
+    })
+    
+    if (validFiles.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        [field]: [...prev[field], ...validFiles]
+      }))
+      toast.success(`Added ${validFiles.length} ${field}`)
+    }
+  }
+
+  const removeFile = (field: 'images' | 'videos' | 'documents', index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: prev[field].filter((_, i) => i !== index)
+    }))
+  }
 
   useEffect(() => {
     if (productId && user) {
@@ -122,7 +160,7 @@ export default function EditProductPage() {
         .from('products')
         .select('*')
         .eq('id', productId)
-        .eq('user_id', user.id)
+        .eq('user_id', user?.id)
         .single()
       
       if (error) {
@@ -161,6 +199,7 @@ export default function EditProductPage() {
         inventory: productData.inventory || 1,
         images: [],
         videos: [],
+        documents: [],
       })
       
     } catch (error) {
@@ -173,17 +212,17 @@ export default function EditProductPage() {
   }
 
   const handleInputChange = (field: keyof ProductFormData, value: string | number | boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }))
-    
-    // Reset subcategory when category changes
     if (field === 'category') {
+      // Reset subcategory when category changes
       setFormData(prev => ({
         ...prev,
-        [field]: value,
+        category: value as string,
         subcategory: ""
+      }))
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [field]: value
       }))
     }
   }
@@ -238,6 +277,113 @@ export default function EditProductPage() {
         console.error('Error updating product:', updateError)
         toast.error(`Failed to update product: ${updateError.message}`)
         return
+      }
+      
+      // Upload new media files if any
+      if (formData.images && formData.images.length > 0) {
+        console.log('📸 Uploading product images...')
+        for (const image of formData.images) {
+          try {
+            const fileName = `products/${productId}/images/${Date.now()}_${image.name}`
+            
+            const { error: uploadError } = await supabase.storage
+              .from('post-media') // Use existing post-media bucket temporarily
+              .upload(fileName, image)
+            
+            if (uploadError) {
+              console.error('Error uploading image:', uploadError)
+              toast.error(`Failed to upload image: ${uploadError.message}`)
+            } else {
+              // Insert image record
+              await supabase
+                .from('product_images')
+                .insert({
+                  product_id: productId,
+                  image_url: fileName,
+                  image_name: image.name,
+                  image_size: image.size,
+                  image_type: image.type,
+                  is_primary: formData.images.indexOf(image) === 0, // First image is primary
+                  sort_order: formData.images.indexOf(image),
+                  alt_text: `${formData.name} - Image ${formData.images.indexOf(image) + 1}`
+                })
+            }
+          } catch (error) {
+            console.error('Error processing image:', error)
+          }
+        }
+      }
+      
+      // Upload videos if any
+      if (formData.videos && formData.videos.length > 0) {
+        console.log('🎥 Uploading product videos...')
+        for (const video of formData.videos) {
+          try {
+            const fileName = `products/${productId}/videos/${Date.now()}_${video.name}`
+            
+            const { error: uploadError } = await supabase.storage
+              .from('post-media') // Use existing post-media bucket temporarily
+              .upload(fileName, video)
+            
+            if (uploadError) {
+              console.error('Error uploading video:', uploadError)
+              toast.error(`Failed to upload video: ${uploadError.message}`)
+            } else {
+              // Insert video record
+              await supabase
+                .from('product_videos')
+                .insert({
+                  product_id: productId,
+                  video_url: fileName,
+                  video_name: video.name,
+                  video_size: video.size,
+                  video_type: video.type,
+                  sort_order: formData.videos.indexOf(video),
+                  description: `${formData.name} - Video ${formData.videos.indexOf(video) + 1}`
+                })
+              console.log('✅ Video uploaded and recorded successfully:', fileName)
+            }
+          } catch (error) {
+            console.error('Error processing video:', error)
+          }
+        }
+      }
+      
+      // Upload documents if any
+      if (formData.documents && formData.documents.length > 0) {
+        console.log('📄 Uploading product documents...')
+        for (const doc of formData.documents) {
+          try {
+            const fileName = `products/${productId}/documents/${Date.now()}_${doc.name}`
+            
+            const { error: uploadError } = await supabase.storage
+              .from('post-media') // Use existing post-media bucket temporarily
+              .upload(fileName, doc)
+            
+            if (uploadError) {
+              console.error('Error uploading document:', uploadError)
+              toast.error(`Failed to upload document: ${uploadError.message}`)
+            } else {
+              // Insert document record
+              await supabase
+                .from('product_documents')
+                .insert({
+                  product_id: productId,
+                  document_url: fileName,
+                  document_name: doc.name,
+                  document_size: doc.size,
+                  document_type: doc.type,
+                  document_category: 'general', // Can be enhanced with specific categories
+                  sort_order: formData.documents.indexOf(doc),
+                  description: `${formData.name} - Document ${formData.documents.indexOf(doc) + 1}`,
+                  is_public: true
+                })
+              console.log('✅ Document uploaded and recorded successfully:', fileName)
+            }
+          } catch (error) {
+            console.error('Error processing document:', error)
+          }
+        }
       }
       
       toast.success('Product updated successfully!')
@@ -475,6 +621,176 @@ export default function EditProductPage() {
                 <p className="text-xs text-muted-foreground">
                   Optional: Include technical specs, care instructions, or other relevant details.
                 </p>
+              </div>
+
+              {/* Media Upload Section */}
+              <div className="space-y-6 pt-6 border-t">
+                <h3 className="text-lg font-semibold">Product Media</h3>
+                
+                {/* Image Upload */}
+                <div className="space-y-3">
+                  <Label>Product Images</Label>
+                  <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6">
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={(e) => handleFileUpload('images', e.target.files)}
+                      className="hidden"
+                      id="image-upload"
+                    />
+                    <label htmlFor="image-upload" className="cursor-pointer">
+                      <div className="text-center">
+                        <div className="mx-auto h-12 w-12 text-muted-foreground mb-4">
+                          📸
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          <span className="font-medium text-primary">Click to upload images</span> or drag and drop
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          PNG, JPG, GIF up to 10MB each
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                  
+                  {/* Display selected images */}
+                  {formData.images && formData.images.length > 0 && (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {formData.images.map((image, index) => (
+                        <div key={index} className="relative group">
+                          <img
+                            src={URL.createObjectURL(image)}
+                            alt={`Product image ${index + 1}`}
+                            className="w-full h-24 object-cover rounded-lg"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeFile('images', index)}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            ×
+                          </button>
+                          <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 rounded-b-lg">
+                            {image.name}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Video Upload */}
+                <div className="space-y-3">
+                  <Label>Product Videos</Label>
+                  <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6">
+                    <input
+                      type="file"
+                      multiple
+                      accept="video/*"
+                      onChange={(e) => handleFileUpload('videos', e.target.files)}
+                      className="hidden"
+                      id="video-upload"
+                    />
+                    <label htmlFor="video-upload" className="cursor-pointer">
+                      <div className="text-center">
+                        <div className="mx-auto h-12 w-12 text-muted-foreground mb-4">
+                          🎥
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          <span className="font-medium text-primary">Click to upload videos</span> or drag and drop
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          MP4, WebM, MOV up to 100MB each
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                  
+                  {/* Display selected videos */}
+                  {formData.videos && formData.videos.length > 0 && (
+                    <div className="space-y-2">
+                      {formData.videos.map((video, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
+                              🎥
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium">{video.name}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {(video.size / (1024 * 1024)).toFixed(1)} MB
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeFile('videos', index)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Document Upload */}
+                <div className="space-y-3">
+                  <Label>Product Documents</Label>
+                  <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6">
+                    <input
+                      type="file"
+                      multiple
+                      accept=".pdf,.doc,.docx,.txt,.xlsx,.xls,.ppt,.pptx"
+                      onChange={(e) => handleFileUpload('documents', e.target.files)}
+                      className="hidden"
+                      id="document-upload"
+                    />
+                    <label htmlFor="document-upload" className="cursor-pointer">
+                      <div className="text-center">
+                        <div className="mx-auto h-12 w-12 text-muted-foreground mb-4">
+                          📄
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          <span className="font-medium text-primary">Click to upload documents</span> or drag and drop
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          PDF, DOC, XLS, PPT up to 25MB each
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                  
+                  {/* Display selected documents */}
+                  {formData.documents && formData.documents.length > 0 && (
+                    <div className="space-y-2">
+                      {formData.documents.map((doc, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-green-100 rounded flex items-center justify-center">
+                              📄
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium">{doc.name}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {(doc.size / (1024 * 1024)).toFixed(1)} MB • {doc.type}
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeFile('documents', index)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Action Buttons */}

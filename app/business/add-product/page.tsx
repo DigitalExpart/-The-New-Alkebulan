@@ -276,18 +276,19 @@ export default function AddProductPage() {
             console.error('Error uploading image:', uploadError)
             toast.error(`Failed to upload image: ${uploadError.message}`)
           } else {
-            // Insert image record with correct column names
-            await supabase
-              .from('product_images')
-              .insert({
-                product_id: productData.id,
-                image_url: fileName, // Changed from file_path to image_url
-                image_name: image.name, // Changed from file_name to image_name
-                image_size: image.size, // Changed from file_size to image_size
-                image_type: image.type, // Changed from file_type to image_type
-                is_primary: false, // Default to false
-                sort_order: 0 // Default sort order
-              })
+                // Insert image record with unified structure
+                await supabase
+                  .from('product_images')
+                  .insert({
+                    product_id: productData.id,
+                    image_url: fileName,
+                    image_name: image.name,
+                    image_size: image.size,
+                    image_type: image.type,
+                    is_primary: formData.images.indexOf(image) === 0, // First image is primary
+                    sort_order: formData.images.indexOf(image),
+                    alt_text: `${formData.name} - Image ${formData.images.indexOf(image) + 1}`
+                  })
           }
         }
       }
@@ -305,15 +306,17 @@ export default function AddProductPage() {
             console.error('Error uploading video:', uploadError)
             toast.error(`Failed to upload video: ${uploadError.message}`)
           } else {
-            // Insert video record with correct column names
+            // Insert video record with unified structure
             await supabase
               .from('product_videos')
               .insert({
                 product_id: productData.id,
-                file_path: fileName,
-                file_name: video.name,
-                file_size: video.size,
-                file_type: video.type
+                video_url: fileName,
+                video_name: video.name,
+                video_size: video.size,
+                video_type: video.type,
+                sort_order: formData.videos.indexOf(video),
+                description: `${formData.name} - Video ${formData.videos.indexOf(video) + 1}`
               })
           }
         }

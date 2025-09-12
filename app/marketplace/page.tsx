@@ -168,8 +168,8 @@ export default function MarketplacePage() {
                 }
                 // Get the full URL for the image
                 const imageUrl = supabase.storage
-                  .from('product-media')
-                  .getPublicUrl(img.image_url).data.publicUrl // Changed from file_path to image_url
+                  .from('post-media') // Use post-media bucket (unified storage)
+                  .getPublicUrl(img.image_url).data.publicUrl
                 imagesByProduct[img.product_id].push(imageUrl)
               })
               setProductImages(imagesByProduct)
@@ -356,8 +356,19 @@ export default function MarketplacePage() {
       return images[0]
     }
     
-    // Fallback to placeholder if no images
-    return "/placeholder.svg?height=250&width=250"
+    // Check if product has a direct image_url field
+    if (product.image_url) {
+      return product.image_url
+    }
+    
+    // Check if product has images in metadata
+    if (product.metadata?.images && Array.isArray(product.metadata.images) && product.metadata.images.length > 0) {
+      return product.metadata.images[0]
+    }
+    
+    // Generate a nice placeholder with product-specific seed
+    const seed = product.name.replace(/\s+/g, '-').toLowerCase()
+    return `https://picsum.photos/seed/${seed}/400/300`
   }
 
   const getProductBadge = (product: Product) => {

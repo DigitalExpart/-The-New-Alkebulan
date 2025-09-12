@@ -108,18 +108,9 @@ export default function RoleManagementPage() {
         updated_at: new Date().toISOString()
       }
 
-      // Only update account_type if we're enabling a role and no other roles are currently active
-      if (enabled) {
-        // Check if any other roles are currently enabled
-        const otherEnabledRoles = Object.keys(roleStates).filter(r => r !== roleId && roleStates[r as keyof typeof roleStates])
-        
-        // If this is the first role being enabled, set it as the active role
-        if (otherEnabledRoles.length === 0) {
-          updateData.account_type = roleId
-        }
-        // If other roles are enabled, don't change account_type - let user choose via role switcher
-      }
-      // If disabling a role, don't change account_type - let user choose via role switcher
+      // Allow multiple roles - don't automatically change account_type
+      // Users can choose their active role via the role switcher
+      console.log('🔄 Updating role without changing account_type:', { roleId, enabled })
 
       const { error } = await getSupabaseClient()
         .from('profiles')
@@ -139,8 +130,10 @@ export default function RoleManagementPage() {
       const roleName = ROLES.find(r => r.id === roleId)?.name || roleId
       toast.success(`${roleName} role ${enabled ? 'enabled' : 'disabled'} successfully!`)
       
-      // Refresh profile to sync with backend
-      await refreshProfile()
+      // Refresh profile to sync with backend (without enforcing single-role)
+      setTimeout(async () => {
+        await refreshProfile()
+      }, 100) // Small delay to ensure state is stable
       
     } catch (error) {
       console.error('Error:', error)

@@ -130,38 +130,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           console.log('⚠️ No profile data returned from refresh')
         }
-        if (profileData && profileData.account_type) {
-          const expectedBuyerEnabled = profileData.account_type === 'buyer'
-          const expectedBusinessEnabled = profileData.account_type === 'business'
-          if (profileData.buyer_enabled !== expectedBuyerEnabled || 
-              profileData.business_enabled !== expectedBusinessEnabled) {
-            console.log('🔧 Fixing role settings to enforce single-role system for:', profileData.account_type)
-            try {
-              const { error: updateError } = await supabase
-                .from('profiles')
-                .update({
-                  buyer_enabled: expectedBuyerEnabled,
-                  business_enabled: expectedBusinessEnabled,
-                  updated_at: new Date().toISOString()
-                })
-                .eq('id', profileData.id)
-              if (updateError) {
-                console.error('❌ Error fixing role settings:', updateError)
-              } else {
-                console.log('✅ Single-role system enforced successfully')
-                const updatedProfile = await fetchProfile(state.user.id, userMetadata)
-                if (updatedProfile) {
-                  setProfile(updatedProfile)
-                  setState(prev => ({ ...prev }))
-                  console.log('✅ Updated profile state with single role:', updatedProfile)
-                }
-                return
-              }
-            } catch (error) {
-              console.error('❌ Error fixing role settings:', error)
-            }
-          }
-        }
+        // Allow multiple roles - don't enforce single-role system
+        console.log('✅ Profile supports multiple roles:', {
+          business_enabled: profileData.business_enabled,
+          buyer_enabled: profileData.buyer_enabled,
+          account_type: profileData.account_type
+        })
       } catch (error) {
         console.error('Error refreshing profile:', error)
       }
