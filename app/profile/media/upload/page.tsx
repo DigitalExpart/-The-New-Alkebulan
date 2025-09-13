@@ -48,6 +48,7 @@ export default function MediaUploadPage() {
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([])
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [fileUploadProgress, setFileUploadProgress] = useState<{[key: string]: {progress: number, uploadedMB: number, totalMB: number}}>({})
   const [postData, setPostData] = useState<PostData>({
     content: '',
     visibility: 'public',
@@ -99,17 +100,51 @@ export default function MediaUploadPage() {
     })
   }
 
-  const uploadMediaToStorage = async (file: File): Promise<string> => {
+  const uploadMediaToStorage = async (file: File, fileId: string): Promise<string> => {
     if (!user) throw new Error('User not authenticated')
 
     const supabase = getSupabaseClient()
     if (!supabase) throw new Error('Supabase not configured')
 
+    const totalMB = file.size / (1024 * 1024)
+    
     try {
       const fileName = `${user.id}/media/${Date.now()}-${file.name}`
+      
+      // Initialize progress tracking for this file
+      setFileUploadProgress(prev => ({
+        ...prev,
+        [fileId]: { progress: 0, uploadedMB: 0, totalMB }
+      }))
+
+      // Simulate progress updates since Supabase doesn't provide real-time progress
+      const progressInterval = setInterval(() => {
+        setFileUploadProgress(prev => {
+          const current = prev[fileId]
+          if (!current) return prev
+          
+          // Simulate progress (this is approximate since we can't get real progress from Supabase)
+          const newProgress = Math.min(current.progress + Math.random() * 10, 95)
+          const newUploadedMB = (newProgress / 100) * totalMB
+          
+          return {
+            ...prev,
+            [fileId]: { progress: newProgress, uploadedMB: newUploadedMB, totalMB }
+          }
+        })
+      }, 200)
+
       const { data, error } = await supabase.storage
         .from('post-media')
         .upload(fileName, file)
+
+      clearInterval(progressInterval)
+
+      // Set to 100% when upload completes
+      setFileUploadProgress(prev => ({
+        ...prev,
+        [fileId]: { progress: 100, uploadedMB: totalMB, totalMB }
+      }))
 
       if (error) {
         console.error('Storage upload error:', {
@@ -168,7 +203,7 @@ export default function MediaUploadPage() {
       for (let i = 0; i < mediaFiles.length; i++) {
         const mediaFile = mediaFiles[i]
         console.log(`Uploading file ${i + 1}/${mediaFiles.length}:`, mediaFile.file.name)
-        const url = await uploadMediaToStorage(mediaFile.file)
+        const url = await uploadMediaToStorage(mediaFile.file, mediaFile.id)
         mediaUrls.push(url)
         console.log('File uploaded successfully:', url)
         setUploadProgress(((i + 1) / mediaFiles.length) * 50) // 50% for media upload
@@ -215,6 +250,7 @@ export default function MediaUploadPage() {
       
       // Reset form
       setMediaFiles([])
+      setFileUploadProgress({})
       setPostData({
         content: '',
         visibility: 'public',
@@ -235,6 +271,7 @@ export default function MediaUploadPage() {
     } finally {
       setUploading(false)
       setUploadProgress(0)
+      setFileUploadProgress({})
     }
   }
 
@@ -359,6 +396,27 @@ export default function MediaUploadPage() {
                                   {(mediaFile.file.size / 1024 / 1024).toFixed(2)} MB
                                 </span>
                               </div>
+                              
+                              {/* Upload Progress */}
+                              {uploading && fileUploadProgress[mediaFile.id] && (
+                                <div className="mt-2 space-y-1">
+                                  <div className="flex justify-between text-xs text-muted-foreground">
+                                    <span>Uploading...</span>
+                                    <span>
+                                      {fileUploadProgress[mediaFile.id].uploadedMB.toFixed(1)} MB / {fileUploadProgress[mediaFile.id].totalMB.toFixed(1)} MB
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-muted rounded-full h-2">
+                                    <div 
+                                      className="bg-primary h-2 rounded-full transition-all duration-300 ease-out"
+                                      style={{ width: `${fileUploadProgress[mediaFile.id].progress}%` }}
+                                    />
+                                  </div>
+                                  <div className="text-xs text-center text-muted-foreground">
+                                    {fileUploadProgress[mediaFile.id].progress.toFixed(0)}% complete
+                                  </div>
+                                </div>
+                              )}
                             </div>
                             <Button
                               variant="ghost"

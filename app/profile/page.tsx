@@ -384,44 +384,44 @@ export default function ProfilePage() {
                 <div className="absolute bottom-0 left-6 transform translate-y-1/2">
                   <div className="flex items-end gap-4">
                     {/* Profile Picture */}
-                    <div className="relative">
+                  <div className="relative">
                       <Avatar className="h-24 w-24 border-4 border-background">
-                        <AvatarImage src={userData.avatar_url || "/placeholder.svg"} alt={`${userData.first_name} ${userData.last_name}`} />
+                      <AvatarImage src={userData.avatar_url || "/placeholder.svg"} alt={`${userData.first_name} ${userData.last_name}`} />
                         <AvatarFallback className="text-xl">
-                          {`${userData.first_name} ${userData.last_name}`
-                            .split(" ")
-                            .map((n: string) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <Button
-                        size="sm"
-                        variant="outline"
+                        {`${userData.first_name} ${userData.last_name}`
+                          .split(" ")
+                          .map((n: string) => n[0])
+                          .join("")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <Button
+                      size="sm"
+                      variant="outline"
                         className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0 bg-background"
-                        asChild
-                      >
-                        <Link href="/profile/edit">
-                          <Camera className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                    </div>
-                    
-                    {/* User Info */}
+                      asChild
+                    >
+                      <Link href="/profile/edit">
+                        <Camera className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
+
+                  {/* User Info */}
                     <div className="space-y-1 pb-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h2 className="text-xl font-bold text-white">
-                          {profile?.first_name && profile?.last_name 
-                            ? `${profile.first_name} ${profile.last_name}`
-                            : profile?.first_name || userData.first_name
-                          }
-                        </h2>
-                        {profile?.username && (
+                        {profile?.first_name && profile?.last_name 
+                          ? `${profile.first_name} ${profile.last_name}`
+                          : profile?.first_name || userData.first_name
+                        }
+                      </h2>
+                      {profile?.username && (
                           <Badge variant="outline" className="bg-white/90 text-black">@{profile.username}</Badge>
-                        )}
-                        <Badge variant="secondary" className="bg-green-100 text-green-800">
-                          <Shield className="mr-1 h-3 w-3" />
-                          Member
-                        </Badge>
+                      )}
+                      <Badge variant="secondary" className="bg-green-100 text-green-800">
+                        <Shield className="mr-1 h-3 w-3" />
+                        Member
+                      </Badge>
                       </div>
                     </div>
                   </div>
@@ -443,8 +443,8 @@ export default function ProfilePage() {
                       Settings
                     </Link>
                   </Button>
-                </div>
-                
+                    </div>
+
                 {/* Profile Statistics - Under Action Buttons */}
                 <div className="flex items-center gap-6 mt-2 justify-end">
                   <div className="text-center">
@@ -464,7 +464,7 @@ export default function ProfilePage() {
                     <div className="text-xs text-muted-foreground">Likes</div>
                   </div>
                 </div>
-              </div>
+                      </div>
 
               <CardContent className="p-4 pt-2">
                 <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
@@ -487,12 +487,12 @@ export default function ProfilePage() {
                         </div>
                       )}
                       {profile?.linkedin && (
-                        <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1">
                           <Globe className="h-4 w-4" />
                           <a href={profile.linkedin} target="_blank" rel="noopener noreferrer" className="hover:underline">
                             LinkedIn
                           </a>
-                        </div>
+                      </div>
                       )}
                       {profile?.twitter && (
                         <div className="flex items-center gap-1">
@@ -500,7 +500,7 @@ export default function ProfilePage() {
                           <a href={profile.twitter} target="_blank" rel="noopener noreferrer" className="hover:underline">
                             Twitter
                           </a>
-                        </div>
+                    </div>
                       )}
                     </div>
                   </div>
@@ -585,14 +585,14 @@ export default function ProfilePage() {
 
             {/* Tab Content */}
             {activeTab === 'posts' && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
                     <MessageSquare className="h-5 w-5" />
                     Posts
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
                   <div className="text-center py-8">
                     <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-semibold mb-2">No Posts Yet</h3>
@@ -604,20 +604,20 @@ export default function ProfilePage() {
                         Create Your First Post
                       </Link>
                     </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+              </CardContent>
+            </Card>
             )}
 
             {activeTab === 'media' && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
                     <Image className="h-5 w-5" />
                     Media Gallery
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
                   {mediaLoading ? (
                     <div className="text-center py-8">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
@@ -641,13 +641,13 @@ export default function ProfilePage() {
                                 controls
                               />
                             )}
-                          </div>
+                </div>
                           {media.content && (
                             <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white p-2 text-sm opacity-0 group-hover:opacity-100 transition-opacity">
                               <p className="truncate">{media.content}</p>
-                            </div>
-                          )}
-                        </div>
+                  </div>
+                )}
+                    </div>
                       ))}
                     </div>
                   ) : (
@@ -662,20 +662,20 @@ export default function ProfilePage() {
                           Upload Media
                         </Link>
                       </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
             )}
 
             {activeTab === 'followers' && (
-              <Card>
-                <CardHeader>
+            <Card>
+              <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Users className="h-5 w-5" />
                     Followers
                   </CardTitle>
-                </CardHeader>
+              </CardHeader>
                 <CardContent>
                   <div className="text-center py-8">
                     <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -686,21 +686,21 @@ export default function ProfilePage() {
                     <Button asChild>
                       <Link href="/social-feed">
                         Explore Community
-                      </Link>
-                    </Button>
+                  </Link>
+                </Button>
                   </div>
-                </CardContent>
-              </Card>
+              </CardContent>
+            </Card>
             )}
 
             {activeTab === 'following' && (
-              <Card>
-                <CardHeader>
+            <Card>
+              <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Users className="h-5 w-5" />
                     Following
                   </CardTitle>
-                </CardHeader>
+              </CardHeader>
                 <CardContent>
                   <div className="text-center py-8">
                     <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -713,9 +713,9 @@ export default function ProfilePage() {
                         Discover People
                       </Link>
                     </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+              </CardContent>
+            </Card>
             )}
           </div>
         </div>
