@@ -60,7 +60,16 @@ export default function MediaUploadPage() {
     const files = event.target.files
     if (!files) return
 
+    const maxSize = 500 * 1024 * 1024 // 500MB in bytes
+    const invalidFiles: string[] = []
+
     Array.from(files).forEach(file => {
+      // Check file size
+      if (file.size > maxSize) {
+        invalidFiles.push(`${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`)
+        return
+      }
+
       const fileType = file.type.startsWith('image/') ? 'image' : 
                      file.type.startsWith('video/') ? 'video' : 'document'
       
@@ -73,6 +82,11 @@ export default function MediaUploadPage() {
       
       setMediaFiles(prev => [...prev, mediaFile])
     })
+
+    // Show error for files that are too large
+    if (invalidFiles.length > 0) {
+      toast.error(`Files too large (max 500MB): ${invalidFiles.join(', ')}`)
+    }
   }
 
   const removeMediaFile = (id: string) => {
@@ -91,18 +105,36 @@ export default function MediaUploadPage() {
     const supabase = getSupabaseClient()
     if (!supabase) throw new Error('Supabase not configured')
 
-    const fileName = `${user.id}/media/${Date.now()}-${file.name}`
-    const { data, error } = await supabase.storage
-      .from('post-media')
-      .upload(fileName, file)
+    try {
+      const fileName = `${user.id}/media/${Date.now()}-${file.name}`
+      const { data, error } = await supabase.storage
+        .from('post-media')
+        .upload(fileName, file)
 
-    if (error) throw error
+      if (error) {
+        console.error('Storage upload error:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          fullError: error
+        })
+        throw new Error(`Storage upload failed: ${error.message}`)
+      }
 
-    const { data: { publicUrl } } = supabase.storage
-      .from('post-media')
-      .getPublicUrl(fileName)
+      const { data: { publicUrl } } = supabase.storage
+        .from('post-media')
+        .getPublicUrl(fileName)
 
-    return publicUrl
+      return publicUrl
+    } catch (error) {
+      console.error('Media upload error:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        fullError: error
+      })
+      throw error
+    }
   }
 
   const handleSubmit = async () => {
@@ -116,21 +148,33 @@ export default function MediaUploadPage() {
       return
     }
 
+    const supabase = getSupabaseClient()
+    if (!supabase) {
+      toast.error('Database connection not available. Please check your configuration.')
+      return
+    }
+
     setUploading(true)
     setUploadProgress(0)
 
     try {
-      const supabase = getSupabaseClient()
-      if (!supabase) throw new Error('Supabase not configured')
+      console.log('Starting media upload process...')
+      console.log('User:', user.id)
+      console.log('Media files:', mediaFiles.length)
+      console.log('Post data:', postData)
 
       // Upload media files
       const mediaUrls: string[] = []
       for (let i = 0; i < mediaFiles.length; i++) {
         const mediaFile = mediaFiles[i]
+        console.log(`Uploading file ${i + 1}/${mediaFiles.length}:`, mediaFile.file.name)
         const url = await uploadMediaToStorage(mediaFile.file)
         mediaUrls.push(url)
+        console.log('File uploaded successfully:', url)
         setUploadProgress(((i + 1) / mediaFiles.length) * 50) // 50% for media upload
       }
+
+      console.log('All media files uploaded:', mediaUrls)
 
       // Create post
       const postPayload = {
@@ -143,17 +187,28 @@ export default function MediaUploadPage() {
           location: postData.location || null,
           scheduled_at: postData.scheduled_at || null
         },
-        post_type: mediaUrls.length > 0 ? 'media' : 'text',
+        post_type: mediaUrls.length > 0 ? 'image' : 'text',
         created_at: postData.scheduled_at ? new Date(postData.scheduled_at).toISOString() : new Date().toISOString()
       }
 
+      console.log('Post payload prepared:', postPayload)
       setUploadProgress(75)
 
+      console.log('Inserting post into database...')
       const { error: postError } = await supabase
         .from('posts')
         .insert(postPayload)
 
-      if (postError) throw postError
+      if (postError) {
+        console.error('Database insert error:', {
+          message: postError.message,
+          details: postError.details,
+          hint: postError.hint,
+          code: postError.code,
+          fullError: postError
+        })
+        throw new Error(`Database insert failed: ${postError.message}`)
+      }
 
       setUploadProgress(100)
       toast.success('Media uploaded successfully!')
@@ -171,8 +226,12 @@ export default function MediaUploadPage() {
       }
 
     } catch (error) {
-      console.error('Upload error:', error)
-      toast.error('Failed to upload media')
+      console.error('Upload error:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        fullError: error
+      })
+      toast.error(`Failed to upload media: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setUploading(false)
       setUploadProgress(0)
@@ -252,7 +311,7 @@ export default function MediaUploadPage() {
                     Drag and drop files here, or click to browse
                   </p>
                   <p className="text-xs text-muted-foreground mt-2">
-                    Supports images, videos, and documents
+                    Supports images, videos, and documents (max 500MB per file)
                   </p>
                 </div>
 

@@ -40,6 +40,10 @@ export default function ProfilePage() {
   const { user, profile: authProfile, refreshProfile } = useAuth()
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState('posts')
+  const [mediaFiles, setMediaFiles] = useState<any[]>([])
+  const [mediaLoading, setMediaLoading] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -53,8 +57,26 @@ export default function ProfilePage() {
     }
   }, [user, authProfile])
 
+  // Fetch media files when media tab becomes active
+  useEffect(() => {
+    if (activeTab === 'media' && user && mediaFiles.length === 0) {
+      fetchMediaFiles()
+    }
+  }, [activeTab, user])
+
   const fetchProfile = async () => {
-    if (!user || !supabase) return
+    if (!user) {
+      console.log('No user found, skipping profile fetch')
+      setLoading(false)
+      return
+    }
+    
+    if (!supabase) {
+      console.error('Supabase client not available')
+      setError('Database connection not available. Please check your configuration.')
+      setLoading(false)
+      return
+    }
 
     try {
       console.log('Fetching profile for user:', user.id)
@@ -65,21 +87,96 @@ export default function ProfilePage() {
         .single()
 
       if (error) {
-        console.error('Error fetching profile:', error)
+        console.error('Error fetching profile:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          fullError: error
+        })
         if (error.code === 'PGRST116') {
           // Profile doesn't exist, create it
           await createDefaultProfile()
         } else {
-          console.error('Unexpected error:', error)
+          console.error('Unexpected error details:', {
+            message: error.message,
+            code: error.code,
+            details: error.details
+          })
+          setError(`Failed to load profile: ${error.message || 'Unknown error'}`)
         }
       } else {
         console.log('Profile fetched successfully:', data)
         setProfile(data)
       }
     } catch (error) {
-      console.error('Error:', error)
+      console.error('Catch block error:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        fullError: error
+      })
+      setError(`Network error: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchMediaFiles = async () => {
+    if (!user || !supabase) return
+    
+    setMediaLoading(true)
+    try {
+      // Fetch posts with media from the user
+      const { data: posts, error } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('user_id', user.id)
+        .not('image_url', 'is', null)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching media files:', error)
+        return
+      }
+
+      // Transform posts into media files format
+      const mediaData: any[] = []
+      
+      posts?.forEach(post => {
+        // Add primary image if exists
+        if (post.image_url) {
+          mediaData.push({
+            id: `${post.id}-primary`,
+            url: post.image_url,
+            type: post.post_type === 'image' ? 'image' : 'video',
+            created_at: post.created_at,
+            content: post.content,
+            metadata: post.metadata
+          })
+        }
+        
+        // Add additional media from metadata
+        if (post.metadata?.media_urls && Array.isArray(post.metadata.media_urls)) {
+          post.metadata.media_urls.forEach((url: string, index: number) => {
+            if (url !== post.image_url) { // Avoid duplicates
+              mediaData.push({
+                id: `${post.id}-${index}`,
+                url: url,
+                type: post.post_type === 'image' ? 'image' : 'video',
+                created_at: post.created_at,
+                content: post.content,
+                metadata: post.metadata
+              })
+            }
+          })
+        }
+      })
+
+      setMediaFiles(mediaData)
+    } catch (error) {
+      console.error('Error fetching media files:', error)
+    } finally {
+      setMediaLoading(false)
     }
   }
 
@@ -191,6 +288,29 @@ export default function ProfilePage() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="min-h-screen bg-muted/30 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            <strong className="font-bold">Error:</strong>
+            <span className="block sm:inline"> {error}</span>
+          </div>
+          <Button 
+            onClick={() => {
+              setError(null)
+              setLoading(true)
+              fetchProfile()
+            }}
+            variant="outline"
+          >
+            Try Again
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   if (!user) {
     return (
       <div className="min-h-screen bg-muted/30 flex items-center justify-center">
@@ -227,13 +347,13 @@ export default function ProfilePage() {
           <p className="text-muted-foreground">Manage your personal information and account settings</p>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Profile Info - Full Width */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Enhanced Profile Header Card */}
             <Card className="overflow-hidden">
               {/* Cover Photo */}
-              <div className="relative h-56 bg-gradient-to-r from-blue-500 to-purple-600">
+              <div className="relative h-80 bg-gradient-to-r from-blue-500 to-purple-600">
                 {profile?.cover_photo_url ? (
                   <img 
                     src={profile.cover_photo_url} 
@@ -260,34 +380,56 @@ export default function ProfilePage() {
                   onChange={handleCoverPhotoUpload}
                 />
                 
-                {/* Profile Picture positioned at bottom-left of cover photo */}
+                {/* Profile Picture and User Info positioned at bottom-left of cover photo */}
                 <div className="absolute bottom-0 left-6 transform translate-y-1/2">
-                  <div className="relative">
-                    <Avatar className="h-32 w-32 border-4 border-background">
-                      <AvatarImage src={userData.avatar_url || "/placeholder.svg"} alt={`${userData.first_name} ${userData.last_name}`} />
-                      <AvatarFallback className="text-3xl">
-                        {`${userData.first_name} ${userData.last_name}`
-                          .split(" ")
-                          .map((n: string) => n[0])
-                          .join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0 bg-background"
-                      asChild
-                    >
-                      <Link href="/profile/edit">
-                        <Camera className="h-4 w-4" />
-                      </Link>
-                    </Button>
+                  <div className="flex items-end gap-4">
+                    {/* Profile Picture */}
+                    <div className="relative">
+                      <Avatar className="h-24 w-24 border-4 border-background">
+                        <AvatarImage src={userData.avatar_url || "/placeholder.svg"} alt={`${userData.first_name} ${userData.last_name}`} />
+                        <AvatarFallback className="text-xl">
+                          {`${userData.first_name} ${userData.last_name}`
+                            .split(" ")
+                            .map((n: string) => n[0])
+                            .join("")}
+                        </AvatarFallback>
+                      </Avatar>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0 bg-background"
+                        asChild
+                      >
+                        <Link href="/profile/edit">
+                          <Camera className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </div>
+                    
+                    {/* User Info */}
+                    <div className="space-y-1 pb-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-xl font-bold text-white">
+                          {profile?.first_name && profile?.last_name 
+                            ? `${profile.first_name} ${profile.last_name}`
+                            : profile?.first_name || userData.first_name
+                          }
+                        </h2>
+                        {profile?.username && (
+                          <Badge variant="outline" className="bg-white/90 text-black">@{profile.username}</Badge>
+                        )}
+                        <Badge variant="secondary" className="bg-green-100 text-green-800">
+                          <Shield className="mr-1 h-3 w-3" />
+                          Member
+                        </Badge>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Action Buttons - Below Cover Photo */}
-              <div className="px-6 pt-4 pb-2">
+              <div className="px-6 pt-2 pb-1">
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" asChild>
                     <Link href="/profile/edit">
@@ -302,46 +444,40 @@ export default function ProfilePage() {
                     </Link>
                   </Button>
                 </div>
+                
+                {/* Profile Statistics - Under Action Buttons */}
+                <div className="flex items-center gap-6 mt-2 justify-end">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">{profile?.posts_count || 0}</div>
+                    <div className="text-xs text-muted-foreground">Posts</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-purple-600">{profile?.followers_count || 0}</div>
+                    <div className="text-xs text-muted-foreground">Followers</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-orange-600">{profile?.following_count || 0}</div>
+                    <div className="text-xs text-muted-foreground">Following</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">{profile?.likes_received || 0}</div>
+                    <div className="text-xs text-muted-foreground">Likes</div>
+                  </div>
+                </div>
               </div>
 
-              <CardContent className="p-6 pt-4">
-                <div className="flex flex-col sm:flex-row items-start sm:items-end gap-6">
+              <CardContent className="p-4 pt-2">
+                <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
 
-                  {/* User Info */}
-                  <div className="flex-1 space-y-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className="text-2xl font-bold">
-                        {profile?.first_name && profile?.last_name 
-                          ? `${profile.first_name} ${profile.last_name}`
-                          : profile?.first_name || userData.first_name
-                        }
-                      </h2>
-                      {profile?.username && (
-                        <Badge variant="outline">@{profile.username}</Badge>
-                      )}
-                      <Badge variant="secondary" className="bg-green-100 text-green-800">
-                        <Shield className="mr-1 h-3 w-3" />
-                        Member
-                      </Badge>
-                    </div>
-                    
-                    
-                    {/* Social Links */}
+                  {/* Social Links */}
+                  <div className="flex-1 space-y-2">
                     <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-                      <div className="flex items-center gap-1">
-                        <Mail className="h-4 w-4" />
-                        {userData.email}
-                      </div>
                       {userData.location && (
                         <div className="flex items-center gap-1">
                           <MapPin className="h-4 w-4" />
                           {userData.location}
                         </div>
                       )}
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4" />
-                        Joined {new Date(userData.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                      </div>
                       {profile?.website && (
                         <div className="flex items-center gap-1">
                           <Globe className="h-4 w-4" />
@@ -370,51 +506,39 @@ export default function ProfilePage() {
                   </div>
 
                 </div>
-
-                {/* Profile Statistics */}
-                <div className="flex items-center gap-8 mt-6 pt-6 border-t">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-blue-600">{profile?.posts_count || 0}</div>
-                    <div className="text-sm text-muted-foreground">Posts</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-purple-600">{profile?.followers_count || 0}</div>
-                    <div className="text-sm text-muted-foreground">Followers</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-orange-600">{profile?.following_count || 0}</div>
-                    <div className="text-sm text-muted-foreground">Following</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-green-600">{profile?.likes_received || 0}</div>
-                    <div className="text-sm text-muted-foreground">Likes</div>
-                  </div>
-                </div>
               </CardContent>
             </Card>
 
             {/* Navigation Tabs - Facebook Style */}
             <div className="border-b border-border">
               <nav className="flex space-x-8">
-                <Button variant="ghost" className="px-0 py-4 border-b-2 border-primary rounded-none" asChild>
-                  <Link href="/profile/posts">
-                    Posts
-                  </Link>
+                <Button 
+                  variant="ghost" 
+                  className={`px-0 py-4 border-b-2 rounded-none ${activeTab === 'posts' ? 'border-primary' : 'border-transparent hover:border-border'}`}
+                  onClick={() => setActiveTab('posts')}
+                >
+                  Posts
                 </Button>
-                <Button variant="ghost" className="px-0 py-4 border-b-2 border-transparent rounded-none hover:border-border" asChild>
-                  <Link href="/profile/media">
-                    Media Gallery
-                  </Link>
+                <Button 
+                  variant="ghost" 
+                  className={`px-0 py-4 border-b-2 rounded-none ${activeTab === 'media' ? 'border-primary' : 'border-transparent hover:border-border'}`}
+                  onClick={() => setActiveTab('media')}
+                >
+                  Media Gallery
                 </Button>
-                <Button variant="ghost" className="px-0 py-4 border-b-2 border-transparent rounded-none hover:border-border" asChild>
-                  <Link href="/profile/followers">
-                    Followers
-                  </Link>
+                <Button 
+                  variant="ghost" 
+                  className={`px-0 py-4 border-b-2 rounded-none ${activeTab === 'followers' ? 'border-primary' : 'border-transparent hover:border-border'}`}
+                  onClick={() => setActiveTab('followers')}
+                >
+                  Followers
                 </Button>
-                <Button variant="ghost" className="px-0 py-4 border-b-2 border-transparent rounded-none hover:border-border" asChild>
-                  <Link href="/profile/following">
-                    Following
-                  </Link>
+                <Button 
+                  variant="ghost" 
+                  className={`px-0 py-4 border-b-2 rounded-none ${activeTab === 'following' ? 'border-primary' : 'border-transparent hover:border-border'}`}
+                  onClick={() => setActiveTab('following')}
+                >
+                  Following
                 </Button>
                 
                 {/* Account Management - Dropdown */}
@@ -458,30 +582,141 @@ export default function ProfilePage() {
             </div>
 
 
-            {/* Badges Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Award className="h-5 w-5" />
-                  Achievements & Badges
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {defaultBadges.map((badge: any, index: number) => (
-                    <div key={index} className="flex items-center gap-3 p-3 rounded-lg border bg-card">
-                      <div className="text-2xl">{badge.icon}</div>
-                      <div>
-                        <div className="font-medium">{badge.name}</div>
-                        <Badge variant="secondary" className={badge.color}>
-                          Earned
-                        </Badge>
-                      </div>
+
+            {/* Tab Content */}
+            {activeTab === 'posts' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5" />
+                    Posts
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8">
+                    <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No Posts Yet</h3>
+                    <p className="text-muted-foreground mb-4">
+                      You haven't created any posts yet. Start sharing your thoughts!
+                    </p>
+                    <Button asChild>
+                      <Link href="/social-feed">
+                        Create Your First Post
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === 'media' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Image className="h-5 w-5" />
+                    Media Gallery
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {mediaLoading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                      <p className="text-muted-foreground">Loading media...</p>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                  ) : mediaFiles.length > 0 ? (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {mediaFiles.map((media) => (
+                        <div key={media.id} className="relative group">
+                          <div className="aspect-square rounded-lg overflow-hidden bg-muted">
+                            {media.type === 'image' ? (
+                              <img
+                                src={media.url}
+                                alt={media.content || 'Media'}
+                                className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                              />
+                            ) : (
+                              <video
+                                src={media.url}
+                                className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                                controls
+                              />
+                            )}
+                          </div>
+                          {media.content && (
+                            <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white p-2 text-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                              <p className="truncate">{media.content}</p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Image className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold mb-2">No Media Yet</h3>
+                      <p className="text-muted-foreground mb-4">
+                        You haven't uploaded any media yet. Share your photos and videos!
+                      </p>
+                      <Button asChild>
+                        <Link href="/profile/media/upload">
+                          Upload Media
+                        </Link>
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === 'followers' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Followers
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8">
+                    <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No Followers Yet</h3>
+                    <p className="text-muted-foreground mb-4">
+                      You don't have any followers yet. Start engaging with the community!
+                    </p>
+                    <Button asChild>
+                      <Link href="/social-feed">
+                        Explore Community
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === 'following' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Following
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8">
+                    <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Not Following Anyone</h3>
+                    <p className="text-muted-foreground mb-4">
+                      You're not following anyone yet. Discover interesting people to follow!
+                    </p>
+                    <Button asChild>
+                      <Link href="/social-feed">
+                        Discover People
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
