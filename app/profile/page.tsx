@@ -218,13 +218,37 @@ export default function ProfilePage() {
                 </div>
               </CardContent>
             </Card>
-            {/* Profile Header Card */}
-            <Card>
+            {/* Enhanced Profile Header Card */}
+            <Card className="overflow-hidden">
+              {/* Cover Photo */}
+              <div className="relative h-48 bg-gradient-to-r from-blue-500 to-purple-600">
+                {profile?.cover_photo_url ? (
+                  <img 
+                    src={profile.cover_photo_url} 
+                    alt="Cover photo" 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-r from-blue-500 to-purple-600" />
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="absolute top-4 right-4 bg-white/90 hover:bg-white"
+                  asChild
+                >
+                  <Link href="/profile/edit">
+                    <Camera className="h-4 w-4 mr-2" />
+                    Edit Cover
+                  </Link>
+                </Button>
+              </div>
+
               <CardContent className="p-6">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-end gap-6 -mt-12">
                   {/* Avatar */}
                   <div className="relative">
-                    <Avatar className="h-24 w-24">
+                    <Avatar className="h-24 w-24 border-4 border-background">
                       <AvatarImage src={userData.avatar_url || "/placeholder.svg"} alt={`${userData.first_name} ${userData.last_name}`} />
                       <AvatarFallback className="text-2xl">
                         {`${userData.first_name} ${userData.last_name}`
@@ -236,7 +260,7 @@ export default function ProfilePage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0 bg-transparent"
+                      className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0 bg-background"
                       asChild
                     >
                       <Link href="/profile/edit">
@@ -246,8 +270,8 @@ export default function ProfilePage() {
                   </div>
 
                   {/* User Info */}
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center gap-2">
+                  <div className="flex-1 space-y-3">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h2 className="text-2xl font-bold">
                         {profile?.first_name && profile?.last_name 
                           ? `${profile.first_name} ${profile.last_name}`
@@ -255,15 +279,25 @@ export default function ProfilePage() {
                         }
                       </h2>
                       {profile?.username && (
-                        <p className="text-primary font-medium">@{profile.username}</p>
+                        <Badge variant="outline">@{profile.username}</Badge>
                       )}
                       <Badge variant="secondary" className="bg-green-100 text-green-800">
                         <Shield className="mr-1 h-3 w-3" />
                         Member
                       </Badge>
                     </div>
-
-                    <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                    
+                    <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
+                      {userData.bio || (
+                        <span>
+                          No bio added yet.{" "}
+                          <Link href="/profile/edit" className="text-primary hover:underline">Click here</Link> to add your bio.
+                        </span>
+                      )}
+                    </p>
+                    
+                    {/* Social Links */}
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                       <div className="flex items-center gap-1">
                         <Mail className="h-4 w-4" />
                         {userData.email}
@@ -278,18 +312,67 @@ export default function ProfilePage() {
                         <Calendar className="h-4 w-4" />
                         Joined {new Date(userData.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                       </div>
-                    </div>
-
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      {userData.bio || (
-                        <span>
-                          No bio added yet.{" "}
-                          <Link href="/profile/edit" className="text-primary hover:underline">Click here</Link> to add your bio.
-                        </span>
+                      {profile?.website && (
+                        <div className="flex items-center gap-1">
+                          <Globe className="h-4 w-4" />
+                          <a href={profile.website} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                            Website
+                          </a>
+                        </div>
                       )}
-                    </p>
+                      {profile?.linkedin && (
+                        <div className="flex items-center gap-1">
+                          <Globe className="h-4 w-4" />
+                          <a href={profile.linkedin} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                            LinkedIn
+                          </a>
+                        </div>
+                      )}
+                      {profile?.twitter && (
+                        <div className="flex items-center gap-1">
+                          <Globe className="h-4 w-4" />
+                          <a href={profile.twitter} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                            Twitter
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-                    {/* Action Buttons - REMOVED */}
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    <Button variant="outline" asChild>
+                      <Link href="/profile/edit">
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit Profile
+                      </Link>
+                    </Button>
+                    <Button variant="outline" asChild>
+                      <Link href="/profile/settings">
+                        <Settings className="h-4 w-4 mr-2" />
+                        Settings
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Enhanced Stats */}
+                <div className="flex items-center gap-8 mt-6 pt-6 border-t">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">{profile?.posts_count || defaultStats.posts}</div>
+                    <div className="text-sm text-muted-foreground">Posts</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">{profile?.followers_count || defaultStats.followers}</div>
+                    <div className="text-sm text-muted-foreground">Followers</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">{profile?.following_count || 0}</div>
+                    <div className="text-sm text-muted-foreground">Following</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">{profile?.likes_received || 0}</div>
+                    <div className="text-sm text-muted-foreground">Likes</div>
                   </div>
                 </div>
               </CardContent>

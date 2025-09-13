@@ -203,9 +203,11 @@ export default function MediaGalleryPage() {
               </p>
             </div>
             <div className="flex items-center gap-4">
-              <Button variant="outline" className="flex items-center gap-2">
-                <Upload className="h-4 w-4" />
-                Upload Media
+              <Button variant="outline" className="flex items-center gap-2" asChild>
+                <Link href="/profile/media/upload">
+                  <Upload className="h-4 w-4" />
+                  Upload Media
+                </Link>
               </Button>
             </div>
           </div>
