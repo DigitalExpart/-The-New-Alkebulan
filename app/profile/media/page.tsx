@@ -7,6 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { 
   Image, 
   Video, 
@@ -19,7 +25,14 @@ import {
   MoreHorizontal,
   Grid3X3,
   List,
-  Filter
+  Filter,
+  Import,
+  FileText,
+  ChevronDown,
+  Instagram,
+  Facebook,
+  Linkedin,
+  Music
 } from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
@@ -43,6 +56,7 @@ export default function MediaGalleryPage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'all' | 'images' | 'videos'>('all')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [importing, setImporting] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -179,6 +193,101 @@ export default function MediaGalleryPage() {
     }
   }
 
+  const handleImportMedia = (platform?: string) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.multiple = true
+    input.accept = 'image/*,video/*,.pdf,.doc,.docx,.txt'
+    
+    input.onchange = async (e) => {
+      const files = (e.target as HTMLInputElement).files
+      if (!files || files.length === 0) return
+
+      setImporting(true)
+      
+      try {
+        const supabase = getSupabaseClient()
+        if (!supabase || !user) {
+          toast.error('Unable to import media')
+          return
+        }
+
+        const mediaUrls: string[] = []
+        
+        // Upload each file
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i]
+          const fileName = `${user.id}/media/${Date.now()}-${file.name}`
+          
+          const { data, error } = await supabase.storage
+            .from('post-media')
+            .upload(fileName, file)
+
+          if (error) {
+            console.error('Upload error:', error)
+            toast.error(`Failed to upload ${file.name}`)
+            continue
+          }
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('post-media')
+            .getPublicUrl(fileName)
+
+          mediaUrls.push(publicUrl)
+        }
+
+        if (mediaUrls.length === 0) {
+          toast.error('No files were uploaded successfully')
+          return
+        }
+
+        // Create a post with the imported media
+        const platformText = platform ? ` from ${platform}` : ''
+        const postPayload = {
+          user_id: user.id,
+          content: `Imported ${mediaUrls.length} media file${mediaUrls.length > 1 ? 's' : ''}${platformText}`,
+          image_url: mediaUrls[0],
+          metadata: {
+            media_urls: mediaUrls,
+            visibility: 'public',
+            imported: true,
+            source_platform: platform || 'local'
+          },
+          post_type: 'image',
+          created_at: new Date().toISOString()
+        }
+
+        const { error: postError } = await supabase
+          .from('posts')
+          .insert(postPayload)
+
+        if (postError) {
+          console.error('Post creation error:', postError)
+          toast.error('Media uploaded but failed to create post')
+        } else {
+          toast.success(`Successfully imported ${mediaUrls.length} media file${mediaUrls.length > 1 ? 's' : ''}${platformText}`)
+          // Refresh the media list
+          fetchUserMedia()
+        }
+
+      } catch (error) {
+        console.error('Import error:', error)
+        toast.error('Failed to import media')
+      } finally {
+        setImporting(false)
+      }
+    }
+
+    input.click()
+  }
+
+  const handleSocialMediaImport = (platform: string) => {
+    // For now, we'll use the same file picker approach
+    // In a real implementation, this would integrate with social media APIs
+    toast.info(`${platform} integration coming soon! For now, you can select files from your device.`)
+    handleImportMedia(platform)
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-muted/30 flex items-center justify-center">
@@ -203,6 +312,50 @@ export default function MediaGalleryPage() {
               </p>
             </div>
             <div className="flex items-center gap-4">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className="flex items-center gap-2"
+                    disabled={importing}
+                  >
+                    {importing ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                        Importing...
+                      </>
+                    ) : (
+                      <>
+                        <Import className="h-4 w-4" />
+                        Import Media
+                        <ChevronDown className="h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={() => handleImportMedia()}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    From Device
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleSocialMediaImport('Instagram')}>
+                    <Instagram className="h-4 w-4 mr-2 text-pink-500" />
+                    From Instagram
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleSocialMediaImport('Facebook')}>
+                    <Facebook className="h-4 w-4 mr-2 text-blue-600" />
+                    From Facebook
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleSocialMediaImport('TikTok')}>
+                    <Music className="h-4 w-4 mr-2 text-black" />
+                    From TikTok
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleSocialMediaImport('LinkedIn')}>
+                    <Linkedin className="h-4 w-4 mr-2 text-blue-700" />
+                    From LinkedIn
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button variant="outline" className="flex items-center gap-2" asChild>
                 <Link href="/profile/media/upload">
                   <Upload className="h-4 w-4" />
