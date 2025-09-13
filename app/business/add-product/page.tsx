@@ -277,10 +277,10 @@ export default function AddProductPage() {
             toast.error(`Failed to upload image: ${uploadError.message}`)
           } else {
                 // Insert image record with unified structure
-                await supabase
-                  .from('product_images')
-                  .insert({
-                    product_id: productData.id,
+            await supabase
+              .from('product_images')
+              .insert({
+                product_id: productData.id,
                     image_url: fileName,
                     image_name: image.name,
                     image_size: image.size,
@@ -288,7 +288,7 @@ export default function AddProductPage() {
                     is_primary: formData.images.indexOf(image) === 0, // First image is primary
                     sort_order: formData.images.indexOf(image),
                     alt_text: `${formData.name} - Image ${formData.images.indexOf(image) + 1}`
-                  })
+              })
           }
         }
       }

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Save, X, Loader2, Upload, Image, Video, FileText } from "lucide-react"
+import { ArrowLeft, Save, X, Loader2, Upload, Image, Video, FileText, Plus } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { getSupabaseClient } from "@/lib/supabase"
 import { toast } from "sonner"
@@ -105,6 +105,13 @@ export default function EditProductPage() {
     images: [],
     videos: [],
     documents: [],
+  })
+
+  const [newVariantInputs, setNewVariantInputs] = useState({
+    color: '',
+    size: '',
+    number: '',
+    weight: ''
   })
 
   const productId = params?.id as string
@@ -236,11 +243,46 @@ export default function EditProductPage() {
     return []
   }
 
+  const toggleVariants = () => {
+    setFormData(prev => ({
+      ...prev,
+      hasVariants: !prev.hasVariants
+    }))
+  }
+
+  const addVariantOption = (field: keyof typeof formData.variants, value: string | number) => {
+    if (!value || (typeof value === 'string' && !value.trim())) return
+    
+    setFormData(prev => ({
+      ...prev,
+      variants: {
+        ...prev.variants,
+        [field]: [...prev.variants[field], value]
+      }
+    }))
+  }
+
+  const removeVariantOption = (field: keyof typeof formData.variants, index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      variants: {
+        ...prev.variants,
+        [field]: prev.variants[field].filter((_, i) => i !== index)
+      }
+    }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!user?.id) {
       toast.error("You must be signed in to edit a product")
+      return
+    }
+
+    if (!productId) {
+      toast.error("Product ID is required")
+      router.push("/business/dashboard")
       return
     }
 
@@ -279,6 +321,66 @@ export default function EditProductPage() {
         return
       }
       
+      // Handle variants if enabled
+      if (formData.hasVariants && Object.values(formData.variants).some(arr => arr.length > 0)) {
+        // Save variants to database
+        const variantPromises = []
+        
+        // Save colors
+        formData.variants.colors.forEach((color, index) => {
+          variantPromises.push(
+            supabase.from('product_variants').upsert({
+              product_id: productId,
+              variant_type: 'color',
+              variant_value: color,
+              sort_order: index,
+              is_available: true
+            }, { onConflict: 'product_id,variant_type,variant_value' })
+          )
+        })
+        
+        // Save sizes
+        formData.variants.sizes.forEach((size, index) => {
+          variantPromises.push(
+            supabase.from('product_variants').upsert({
+              product_id: productId,
+              variant_type: 'size',
+              variant_value: size,
+              sort_order: index,
+              is_available: true
+            }, { onConflict: 'product_id,variant_type,variant_value' })
+          )
+        })
+        
+        // Save numbers
+        formData.variants.numbers.forEach((number, index) => {
+          variantPromises.push(
+            supabase.from('product_variants').upsert({
+              product_id: productId,
+              variant_type: 'number',
+              variant_value: number,
+              sort_order: index,
+              is_available: true
+            }, { onConflict: 'product_id,variant_type,variant_value' })
+          )
+        })
+        
+        // Save weights
+        formData.variants.weights.forEach((weight, index) => {
+          variantPromises.push(
+            supabase.from('product_variants').upsert({
+              product_id: productId,
+              variant_type: 'weight',
+              variant_value: weight.toString(),
+              sort_order: index,
+              is_available: true
+            }, { onConflict: 'product_id,variant_type,variant_value' })
+          )
+        })
+        
+        await Promise.all(variantPromises)
+      }
+      
       // Upload new media files if any
       if (formData.images && formData.images.length > 0) {
         console.log('📸 Uploading product images...')
@@ -287,7 +389,7 @@ export default function EditProductPage() {
             const fileName = `products/${productId}/images/${Date.now()}_${image.name}`
             
             const { error: uploadError } = await supabase.storage
-              .from('post-media') // Use existing post-media bucket temporarily
+              .from('post-media')
               .upload(fileName, image)
             
             if (uploadError) {
@@ -303,7 +405,7 @@ export default function EditProductPage() {
                   image_name: image.name,
                   image_size: image.size,
                   image_type: image.type,
-                  is_primary: formData.images.indexOf(image) === 0, // First image is primary
+                  is_primary: formData.images.indexOf(image) === 0,
                   sort_order: formData.images.indexOf(image),
                   alt_text: `${formData.name} - Image ${formData.images.indexOf(image) + 1}`
                 })
@@ -322,7 +424,7 @@ export default function EditProductPage() {
             const fileName = `products/${productId}/videos/${Date.now()}_${video.name}`
             
             const { error: uploadError } = await supabase.storage
-              .from('post-media') // Use existing post-media bucket temporarily
+              .from('post-media')
               .upload(fileName, video)
             
             if (uploadError) {
@@ -357,7 +459,7 @@ export default function EditProductPage() {
             const fileName = `products/${productId}/documents/${Date.now()}_${doc.name}`
             
             const { error: uploadError } = await supabase.storage
-              .from('post-media') // Use existing post-media bucket temporarily
+              .from('post-media')
               .upload(fileName, doc)
             
             if (uploadError) {
@@ -373,7 +475,7 @@ export default function EditProductPage() {
                   document_name: doc.name,
                   document_size: doc.size,
                   document_type: doc.type,
-                  document_category: 'general', // Can be enhanced with specific categories
+                  document_category: 'general',
                   sort_order: formData.documents.indexOf(doc),
                   description: `${formData.name} - Document ${formData.documents.indexOf(doc) + 1}`,
                   is_public: true
@@ -416,9 +518,8 @@ export default function EditProductPage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Product Not Found</h2>
-          <p className="text-muted-foreground mb-4">The product you're looking for doesn't exist.</p>
-          <Button onClick={() => router.push('/business/dashboard')}>
+          <p className="text-muted-foreground">Product not found</p>
+          <Button onClick={() => router.push('/business/dashboard')} className="mt-4">
             Back to Dashboard
           </Button>
         </div>
@@ -429,31 +530,23 @@ export default function EditProductPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
+        <div className="mb-6">
           <Button
-            variant="outline"
-            size="sm"
+            variant="ghost"
             onClick={handleCancel}
-            className="flex items-center gap-2"
+            className="mb-4"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Dashboard
           </Button>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold">Edit Product</h1>
-            <p className="text-muted-foreground mt-2">
-              Update your product information
-            </p>
-          </div>
+          <h1 className="text-3xl font-bold">Edit Product</h1>
+          <p className="text-muted-foreground">Update your product information</p>
         </div>
 
-        {/* Form */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Save className="h-5 w-5 text-primary" />
-              Product Information
+              📝 Product Information
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -621,6 +714,219 @@ export default function EditProductPage() {
                 <p className="text-xs text-muted-foreground">
                   Optional: Include technical specs, care instructions, or other relevant details.
                 </p>
+              </div>
+
+              {/* Product Variants */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="hasVariants"
+                    checked={formData.hasVariants}
+                    onChange={toggleVariants}
+                    className="rounded border-gray-300"
+                  />
+                  <Label htmlFor="hasVariants" className="font-medium">
+                    This product has variants (color, size, etc.)
+                  </Label>
+                </div>
+
+                {formData.hasVariants && (
+                  <div className="space-y-6 p-4 bg-muted rounded-lg">
+                    {/* Colors */}
+                    <div className="space-y-3">
+                      <Label className="text-base font-medium">Colors</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Add a color (e.g., Red)"
+                          value={newVariantInputs.color}
+                          onChange={(e) => setNewVariantInputs(prev => ({ ...prev, color: e.target.value }))}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              addVariantOption('colors', newVariantInputs.color)
+                              setNewVariantInputs(prev => ({ ...prev, color: '' }))
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            addVariantOption('colors', newVariantInputs.color)
+                            setNewVariantInputs(prev => ({ ...prev, color: '' }))
+                          }}
+                          disabled={!newVariantInputs.color.trim()}
+                        >
+                          Add
+                        </Button>
+                      </div>
+                      
+                      {formData.variants.colors.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {formData.variants.colors.map((color, index) => (
+                            <div key={index} className="flex items-center gap-2 bg-white px-3 py-1 rounded-full border">
+                              <span className="text-sm">{color}</span>
+                              <button
+                                type="button"
+                                onClick={() => removeVariantOption('colors', index)}
+                                className="text-red-500 hover:text-red-700 text-xs"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Sizes */}
+                    <div className="space-y-3">
+                      <Label className="text-base font-medium">Sizes</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Add a size (e.g., S, M, L)"
+                          value={newVariantInputs.size}
+                          onChange={(e) => setNewVariantInputs(prev => ({ ...prev, size: e.target.value }))}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              addVariantOption('sizes', newVariantInputs.size)
+                              setNewVariantInputs(prev => ({ ...prev, size: '' }))
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            addVariantOption('sizes', newVariantInputs.size)
+                            setNewVariantInputs(prev => ({ ...prev, size: '' }))
+                          }}
+                          disabled={!newVariantInputs.size.trim()}
+                        >
+                          Add
+                        </Button>
+                      </div>
+                      
+                      {formData.variants.sizes.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {formData.variants.sizes.map((size, index) => (
+                            <div key={index} className="flex items-center gap-2 bg-white px-3 py-1 rounded-full border">
+                              <span className="text-sm">{size}</span>
+                              <button
+                                type="button"
+                                onClick={() => removeVariantOption('sizes', index)}
+                                className="text-red-500 hover:text-red-700 text-xs"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Numbers/Models */}
+                    <div className="space-y-3">
+                      <Label className="text-base font-medium">Numbers/Models</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Add a model number (e.g., Model #123)"
+                          value={newVariantInputs.number}
+                          onChange={(e) => setNewVariantInputs(prev => ({ ...prev, number: e.target.value }))}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              addVariantOption('numbers', newVariantInputs.number)
+                              setNewVariantInputs(prev => ({ ...prev, number: '' }))
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            addVariantOption('numbers', newVariantInputs.number)
+                            setNewVariantInputs(prev => ({ ...prev, number: '' }))
+                          }}
+                          disabled={!newVariantInputs.number.trim()}
+                        >
+                          Add
+                        </Button>
+                      </div>
+                      
+                      {formData.variants.numbers.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {formData.variants.numbers.map((number, index) => (
+                            <div key={index} className="flex items-center gap-2 bg-white px-3 py-1 rounded-full border">
+                              <span className="text-sm">{number}</span>
+                              <button
+                                type="button"
+                                onClick={() => removeVariantOption('numbers', index)}
+                                className="text-red-500 hover:text-red-700 text-xs"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Weights */}
+                    <div className="space-y-3">
+                      <Label className="text-base font-medium">Weights (kg)</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          type="number"
+                          placeholder="Add a weight (e.g., 0.5)"
+                          value={newVariantInputs.weight}
+                          onChange={(e) => setNewVariantInputs(prev => ({ ...prev, weight: e.target.value }))}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              const weight = parseFloat(newVariantInputs.weight)
+                              if (weight > 0) {
+                                addVariantOption('weights', weight)
+                                setNewVariantInputs(prev => ({ ...prev, weight: '' }))
+                              }
+                            }
+                          }}
+                          step="0.1"
+                          min="0"
+                        />
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            const weight = parseFloat(newVariantInputs.weight)
+                            if (weight > 0) {
+                              addVariantOption('weights', weight)
+                              setNewVariantInputs(prev => ({ ...prev, weight: '' }))
+                            }
+                          }}
+                          disabled={!newVariantInputs.weight || parseFloat(newVariantInputs.weight) <= 0}
+                        >
+                          Add
+                        </Button>
+                      </div>
+                      
+                      {formData.variants.weights.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {formData.variants.weights.map((weight, index) => (
+                            <div key={index} className="flex items-center gap-2 bg-white px-3 py-1 rounded-full border">
+                              <span className="text-sm">{weight}kg</span>
+                              <button
+                                type="button"
+                                onClick={() => removeVariantOption('weights', index)}
+                                className="text-red-500 hover:text-red-700 text-xs"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Media Upload Section */}

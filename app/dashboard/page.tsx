@@ -282,58 +282,6 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Recent Activity */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>
-                Your latest interactions and updates
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                  <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                    <User className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Welcome to The New Alkebulan!</p>
-                    <p className="text-xs text-muted-foreground">Your account has been created successfully.</p>
-                  </div>
-                  <span className="text-xs text-muted-foreground">Just now</span>
-                </div>
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground text-sm">No recent activity yet</p>
-                  <p className="text-muted-foreground text-xs mt-1">Start exploring to see your activity here</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Quick Links */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Links</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="ghost" className="w-full justify-start" onClick={() => router.push("/dashboard/finance")}>
-                <DollarSign className="h-4 w-4 mr-2" />
-                Finance
-              </Button>
-              <Button variant="ghost" className="w-full justify-start" onClick={() => router.push("/health")}>
-                <Heart className="h-4 w-4 mr-2" />
-                Health & Wellness
-              </Button>
-              <Button variant="ghost" className="w-full justify-start" onClick={() => router.push("/governance")}>
-                <Shield className="h-4 w-4 mr-2" />
-                Governance
-              </Button>
-              <Button variant="ghost" className="w-full justify-start" onClick={() => router.push("/join-the-team")}>
-                <Users className="h-4 w-4 mr-2" />
-                Join The Team
-              </Button>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>
