@@ -225,11 +225,11 @@ export default function AdminSettingsPage() {
         <div className="container mx-auto px-4 py-8">
           <div className="mb-6 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                <Settings className="w-5 h-5" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold">Platform Settings</h1>
+            <div className="p-2 rounded-lg bg-primary/10 text-primary">
+              <Settings className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">Platform Settings</h1>
                 <p className="text-muted-foreground">Configure platform features and behavior</p>
               </div>
             </div>
@@ -252,8 +252,8 @@ export default function AdminSettingsPage() {
 
             {Object.entries(settingsByCategory).map(([category, categorySettings]) => (
               <TabsContent key={category} value={category} className="space-y-6">
-                <Card>
-                  <CardHeader>
+          <Card>
+            <CardHeader>
                     <CardTitle className="capitalize flex items-center gap-2">
                       {category === 'features' && <Database className="w-5 h-5" />}
                       {category === 'commerce' && <DollarSign className="w-5 h-5" />}
@@ -261,7 +261,7 @@ export default function AdminSettingsPage() {
                       {category === 'ui' && <Palette className="w-5 h-5" />}
                       {category} Settings
                     </CardTitle>
-                  </CardHeader>
+            </CardHeader>
                   <CardContent className="space-y-6">
                     {categorySettings.map(setting => (
                       <div key={setting.id} className="space-y-2 p-4 border rounded-lg">
@@ -278,26 +278,26 @@ export default function AdminSettingsPage() {
                           </div>
                         </div>
                         {renderSettingInput(setting)}
-                      </div>
-                    ))}
+                </div>
+              ))}
                     {categorySettings.length === 0 && (
                       <div className="text-center py-8 text-muted-foreground">
                         No {category} settings configured
                       </div>
                     )}
-                  </CardContent>
-                </Card>
+            </CardContent>
+          </Card>
               </TabsContent>
             ))}
 
             <TabsContent value="notifications" className="space-y-6">
               <Card>
-                <CardHeader>
+            <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Bell className="w-5 h-5" />
                     Admin Notifications
                   </CardTitle>
-                </CardHeader>
+            </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     {notifications.map(notification => (
@@ -331,9 +331,9 @@ export default function AdminSettingsPage() {
                         No unread notifications
                       </div>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
+              </div>
+            </CardContent>
+          </Card>
             </TabsContent>
           </Tabs>
         </div>

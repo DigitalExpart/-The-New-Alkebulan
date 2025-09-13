@@ -288,9 +288,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, loading: true, error: null }))
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(data.email)
+      // Use the production website URL for password reset redirect
+      const redirectUrl = typeof window !== 'undefined' 
+        ? `https://thenewalkebulan.com/auth/callback`
+        : 'https://thenewalkebulan.com/auth/callback'
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
+        redirectTo: redirectUrl
+      })
       if (error) throw error
-      toast.success("Password reset email sent!")
+      toast.success("Password reset email sent! Check your inbox.")
     } catch (error) {
       const message = error instanceof Error ? error.message : "An error occurred"
       setState((prev) => ({ ...prev, error: message }))
@@ -309,9 +316,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, loading: true, error: null }))
 
     try {
-      const redirectUrl = typeof window !== 'undefined' 
-        ? `${window.location.origin}/auth/callback`
-        : 'https://the-new-alkebulan.vercel.app/auth/callback'
+      const redirectUrl = 'https://thenewalkebulan.com/auth/callback'
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: { redirectTo: redirectUrl },

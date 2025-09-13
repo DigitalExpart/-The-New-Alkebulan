@@ -65,7 +65,7 @@ export default function AdminUsersPage() {
 
   const fetchUsers = async () => {
     try {
-      setLoading(true)
+    setLoading(true)
       
       if (!supabase) {
         toast.error('Database connection not available')
@@ -275,9 +275,9 @@ export default function AdminUsersPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
                     <span>Users ({users.length})</span>
-                    <div className="flex items-center gap-2">
-                      <Search className="w-4 h-4 text-muted-foreground" />
-                      <Input
+              <div className="flex items-center gap-2">
+                <Search className="w-4 h-4 text-muted-foreground" />
+                <Input
                         placeholder="Search users..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
@@ -397,7 +397,7 @@ export default function AdminUsersPage() {
                           <Button size="sm" variant="outline">
                             <XCircle className="w-4 h-4 mr-2" />
                             Dismiss
-                          </Button>
+                </Button>
                         </div>
                       </div>
                     ))}
@@ -406,9 +406,9 @@ export default function AdminUsersPage() {
                         No reports to review
                       </div>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
+              </div>
+            </CardContent>
+          </Card>
             </TabsContent>
 
             <TabsContent value="moderation">
@@ -442,7 +442,7 @@ export default function AdminUsersPage() {
                     <div className="text-center p-4 border rounded-lg">
                       <div className="text-2xl font-bold">{users.filter(u => u.business_enabled).length}</div>
                       <div className="text-sm text-muted-foreground">Business Users</div>
-                    </div>
+          </div>
                   </div>
                 </CardContent>
               </Card>

@@ -19,6 +19,35 @@ export default function AuthCallbackPage() {
           return
         }
 
+        // Check if this is a password reset callback
+        const urlParams = new URLSearchParams(window.location.search)
+        const accessToken = urlParams.get('access_token')
+        const refreshToken = urlParams.get('refresh_token')
+        const type = urlParams.get('type')
+
+        if (type === 'recovery' && accessToken && refreshToken) {
+          // This is a password reset callback
+          console.log('Password reset callback detected')
+          
+          // Set the session with the tokens from the URL
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          })
+
+          if (sessionError) {
+            console.error("Session error:", sessionError)
+            toast.error("Invalid password reset link. Please request a new one.")
+            router.push("/auth/signin")
+            return
+          }
+
+          // Redirect to password reset form
+          router.push("/auth/reset-password")
+          return
+        }
+
+        // Handle normal auth callback
         const result = await supabase.auth.getSession()
         
         if (result.error) {
