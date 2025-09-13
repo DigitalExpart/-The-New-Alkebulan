@@ -5,6 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
 import { supabase } from "@/lib/supabase"
@@ -18,11 +24,13 @@ import {
   Camera,
   Award,
   TrendingUp,
+  BarChart3,
   Users,
   MessageSquare,
   Star,
   Globe,
   Phone,
+  ChevronDown,
   Briefcase,
   GraduationCap,
   Image,
@@ -118,6 +126,47 @@ export default function ProfilePage() {
     }
   }
 
+  const handleCoverPhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !user || !supabase) return
+
+    try {
+      // Upload to Supabase storage
+      const fileName = `cover-photos/${user.id}/${Date.now()}-${file.name}`
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('post-media')
+        .upload(fileName, file)
+
+      if (uploadError) {
+        console.error('Error uploading cover photo:', uploadError)
+        return
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('post-media')
+        .getPublicUrl(fileName)
+
+      // Update profile with new cover photo URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ cover_photo_url: urlData.publicUrl })
+        .eq('user_id', user.id)
+
+      if (updateError) {
+        console.error('Error updating profile:', updateError)
+        return
+      }
+
+      // Update local state
+      setProfile(prev => prev ? { ...prev, cover_photo_url: urlData.publicUrl } : null)
+      
+      console.log('Cover photo uploaded successfully!')
+    } catch (error) {
+      console.error('Error uploading cover photo:', error)
+    }
+  }
+
   // Default stats and badges
   const defaultStats = {
     communities: 0,
@@ -171,57 +220,20 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-muted/30">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Profile</h1>
           <p className="text-muted-foreground">Manage your personal information and account settings</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Profile Info */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5" />
-                  Content & Social
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <Button variant="outline" className="h-20 flex flex-col gap-2" asChild>
-                    <Link href="/profile/posts">
-                      <MessageSquare className="h-6 w-6" />
-                      <span className="text-xs">My Posts</span>
-                    </Link>
-                  </Button>
-                  <Button variant="outline" className="h-20 flex flex-col gap-2" asChild>
-                    <Link href="/profile/media">
-                      <Image className="h-6 w-6" />
-                      <span className="text-xs">Media Gallery</span>
-                    </Link>
-                  </Button>
-                  <Button variant="outline" className="h-20 flex flex-col gap-2" asChild>
-                    <Link href="/profile/followers">
-                      <Users className="h-6 w-6" />
-                      <span className="text-xs">Followers</span>
-                    </Link>
-                  </Button>
-                  <Button variant="outline" className="h-20 flex flex-col gap-2" asChild>
-                    <Link href="/profile/following">
-                      <Users className="h-6 w-6" />
-                      <span className="text-xs">Following</span>
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+        <div className="space-y-6">
+          {/* Profile Info - Full Width */}
+          <div className="space-y-6">
             {/* Enhanced Profile Header Card */}
             <Card className="overflow-hidden">
               {/* Cover Photo */}
-              <div className="relative h-48 bg-gradient-to-r from-blue-500 to-purple-600">
+              <div className="relative h-56 bg-gradient-to-r from-blue-500 to-purple-600">
                 {profile?.cover_photo_url ? (
                   <img 
                     src={profile.cover_photo_url} 
@@ -235,22 +247,25 @@ export default function ProfilePage() {
                   size="sm"
                   variant="outline"
                   className="absolute top-4 right-4 bg-white/90 hover:bg-white"
-                  asChild
+                  onClick={() => document.getElementById('cover-photo-input')?.click()}
                 >
-                  <Link href="/profile/edit">
-                    <Camera className="h-4 w-4 mr-2" />
-                    Edit Cover
-                  </Link>
+                  <Camera className="h-4 w-4 mr-2" />
+                  Edit Cover
                 </Button>
-              </div>
-
-              <CardContent className="p-6">
-                <div className="flex flex-col sm:flex-row items-start sm:items-end gap-6 -mt-12">
-                  {/* Avatar */}
+                <input
+                  id="cover-photo-input"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleCoverPhotoUpload}
+                />
+                
+                {/* Profile Picture positioned at bottom-left of cover photo */}
+                <div className="absolute bottom-0 left-6 transform translate-y-1/2">
                   <div className="relative">
-                    <Avatar className="h-24 w-24 border-4 border-background">
+                    <Avatar className="h-32 w-32 border-4 border-background">
                       <AvatarImage src={userData.avatar_url || "/placeholder.svg"} alt={`${userData.first_name} ${userData.last_name}`} />
-                      <AvatarFallback className="text-2xl">
+                      <AvatarFallback className="text-3xl">
                         {`${userData.first_name} ${userData.last_name}`
                           .split(" ")
                           .map((n: string) => n[0])
@@ -268,6 +283,29 @@ export default function ProfilePage() {
                       </Link>
                     </Button>
                   </div>
+                </div>
+              </div>
+
+              {/* Action Buttons - Below Cover Photo */}
+              <div className="px-6 pt-4 pb-2">
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" asChild>
+                    <Link href="/profile/edit">
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Profile
+                    </Link>
+                  </Button>
+                  <Button variant="outline" asChild>
+                    <Link href="/profile/settings">
+                      <Settings className="h-4 w-4 mr-2" />
+                      Settings
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+
+              <CardContent className="p-6 pt-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-end gap-6">
 
                   {/* User Info */}
                   <div className="flex-1 space-y-3">
@@ -287,14 +325,6 @@ export default function ProfilePage() {
                       </Badge>
                     </div>
                     
-                    <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
-                      {userData.bio || (
-                        <span>
-                          No bio added yet.{" "}
-                          <Link href="/profile/edit" className="text-primary hover:underline">Click here</Link> to add your bio.
-                        </span>
-                      )}
-                    </p>
                     
                     {/* Social Links */}
                     <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
@@ -339,78 +369,94 @@ export default function ProfilePage() {
                     </div>
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex gap-2">
-                    <Button variant="outline" asChild>
-                      <Link href="/profile/edit">
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit Profile
-                      </Link>
-                    </Button>
-                    <Button variant="outline" asChild>
-                      <Link href="/profile/settings">
-                        <Settings className="h-4 w-4 mr-2" />
-                        Settings
-                      </Link>
-                    </Button>
-                  </div>
                 </div>
 
-                {/* Enhanced Stats */}
+                {/* Profile Statistics */}
                 <div className="flex items-center gap-8 mt-6 pt-6 border-t">
                   <div className="text-center">
-                    <div className="text-2xl font-bold">{profile?.posts_count || defaultStats.posts}</div>
+                    <div className="text-3xl font-bold text-blue-600">{profile?.posts_count || 0}</div>
                     <div className="text-sm text-muted-foreground">Posts</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold">{profile?.followers_count || defaultStats.followers}</div>
+                    <div className="text-3xl font-bold text-purple-600">{profile?.followers_count || 0}</div>
                     <div className="text-sm text-muted-foreground">Followers</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold">{profile?.following_count || 0}</div>
+                    <div className="text-3xl font-bold text-orange-600">{profile?.following_count || 0}</div>
                     <div className="text-sm text-muted-foreground">Following</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold">{profile?.likes_received || 0}</div>
+                    <div className="text-3xl font-bold text-green-600">{profile?.likes_received || 0}</div>
                     <div className="text-sm text-muted-foreground">Likes</div>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Stats Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5" />
-                  Activity Overview
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{defaultStats.communities}</div>
-                    <div className="text-sm text-muted-foreground">Communities</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">{defaultStats.posts}</div>
-                    <div className="text-sm text-muted-foreground">Posts</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">{defaultStats.followers.toLocaleString()}</div>
-                    <div className="text-sm text-muted-foreground">Followers</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">{defaultStats.following}</div>
-                    <div className="text-sm text-muted-foreground">Following</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-yellow-600">{defaultStats.reputation}</div>
-                    <div className="text-sm text-muted-foreground">Reputation</div>
-                  </div>
+            {/* Navigation Tabs - Facebook Style */}
+            <div className="border-b border-border">
+              <nav className="flex space-x-8">
+                <Button variant="ghost" className="px-0 py-4 border-b-2 border-primary rounded-none" asChild>
+                  <Link href="/profile/posts">
+                    Posts
+                  </Link>
+                </Button>
+                <Button variant="ghost" className="px-0 py-4 border-b-2 border-transparent rounded-none hover:border-border" asChild>
+                  <Link href="/profile/media">
+                    Media Gallery
+                  </Link>
+                </Button>
+                <Button variant="ghost" className="px-0 py-4 border-b-2 border-transparent rounded-none hover:border-border" asChild>
+                  <Link href="/profile/followers">
+                    Followers
+                  </Link>
+                </Button>
+                <Button variant="ghost" className="px-0 py-4 border-b-2 border-transparent rounded-none hover:border-border" asChild>
+                  <Link href="/profile/following">
+                    Following
+                  </Link>
+                </Button>
+                
+                {/* Account Management - Dropdown */}
+                <div className="ml-auto">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="px-2 py-4 border-b-2 border-transparent rounded-none hover:border-border">
+                        Account Management
+                        <ChevronDown className="h-4 w-4 ml-1" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem asChild>
+                        <Link href="/profile/account-protection" className="flex items-center">
+                          <Shield className="h-4 w-4 mr-2" />
+                          Account Protection
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/profile/settings" className="flex items-center">
+                          <Settings className="h-4 w-4 mr-2" />
+                          Settings & Privacy
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/profile/communities" className="flex items-center">
+                          <Users className="h-4 w-4 mr-2" />
+                          My Communities
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/profile/investor-dashboard" className="flex items-center">
+                          <TrendingUp className="h-4 w-4 mr-2" />
+                          Investor Dashboard
+                        </Link>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-              </CardContent>
-            </Card>
+              </nav>
+            </div>
+
 
             {/* Badges Card */}
             <Card>
@@ -433,134 +479,6 @@ export default function ProfilePage() {
                       </div>
                     </div>
                   ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right Column - Quick Actions & Info */}
-          <div className="space-y-6">
-            {/* Contact Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Contact Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {userData.website && (
-                  <div className="flex items-center gap-3">
-                    <Globe className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <div className="text-sm text-muted-foreground">Website</div>
-                      <a href={userData.website} className="text-sm text-blue-600 hover:underline">
-                        {userData.website}
-                      </a>
-                    </div>
-                  </div>
-                )}
-                {userData.phone && (
-                  <div className="flex items-center gap-3">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <div className="text-sm text-muted-foreground">Phone</div>
-                      <div className="text-sm">{userData.phone}</div>
-                    </div>
-                  </div>
-                )}
-                {userData.occupation && (
-                  <div className="flex items-center gap-3">
-                    <Briefcase className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <div className="text-sm text-muted-foreground">Occupation</div>
-                      <div className="text-sm">{userData.occupation}</div>
-                    </div>
-                  </div>
-                )}
-                {userData.education && (
-                  <div className="flex items-center gap-3">
-                    <GraduationCap className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <div className="text-sm text-muted-foreground">Education</div>
-                      <div className="text-sm">{userData.education}</div>
-                    </div>
-                  </div>
-                )}
-                {!userData.website && !userData.phone && !userData.occupation && !userData.education && (
-                  <div className="text-center py-4 text-muted-foreground">
-                    <p className="text-sm">No contact information added yet.</p>
-                    <p className="text-xs mt-1">
-                      Click <Link href="/profile/edit" className="text-primary hover:underline">"Edit Profile"</Link> to add your details.
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Account Management */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Account Management</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button asChild variant="outline" className="w-full justify-start bg-transparent">
-                  <Link href="/profile/account-protection">
-                    <Shield className="mr-2 h-4 w-4" />
-                    Account Protection
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="w-full justify-start bg-transparent">
-                  <Link href="/profile/settings">
-                    <Settings className="mr-2 h-4 w-4" />
-                    Settings & Privacy
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="w-full justify-start bg-transparent">
-                  <Link href="/communities/my-community">
-                    <Users className="mr-2 h-4 w-4" />
-                    My Communities
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="w-full justify-start bg-transparent">
-                  <Link href="/dashboard/investments">
-                    <TrendingUp className="mr-2 h-4 w-4" />
-                    Investor Dashboard
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Recent Activity */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Recent Activity</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-start gap-3 text-sm">
-                  <MessageSquare className="h-4 w-4 text-green-600 mt-0.5" />
-                  <div>
-                    <div className="font-medium">Posted in Amsterdam Music Hub</div>
-                    <div className="text-muted-foreground">2 hours ago</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 text-sm">
-                  <Users className="h-4 w-4 text-blue-600 mt-0.5" />
-                  <div>
-                    <div className="font-medium">Joined AI Creation Hub</div>
-                    <div className="text-muted-foreground">1 day ago</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 text-sm">
-                  <Star className="h-4 w-4 text-yellow-600 mt-0.5" />
-                  <div>
-                    <div className="font-medium">Earned "Top Contributor" badge</div>
-                    <div className="text-muted-foreground">3 days ago</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 text-sm">
-                  <TrendingUp className="h-4 w-4 text-purple-600 mt-0.5" />
-                  <div>
-                    <div className="font-medium">Completed investment in Green Energy Project</div>
-                    <div className="text-muted-foreground">1 week ago</div>
-                  </div>
                 </div>
               </CardContent>
             </Card>
