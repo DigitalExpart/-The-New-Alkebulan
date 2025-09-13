@@ -25,6 +25,7 @@ import {
   Phone,
   Briefcase,
   GraduationCap,
+  Image,
 } from "lucide-react"
 
 export default function ProfilePage() {
@@ -180,6 +181,43 @@ export default function ProfilePage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Profile Info */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Quick Actions */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5" />
+                  Content & Social
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <Button variant="outline" className="h-20 flex flex-col gap-2" asChild>
+                    <Link href="/profile/posts">
+                      <MessageSquare className="h-6 w-6" />
+                      <span className="text-xs">My Posts</span>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex flex-col gap-2" asChild>
+                    <Link href="/profile/media">
+                      <Image className="h-6 w-6" />
+                      <span className="text-xs">Media Gallery</span>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex flex-col gap-2" asChild>
+                    <Link href="/profile/followers">
+                      <Users className="h-6 w-6" />
+                      <span className="text-xs">Followers</span>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex flex-col gap-2" asChild>
+                    <Link href="/profile/following">
+                      <Users className="h-6 w-6" />
+                      <span className="text-xs">Following</span>
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
             {/* Profile Header Card */}
             <Card>
               <CardContent className="p-6">
