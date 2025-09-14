@@ -9,7 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { 
   User, 
   Mail, 
@@ -23,7 +28,13 @@ import {
   Loader2,
   ArrowLeft,
   UserPlus,
-  MessageCircle
+  MessageCircle,
+  Star,
+  Image,
+  ChevronDown,
+  Shield,
+  Settings,
+  Camera
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -69,9 +80,13 @@ export default function UserProfilePage() {
   const [posts, setPosts] = useState<UserPost[]>([])
   const [communities, setCommunities] = useState<UserCommunity[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState("overview")
+  const [activeTab, setActiveTab] = useState("posts")
   const [isFriend, setIsFriend] = useState(false)
   const [isLoadingFriend, setIsLoadingFriend] = useState(false)
+  const [mediaFiles, setMediaFiles] = useState<any[]>([])
+  const [mediaLoading, setMediaLoading] = useState(false)
+  const [userPosts, setUserPosts] = useState<any[]>([])
+  const [postsLoading, setPostsLoading] = useState(false)
 
   const userId = params.id as string
 
@@ -83,6 +98,20 @@ export default function UserProfilePage() {
       checkFriendshipStatus()
     }
   }, [userId])
+
+  // Fetch media files when media tab becomes active
+  useEffect(() => {
+    if (activeTab === 'media' && userId && mediaFiles.length === 0) {
+      fetchMediaFiles()
+    }
+  }, [activeTab, userId])
+
+  // Fetch posts when posts tab becomes active
+  useEffect(() => {
+    if (activeTab === 'posts' && userId && userPosts.length === 0) {
+      fetchUserPostsNew()
+    }
+  }, [activeTab, userId])
 
   const fetchUserProfile = async () => {
     try {
@@ -124,93 +153,45 @@ export default function UserProfilePage() {
     try {
       const supabase = getSupabaseClient()
       
-      // Try to fetch from posts table first (new social posts)
-      let { data, error } = await supabase
-        .from('posts')
+      // Prefer explicit FK aliases to avoid relationship ambiguity
+      const { data, error } = await supabase
+        .from('community_posts')
         .select(`
           id,
           content,
-          image_url,
-          post_type,
-          visibility,
-          feeling,
-          location,
-          metadata,
           created_at,
-          user_id
+          community_id,
+          user:profiles!community_posts_user_id_fkey(
+            first_name,
+            last_name,
+            avatar_url
+          ),
+          communities (
+            name
+          )
         `)
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(20)
 
-      // If posts table doesn't exist or has no data, fallback to community_posts
-      if (error && error.code === '42P01') {
-        console.log('posts table not found, falling back to community_posts')
-        const fallbackResult = await supabase
-          .from('community_posts')
-          .select(`
-            id,
-            content,
-            created_at,
-            community_id,
-            user:profiles!community_posts_user_id_fkey(
-              first_name,
-              last_name,
-              avatar_url
-            ),
-            communities (
-              name
-            )
-          `)
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false })
-          .limit(20)
-        
-        data = fallbackResult.data
-        error = fallbackResult.error
-      }
-
       if (error) {
-        console.error('Error fetching posts:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        })
+        console.error('Error fetching posts:', error)
         // Fall back to a two-step fetch below
       }
 
       if (data && data.length > 0 && !error) {
-        // Check if this is from posts table (new social posts) or community_posts
-        if (data[0].post_type !== undefined) {
-          // This is from the new posts table
-          const normalized: UserPost[] = (data || []).map((p: any) => ({
-            id: p.id,
-            content: p.content,
-            created_at: p.created_at,
-            community_id: null,
-            community: { name: 'Personal Post' },
-            image_url: p.image_url,
-            post_type: p.post_type,
-            feeling: p.feeling,
-            location: p.location
-          }))
-          setPosts(normalized)
-          return
-        } else {
-          // This is from community_posts table
-          const normalized: UserPost[] = (data || []).map((p: any) => ({
-            id: p.id,
-            content: p.content,
-            created_at: p.created_at,
-            community_id: p.community_id,
-            community: {
-              name: (Array.isArray(p.communities) ? p.communities[0]?.name : p.communities?.name) || 'Community'
-            }
-          }))
-          setPosts(normalized)
-          return
-        }
+        // Normalize in case the relation returns an array/object
+        const normalized: UserPost[] = (data || []).map((p: any) => ({
+          id: p.id,
+          content: p.content,
+          created_at: p.created_at,
+          community_id: p.community_id,
+          community: {
+            name: (Array.isArray(p.communities) ? p.communities[0]?.name : p.communities?.name) || 'Community'
+          }
+        }))
+        setPosts(normalized)
+        return
       }
 
       // Fallback: two-step fetch (posts then communities)
@@ -222,12 +203,7 @@ export default function UserProfilePage() {
         .limit(20)
 
       if (basicErr) {
-        console.error('Error fetching basic posts:', {
-          message: basicErr.message,
-          details: basicErr.details,
-          hint: basicErr.hint,
-          code: basicErr.code
-        })
+        console.error('Error fetching basic posts:', basicErr)
         return
       }
 
@@ -256,10 +232,7 @@ export default function UserProfilePage() {
 
       setPosts(normalizedFallback)
     } catch (error) {
-      console.error('Error fetching posts:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        error: error
-      })
+      console.error('Error fetching posts:', error)
     }
   }
 
@@ -335,6 +308,147 @@ export default function UserProfilePage() {
       }
     } catch (error) {
       console.log('Friendship status check failed')
+    }
+  }
+
+  const fetchMediaFiles = async () => {
+    if (!userId) return
+    
+    setMediaLoading(true)
+    try {
+      const supabase = getSupabaseClient()
+      
+      // Fetch posts with media from the user
+      const { data: posts, error } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('user_id', userId)
+        .not('image_url', 'is', null)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching media files:', error)
+        return
+      }
+
+      // Transform posts into media files format
+      const mediaData: any[] = []
+      posts?.forEach(post => {
+        if (post.image_url) {
+          mediaData.push({
+            id: `${post.id}-primary`,
+            url: post.image_url,
+            type: post.post_type === 'image' ? 'image' : 'video',
+            created_at: post.created_at,
+            content: post.content,
+            metadata: post.metadata
+          })
+        }
+        
+        // Add additional media from metadata
+        if (post.metadata?.media_urls && Array.isArray(post.metadata.media_urls)) {
+          post.metadata.media_urls.forEach((url: string, index: number) => {
+            if (url !== post.image_url) { // Avoid duplicates
+              mediaData.push({
+                id: `${post.id}-${index}`,
+                url: url,
+                type: post.post_type === 'image' ? 'image' : 'video',
+                created_at: post.created_at,
+                content: post.content,
+                metadata: post.metadata
+              })
+            }
+          })
+        }
+      })
+
+      setMediaFiles(mediaData)
+    } catch (error) {
+      console.error('Error fetching media files:', error)
+    } finally {
+      setMediaLoading(false)
+    }
+  }
+
+  const fetchUserPostsNew = async () => {
+    if (!userId) return
+
+    setPostsLoading(true)
+    try {
+      const supabase = getSupabaseClient()
+      
+      // Try to fetch posts using the posts_with_stats view first
+      let { data: posts, error } = await supabase
+        .from('posts_with_stats')
+        .select(`
+          id,
+          content,
+          image_url,
+          post_type,
+          visibility,
+          feeling,
+          location,
+          metadata,
+          created_at,
+          likes_count,
+          comments_count,
+          author_name,
+          author_avatar,
+          author_username
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+
+      // If posts_with_stats view doesn't exist, fallback to posts table
+      if (error && error.code === '42P01') {
+        console.log('posts_with_stats view not found, falling back to posts table')
+        const fallbackResult = await supabase
+          .from('posts')
+          .select(`
+            id,
+            content,
+            image_url,
+            post_type,
+            visibility,
+            feeling,
+            location,
+            metadata,
+            created_at
+          `)
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+        
+        posts = fallbackResult.data?.map(post => ({
+          ...post,
+          likes_count: 0,
+          comments_count: 0,
+          author_name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim(),
+          author_avatar: profile?.avatar_url,
+          author_username: profile?.username
+        }))
+        error = fallbackResult.error
+      }
+
+      if (error) {
+        console.error('Error fetching posts:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        })
+        toast.error(`Failed to load posts: ${error.message || 'Unknown error'}`)
+        return
+      }
+
+      setUserPosts(posts || [])
+    } catch (error) {
+      console.error('Error fetching user posts:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        error: error
+      })
+      toast.error(`Failed to load posts: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setPostsLoading(false)
     }
   }
 
@@ -423,95 +537,127 @@ export default function UserProfilePage() {
           </Button>
         </div>
 
-        {/* Profile Header */}
-        <Card className="mb-8">
-          <CardContent className="p-8">
-            <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-              {/* Avatar */}
-              <div className="flex-shrink-0">
-                <Avatar className="w-24 h-24">
-                  <AvatarImage src={profile.avatar_url || ""} />
-                  <AvatarFallback className="text-2xl">
-                    {profile.first_name?.charAt(0) || "U"}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-
-              {/* Profile Info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                  <div>
-                    <h1 className="text-3xl md:text-4xl font-bold mb-2">
-                      {profile.first_name} {profile.last_name}
-                    </h1>
-                    
-                    {profile.bio && (
-                      <p className="text-lg text-muted-foreground mb-4 max-w-2xl">
-                        {profile.bio}
-                      </p>
-                    )}
-
-                    <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                      {profile.location && (
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4" />
-                          <span>{profile.location}</span>
-                        </div>
-                      )}
-                      
-                      {profile.date_of_birth && (
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4" />
-                          <span>{calculateAge(profile.date_of_birth)} years old</span>
-                        </div>
-                      )}
-                      
-                      {profile.occupation && (
-                        <div className="flex items-center gap-2">
-                          <Building2 className="h-4 w-4" />
-                          <span>{profile.occupation}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  {!isOwnProfile && (
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <Button 
-                        onClick={handleAddFriend}
-                        disabled={isFriend || isLoadingFriend}
-                        variant={isFriend ? "outline" : "default"}
-                      >
-                        {isLoadingFriend ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        ) : isFriend ? (
-                          <UserPlus className="h-4 w-4 mr-2" />
-                        ) : (
-                          <UserPlus className="h-4 w-4 mr-2" />
-                        )}
-                        {isFriend ? "Friends" : "Add Friend"}
-                      </Button>
-                      
-                      <Button variant="outline" onClick={handleSendMessage}>
-                        <MessageCircle className="h-4 w-4 mr-2" />
-                        Message
-                      </Button>
-                    </div>
-                  )}
+        {/* Profile Header - Facebook Style */}
+        <Card className="mb-8 overflow-hidden">
+          {/* Cover Photo */}
+          <div className="relative h-80 bg-gradient-to-r from-blue-500 to-purple-600">
+            {profile.cover_photo_url ? (
+              <img 
+                src={profile.cover_photo_url} 
+                alt="Cover photo" 
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-r from-blue-500 to-purple-600"></div>
+            )}
+            
+            {/* Profile Picture overlapping cover photo */}
+            <div className="absolute bottom-0 left-6 transform translate-y-1/2">
+              <div className="flex items-end gap-4">
+                {/* Profile Picture */}
+                <div className="relative">
+                  <Avatar className="h-24 w-24 border-4 border-background">
+                    <AvatarImage src={profile.avatar_url || "/placeholder.svg"} alt={`${profile.first_name} ${profile.last_name}`} />
+                    <AvatarFallback className="text-xl">
+                      {profile.first_name?.charAt(0) || "U"}{profile.last_name?.charAt(0) || ""}
+                    </AvatarFallback>
+                  </Avatar>
                 </div>
+                
+                {/* User Info */}
+                <div className="text-white mb-2">
+                  <h1 className="text-2xl font-bold">
+                    {profile.first_name} {profile.last_name}
+                  </h1>
+                  <p className="text-sm opacity-90">
+                    {profile.bio || "Active community member"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <CardContent className="pt-16 pb-4">
+            <div className="flex justify-end gap-3 mb-4">
+              {!isOwnProfile && (
+                <>
+                  <Button 
+                    onClick={handleAddFriend}
+                    disabled={isFriend || isLoadingFriend}
+                    variant={isFriend ? "outline" : "default"}
+                  >
+                    {isLoadingFriend ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <UserPlus className="h-4 w-4 mr-2" />
+                    )}
+                    {isFriend ? "Friends" : "Add Friend"}
+                  </Button>
+                  
+                  <Button variant="outline" onClick={handleSendMessage}>
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Message
+                  </Button>
+                </>
+              )}
+            </div>
+
+            {/* Profile Statistics */}
+            <div className="flex justify-end gap-6 text-sm text-muted-foreground">
+              <div className="text-center">
+                <div className="text-lg font-semibold text-foreground">{userPosts.length}</div>
+                <div>Posts</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-semibold text-foreground">0</div>
+                <div>Followers</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-semibold text-foreground">0</div>
+                <div>Following</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-semibold text-foreground">0</div>
+                <div>Likes</div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Profile Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="posts">Posts</TabsTrigger>
-            <TabsTrigger value="communities">Communities</TabsTrigger>
-          </TabsList>
+        {/* Navigation Tabs - Facebook Style */}
+        <div className="border-b border-border">
+          <nav className="flex space-x-8">
+            <Button 
+              variant="ghost" 
+              className={`px-0 py-4 border-b-2 rounded-none ${activeTab === 'posts' ? 'border-primary' : 'border-transparent hover:border-border'}`}
+              onClick={() => setActiveTab('posts')}
+            >
+              Posts
+            </Button>
+            <Button 
+              variant="ghost" 
+              className={`px-0 py-4 border-b-2 rounded-none ${activeTab === 'media' ? 'border-primary' : 'border-transparent hover:border-border'}`}
+              onClick={() => setActiveTab('media')}
+            >
+              Media Gallery
+            </Button>
+            <Button 
+              variant="ghost" 
+              className={`px-0 py-4 border-b-2 rounded-none ${activeTab === 'followers' ? 'border-primary' : 'border-transparent hover:border-border'}`}
+              onClick={() => setActiveTab('followers')}
+            >
+              Followers
+            </Button>
+            <Button 
+              variant="ghost" 
+              className={`px-0 py-4 border-b-2 rounded-none ${activeTab === 'following' ? 'border-primary' : 'border-transparent hover:border-border'}`}
+              onClick={() => setActiveTab('following')}
+            >
+              Following
+            </Button>
+          </nav>
+        </div>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
