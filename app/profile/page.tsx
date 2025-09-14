@@ -317,19 +317,30 @@ export default function ProfilePage() {
       return
     }
 
+    const loadingToastId = toast.loading('Uploading cover photo...')
+    
     try {
-      toast.loading('Uploading cover photo...')
-      
-      // Upload to Supabase storage
+      // Upload to Supabase storage with timeout
       const fileName = `cover-photos/${user.id}/${Date.now()}-${file.name}`
       console.log('Uploading cover photo:', fileName)
       
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      // Create a timeout promise
+      const uploadTimeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Upload timeout - please try again')), 30000)
+      )
+      
+      const uploadPromise = supabase.storage
         .from('post-media')
         .upload(fileName, file)
+      
+      const { data: uploadData, error: uploadError } = await Promise.race([
+        uploadPromise,
+        uploadTimeout
+      ]) as any
 
       if (uploadError) {
         console.error('Storage upload error:', uploadError)
+        toast.dismiss(loadingToastId)
         toast.error(`Upload failed: ${uploadError.message}`)
         return
       }
@@ -352,6 +363,7 @@ export default function ProfilePage() {
 
       if (updateError) {
         console.error('Database update error:', updateError)
+        toast.dismiss(loadingToastId)
         toast.error(`Failed to save cover photo: ${updateError.message}`)
         return
       }
@@ -361,11 +373,13 @@ export default function ProfilePage() {
       // Update local state
       setProfile((prev: any) => prev ? { ...prev, cover_photo_url: urlData.publicUrl } : null)
       
+      toast.dismiss(loadingToastId)
       toast.success('Cover photo uploaded successfully!')
       console.log('Cover photo upload completed successfully!')
       
     } catch (error) {
       console.error('Cover photo upload error:', error)
+      toast.dismiss(loadingToastId)
       toast.error(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       // Clear the file input
