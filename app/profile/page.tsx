@@ -47,6 +47,8 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState('posts')
   const [mediaFiles, setMediaFiles] = useState<any[]>([])
   const [mediaLoading, setMediaLoading] = useState(false)
+  const [userPosts, setUserPosts] = useState<any[]>([])
+  const [postsLoading, setPostsLoading] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -64,6 +66,13 @@ export default function ProfilePage() {
   useEffect(() => {
     if (activeTab === 'media' && user && mediaFiles.length === 0) {
       fetchMediaFiles()
+    }
+  }, [activeTab, user])
+
+  // Fetch posts when posts tab becomes active
+  useEffect(() => {
+    if (activeTab === 'posts' && user && userPosts.length === 0) {
+      fetchUserPosts()
     }
   }, [activeTab, user])
 
@@ -200,10 +209,91 @@ export default function ProfilePage() {
     }
   }
 
+  const fetchUserPosts = async () => {
+    if (!user || !supabase) return
+
+    setPostsLoading(true)
+    try {
+      // Try to fetch posts using the posts_with_stats view first
+      let { data: posts, error } = await supabase
+        .from('posts_with_stats')
+        .select(`
+          id,
+          content,
+          image_url,
+          post_type,
+          visibility,
+          feeling,
+          location,
+          metadata,
+          created_at,
+          likes_count,
+          comments_count,
+          author_name,
+          author_avatar,
+          author_username
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+      // If posts_with_stats view doesn't exist, fallback to posts table
+      if (error && error.code === '42P01') {
+        console.log('posts_with_stats view not found, falling back to posts table')
+        const fallbackResult = await supabase
+          .from('posts')
+          .select(`
+            id,
+            content,
+            image_url,
+            post_type,
+            visibility,
+            feeling,
+            location,
+            metadata,
+            created_at
+          `)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+        
+        posts = fallbackResult.data?.map(post => ({
+          ...post,
+          likes_count: 0,
+          comments_count: 0,
+          author_name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim(),
+          author_avatar: profile?.avatar_url,
+          author_username: profile?.username
+        }))
+        error = fallbackResult.error
+      }
+
+      if (error) {
+        console.error('Error fetching posts:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        })
+        toast.error(`Failed to load posts: ${error.message || 'Unknown error'}`)
+        return
+      }
+
+      setUserPosts(posts || [])
+    } catch (error) {
+      console.error('Error fetching user posts:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        error: error
+      })
+      toast.error(`Failed to load posts: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setPostsLoading(false)
+    }
+  }
+
   const fetchUserMedia = async () => {
     // Refresh both profile and media data
     await fetchProfile()
     await fetchMediaFiles()
+    await fetchUserPosts()
   }
 
   const createDefaultProfile = async () => {
@@ -721,6 +811,12 @@ export default function ProfilePage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {postsLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p className="text-muted-foreground">Loading posts...</p>
+                  </div>
+                ) : userPosts.length === 0 ? (
                   <div className="text-center py-8">
                     <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-semibold mb-2">No Posts Yet</h3>
@@ -732,7 +828,76 @@ export default function ProfilePage() {
                         Create Your First Post
                       </Button>
                     </CreatePostModal>
-                </div>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {userPosts.map((post) => (
+                      <div key={post.id} className="border rounded-lg p-4 space-y-3">
+                        {/* Post Header */}
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={post.author_avatar || "/placeholder.svg"} alt={post.author_name} />
+                            <AvatarFallback>
+                              {post.author_name?.split(' ').map(n => n[0]).join('') || 'U'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-semibold">{post.author_name || 'You'}</h4>
+                              {post.feeling && (
+                                <span className="text-sm text-muted-foreground">is feeling {post.feeling}</span>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(post.created_at).toLocaleDateString()} at {new Date(post.created_at).toLocaleTimeString()}
+                              {post.location && ` • ${post.location}`}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Post Image */}
+                        {post.image_url && (
+                          <div className="w-full">
+                            <img 
+                              src={post.image_url} 
+                              alt="Post content" 
+                              className="w-full max-w-md mx-auto rounded-lg object-cover"
+                              style={{ maxHeight: '400px' }}
+                            />
+                          </div>
+                        )}
+
+                        {/* Post Content */}
+                        {post.content && (
+                          <div className="text-sm leading-relaxed">
+                            {post.content}
+                          </div>
+                        )}
+
+                        {/* Post Actions */}
+                        <div className="flex items-center gap-4 pt-2 border-t">
+                          <Button variant="ghost" size="sm" className="flex items-center gap-2">
+                            <MessageSquare className="h-4 w-4" />
+                            {post.comments_count || 0}
+                          </Button>
+                          <Button variant="ghost" size="sm" className="flex items-center gap-2">
+                            <Star className="h-4 w-4" />
+                            {post.likes_count || 0}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {/* Create Post Button */}
+                    <div className="text-center pt-4">
+                      <CreatePostModal onPostCreated={fetchUserMedia}>
+                        <Button variant="outline">
+                          Create New Post
+                        </Button>
+                      </CreatePostModal>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
             )}
