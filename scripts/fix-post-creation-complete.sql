@@ -508,4 +508,11 @@ SELECT 'Functions:' as check_type, routine_name, routine_type FROM information_s
 WHERE routine_schema = 'public' AND routine_name LIKE '%post%'
 ORDER BY routine_name;
 
-RAISE NOTICE 'Complete post creation setup completed successfully!';
+-- ============================================================================
+-- COMPLETION MESSAGE
+-- ============================================================================
+
+DO $$
+BEGIN
+    RAISE NOTICE 'Complete post creation setup completed successfully!';
+END $$;
