@@ -124,45 +124,93 @@ export default function UserProfilePage() {
     try {
       const supabase = getSupabaseClient()
       
-      // Prefer explicit FK aliases to avoid relationship ambiguity
-      const { data, error } = await supabase
-        .from('community_posts')
+      // Try to fetch from posts table first (new social posts)
+      let { data, error } = await supabase
+        .from('posts')
         .select(`
           id,
           content,
+          image_url,
+          post_type,
+          visibility,
+          feeling,
+          location,
+          metadata,
           created_at,
-          community_id,
-          user:profiles!community_posts_user_id_fkey(
-            first_name,
-            last_name,
-            avatar_url
-          ),
-          communities (
-            name
-          )
+          user_id
         `)
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(20)
 
+      // If posts table doesn't exist or has no data, fallback to community_posts
+      if (error && error.code === '42P01') {
+        console.log('posts table not found, falling back to community_posts')
+        const fallbackResult = await supabase
+          .from('community_posts')
+          .select(`
+            id,
+            content,
+            created_at,
+            community_id,
+            user:profiles!community_posts_user_id_fkey(
+              first_name,
+              last_name,
+              avatar_url
+            ),
+            communities (
+              name
+            )
+          `)
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(20)
+        
+        data = fallbackResult.data
+        error = fallbackResult.error
+      }
+
       if (error) {
-        console.error('Error fetching posts:', error)
+        console.error('Error fetching posts:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        })
         // Fall back to a two-step fetch below
       }
 
       if (data && data.length > 0 && !error) {
-        // Normalize in case the relation returns an array/object
-        const normalized: UserPost[] = (data || []).map((p: any) => ({
-          id: p.id,
-          content: p.content,
-          created_at: p.created_at,
-          community_id: p.community_id,
-          community: {
-            name: (Array.isArray(p.communities) ? p.communities[0]?.name : p.communities?.name) || 'Community'
-          }
-        }))
-        setPosts(normalized)
-        return
+        // Check if this is from posts table (new social posts) or community_posts
+        if (data[0].post_type !== undefined) {
+          // This is from the new posts table
+          const normalized: UserPost[] = (data || []).map((p: any) => ({
+            id: p.id,
+            content: p.content,
+            created_at: p.created_at,
+            community_id: null,
+            community: { name: 'Personal Post' },
+            image_url: p.image_url,
+            post_type: p.post_type,
+            feeling: p.feeling,
+            location: p.location
+          }))
+          setPosts(normalized)
+          return
+        } else {
+          // This is from community_posts table
+          const normalized: UserPost[] = (data || []).map((p: any) => ({
+            id: p.id,
+            content: p.content,
+            created_at: p.created_at,
+            community_id: p.community_id,
+            community: {
+              name: (Array.isArray(p.communities) ? p.communities[0]?.name : p.communities?.name) || 'Community'
+            }
+          }))
+          setPosts(normalized)
+          return
+        }
       }
 
       // Fallback: two-step fetch (posts then communities)
@@ -174,7 +222,12 @@ export default function UserProfilePage() {
         .limit(20)
 
       if (basicErr) {
-        console.error('Error fetching basic posts:', basicErr)
+        console.error('Error fetching basic posts:', {
+          message: basicErr.message,
+          details: basicErr.details,
+          hint: basicErr.hint,
+          code: basicErr.code
+        })
         return
       }
 
@@ -203,7 +256,10 @@ export default function UserProfilePage() {
 
       setPosts(normalizedFallback)
     } catch (error) {
-      console.error('Error fetching posts:', error)
+      console.error('Error fetching posts:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        error: error
+      })
     }
   }
 
