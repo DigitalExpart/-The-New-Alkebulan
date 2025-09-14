@@ -812,7 +812,7 @@ export default function ProfilePage() {
                   </CardTitle>
                   <CreatePostModal onPostCreated={fetchUserMedia}>
                     <Button size="sm">
-                      Create New Post
+                      What's on your mind?
                     </Button>
                   </CreatePostModal>
                 </div>
