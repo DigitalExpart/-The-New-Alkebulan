@@ -806,10 +806,10 @@ export default function ProfilePage() {
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2">
                       <MessageSquare className="h-5 w-5" />
                       Posts
-                  </CardTitle>
+                </CardTitle>
                   <CreatePostModal onPostCreated={fetchUserMedia}>
                     <Button size="sm">
                       What's on your mind?
@@ -891,8 +891,8 @@ export default function ProfilePage() {
                             <Star className="h-4 w-4" />
                             {post.likes_count || 0}
                           </Button>
-                        </div>
-                      </div>
+                  </div>
+                  </div>
                     ))}
                   </div>
                 )}
@@ -904,10 +904,10 @@ export default function ProfilePage() {
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2">
                     <Image className="h-5 w-5" />
                     Media Gallery
-                  </CardTitle>
+                </CardTitle>
                   <Button variant="outline" size="sm" asChild>
                     <Link href="/profile/media">
                       See All
