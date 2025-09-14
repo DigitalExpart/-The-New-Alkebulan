@@ -100,6 +100,23 @@ export default function ProfilePage() {
         if (error.code === 'PGRST116') {
           // Profile doesn't exist, create it
           await createDefaultProfile()
+        } else if (error.code === '23505') {
+          // Duplicate key error - profile exists but there's a constraint issue
+          console.log('Profile exists but has constraint issues, attempting to fetch again...')
+          // Try to fetch the existing profile
+          const { data: existingProfile, error: fetchError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', user.id)
+            .single()
+          
+          if (fetchError) {
+            console.error('Error fetching existing profile:', fetchError)
+            setError(`Failed to load existing profile: ${fetchError.message}`)
+          } else {
+            console.log('Found existing profile:', existingProfile)
+            setProfile(existingProfile)
+          }
         } else {
           console.error('Unexpected error details:', {
             message: error.message,
@@ -232,10 +249,13 @@ export default function ProfilePage() {
     console.log('Profile data to insert:', JSON.stringify(defaultProfile, null, 2))
 
     try {
-      console.log('Creating default profile with data:', defaultProfile)
+      console.log('Creating/updating default profile with data:', defaultProfile)
       const { data, error } = await supabase
         .from('profiles')
-        .insert([defaultProfile])
+        .upsert([defaultProfile], { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        })
         .select()
         .single()
 
