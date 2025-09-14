@@ -331,7 +331,7 @@ export default function MediaUploadPage() {
                     ref={fileInputRef}
                     type="file"
                     multiple
-                    accept="image/*,video/*,.pdf,.doc,.docx,.txt"
+                    accept="image/jpeg,image/jpg,image/png,image/webp,image/gif,video/mp4,video/mov,video/avi,video/mkv,video/webm,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
                     onChange={handleFileSelect}
                     className="hidden"
                   />

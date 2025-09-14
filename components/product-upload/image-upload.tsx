@@ -31,7 +31,10 @@ export function ImageUpload({ images, onImagesChange, maxImages = 10 }: ImageUpl
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      "image/*": [".jpeg", ".jpg", ".png", ".webp", ".gif"],
+      "image/jpeg": [".jpg", ".jpeg"],
+      "image/png": [".png"],
+      "image/webp": [".webp"],
+      "image/gif": [".gif"],
     },
     maxFiles: maxImages - images.length,
     disabled: images.length >= maxImages,

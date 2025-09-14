@@ -5,33 +5,37 @@ import { createClient } from "@supabase/supabase-js"
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-// Enhanced logging for debugging
-console.log('=== SUPABASE CONFIGURATION DEBUG ===')
-console.log('Environment Check:', {
-  NODE_ENV: process.env.NODE_ENV,
-  hasUrl: !!supabaseUrl,
-  hasKey: !!supabaseAnonKey,
-  url: supabaseUrl,
-  keyPreview: supabaseAnonKey ? `${supabaseAnonKey.substring(0, 30)}...` : 'undefined',
-  isClient: typeof window !== 'undefined',
-  isServer: typeof window === 'undefined'
-})
-
-// Log configuration status for debugging
-if (typeof window !== 'undefined') {
-  console.log('Browser-side Supabase Config Check:', {
+// Enhanced logging for debugging (only in development)
+if (process.env.NODE_ENV === 'development') {
+  console.log('=== SUPABASE CONFIGURATION DEBUG ===')
+  console.log('Environment Check:', {
+    NODE_ENV: process.env.NODE_ENV,
     hasUrl: !!supabaseUrl,
     hasKey: !!supabaseAnonKey,
-    url: supabaseUrl ? `${supabaseUrl.substring(0, 20)}...` : 'undefined',
-    key: supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...` : 'undefined',
-    nodeEnv: process.env.NODE_ENV
+    url: supabaseUrl,
+    keyPreview: supabaseAnonKey ? `${supabaseAnonKey.substring(0, 30)}...` : 'undefined',
+    isClient: typeof window !== 'undefined',
+    isServer: typeof window === 'undefined'
   })
+
+  // Log configuration status for debugging
+  if (typeof window !== 'undefined') {
+    console.log('Browser-side Supabase Config Check:', {
+      hasUrl: !!supabaseUrl,
+      hasKey: !!supabaseAnonKey,
+      url: supabaseUrl ? `${supabaseUrl.substring(0, 20)}...` : 'undefined',
+      key: supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...` : 'undefined',
+      nodeEnv: process.env.NODE_ENV
+    })
+  }
 }
 
 // Create client with better fallback handling
 export const supabase = (() => {
   if (supabaseUrl && supabaseAnonKey) {
-    console.log('Creating Supabase client with real credentials')
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Creating Supabase client with real credentials')
+    }
     return createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: true,

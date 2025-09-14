@@ -32,10 +32,12 @@ import {
   Instagram,
   Facebook,
   Linkedin,
-  Music
+  Music,
+  Link as LinkIcon
 } from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
+// import SocialMediaConnections from "@/components/social-media-connections"
 
 interface MediaItem {
   id: string
@@ -54,7 +56,7 @@ export default function MediaGalleryPage() {
   const { user } = useAuth()
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'all' | 'images' | 'videos'>('all')
+  const [activeTab, setActiveTab] = useState<'all' | 'images' | 'videos' | 'connections'>('all')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [importing, setImporting] = useState(false)
 
@@ -282,10 +284,9 @@ export default function MediaGalleryPage() {
   }
 
   const handleSocialMediaImport = (platform: string) => {
-    // For now, we'll use the same file picker approach
-    // In a real implementation, this would integrate with social media APIs
-    toast.info(`${platform} integration coming soon! For now, you can select files from your device.`)
-    handleImportMedia(platform)
+    // Redirect to connections tab to set up the platform connection
+    setActiveTab('connections')
+    toast.info(`Please connect your ${platform} account first to import media.`)
   }
 
   if (loading) {
@@ -371,7 +372,7 @@ export default function MediaGalleryPage() {
       <div className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="space-y-6">
           <div className="flex items-center justify-between">
-            <TabsList className="grid w-full grid-cols-3 max-w-md">
+            <TabsList className="grid w-full grid-cols-4 max-w-lg">
               <TabsTrigger value="all" className="flex items-center gap-2">
                 <Image className="h-4 w-4" />
                 All ({mediaItems.length})
@@ -383,6 +384,10 @@ export default function MediaGalleryPage() {
               <TabsTrigger value="videos" className="flex items-center gap-2">
                 <Video className="h-4 w-4" />
                 Videos ({mediaItems.filter(m => m.type === 'video').length})
+              </TabsTrigger>
+              <TabsTrigger value="connections" className="flex items-center gap-2">
+                <LinkIcon className="h-4 w-4" />
+                Connections
               </TabsTrigger>
             </TabsList>
 
@@ -563,6 +568,22 @@ export default function MediaGalleryPage() {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="connections">
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <LinkIcon className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Social Media Connections</h3>
+                <p className="text-muted-foreground text-center mb-6">
+                  Connect your social media accounts to import photos and videos.
+                </p>
+                <Button disabled>
+                  <LinkIcon className="h-4 w-4 mr-2" />
+                  Coming Soon
+                </Button>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

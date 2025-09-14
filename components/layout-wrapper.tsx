@@ -439,14 +439,6 @@ export function LayoutWrapper({ children }: LayoutWrapperProps) {
                         </a>
                       </DropdownMenuItem>
                       
-                      {/* Dashboard */}
-                      <DropdownMenuItem asChild>
-                        <a href="/dashboard" className="cursor-pointer flex items-center gap-2">
-                          <Monitor className="w-4 h-4" />
-                          <span>Dashboard</span>
-                        </a>
-                      </DropdownMenuItem>
-                      
                       {/* Profile */}
                       <DropdownMenuItem asChild>
                         <a href="/profile" className="cursor-pointer flex items-center gap-2">
@@ -455,11 +447,11 @@ export function LayoutWrapper({ children }: LayoutWrapperProps) {
                         </a>
                       </DropdownMenuItem>
                       
-                      {/* Edit Profile */}
+                      {/* Dashboard */}
                       <DropdownMenuItem asChild>
-                        <a href="/profile/edit" className="cursor-pointer flex items-center gap-2">
-                          <UserCheck className="w-4 h-4" />
-                          <span>Edit Profile</span>
+                        <a href="/dashboard" className="cursor-pointer flex items-center gap-2">
+                          <Monitor className="w-4 h-4" />
+                          <span>Dashboard</span>
                         </a>
                       </DropdownMenuItem>
                       
