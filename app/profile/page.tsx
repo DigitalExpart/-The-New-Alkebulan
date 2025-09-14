@@ -805,10 +805,17 @@ export default function ProfilePage() {
             {activeTab === 'posts' && (
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5" />
-                    Posts
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                      <MessageSquare className="h-5 w-5" />
+                      Posts
+                  </CardTitle>
+                  <CreatePostModal onPostCreated={fetchUserMedia}>
+                    <Button size="sm">
+                      Create New Post
+                    </Button>
+                  </CreatePostModal>
+                </div>
               </CardHeader>
               <CardContent>
                 {postsLoading ? (
@@ -887,15 +894,6 @@ export default function ProfilePage() {
                         </div>
                       </div>
                     ))}
-                    
-                    {/* Create Post Button */}
-                    <div className="text-center pt-4">
-                      <CreatePostModal onPostCreated={fetchUserMedia}>
-                        <Button variant="outline">
-                          Create New Post
-                        </Button>
-                      </CreatePostModal>
-                    </div>
                   </div>
                 )}
               </CardContent>
