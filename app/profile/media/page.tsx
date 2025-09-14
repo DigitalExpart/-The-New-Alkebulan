@@ -73,9 +73,9 @@ export default function MediaGalleryPage() {
       const supabase = getSupabaseClient()
       if (!supabase) return
 
-      // Fetch posts with media
-      const { data: posts, error } = await supabase
-        .from('posts')
+      // Try to fetch posts with media using the posts_with_stats view first
+      let { data: posts, error } = await supabase
+        .from('posts_with_stats')
         .select(`
           id,
           content,
@@ -89,9 +89,38 @@ export default function MediaGalleryPage() {
         .not('image_url', 'is', null)
         .order('created_at', { ascending: false })
 
+      // If posts_with_stats view doesn't exist, fallback to posts table
+      if (error && error.code === '42P01') {
+        console.log('posts_with_stats view not found, falling back to posts table')
+        const fallbackResult = await supabase
+          .from('posts')
+          .select(`
+            id,
+            content,
+            image_url,
+            metadata,
+            created_at
+          `)
+          .eq('user_id', user.id)
+          .not('image_url', 'is', null)
+          .order('created_at', { ascending: false })
+        
+        posts = fallbackResult.data?.map(post => ({
+          ...post,
+          likes_count: 0,
+          comments_count: 0
+        }))
+        error = fallbackResult.error
+      }
+
       if (error) {
-        console.error('Error fetching posts:', error)
-        toast.error('Failed to load media')
+        console.error('Error fetching posts:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        })
+        toast.error(`Failed to load media: ${error.message || 'Unknown error'}`)
         return
       }
 
@@ -137,8 +166,11 @@ export default function MediaGalleryPage() {
 
       setMediaItems(mediaItems)
     } catch (error) {
-      console.error('Error:', error)
-      toast.error('Failed to load media')
+      console.error('Error fetching user media:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        error: error
+      })
+      toast.error(`Failed to load media: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setLoading(false)
     }
