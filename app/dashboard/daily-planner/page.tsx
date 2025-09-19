@@ -1,10 +1,12 @@
+// Rogie's Edit
+
 "use client"
 
 import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Calendar, Target, Sparkles, TrendingUp, Sun, Quote } from "lucide-react"
+import { Calendar, Target, TrendingUp, Sun, Quote, CheckCircle2 } from "lucide-react"
 
 import { DailyAgenda } from "@/components/daily-planner/daily-agenda"
 import { HabitTracker } from "@/components/daily-planner/habit-tracker"
@@ -30,6 +32,19 @@ export default function DailyPlannerPage() {
     setTimeBlocks((blocks) =>
       blocks.map((block) => (block.id === id ? { ...block, completed: !block.completed } : block)),
     )
+  }
+
+  const handleAddTimeBlock = (newTimeBlock: Omit<TimeBlock, "id" | "completed">) => {
+    const timeBlock: TimeBlock = {
+      ...newTimeBlock,
+      id: Date.now().toString(),
+      completed: false,
+    }
+    setTimeBlocks((blocks) => [...blocks, timeBlock])
+  }
+
+  const handleDeleteTimeBlock = (id: string) => {
+    setTimeBlocks((blocks) => blocks.filter((block) => block.id !== id))
   }
 
   const handleToggleHabit = (id: string) => {
@@ -92,10 +107,10 @@ export default function DailyPlannerPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
                 <Calendar className="w-8 h-8 text-primary" />
@@ -121,6 +136,63 @@ export default function DailyPlannerPage() {
             </div>
           </div>
 
+          {/* Progress Overview - Reordered */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <Card className="bg-card border-border">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Schedule</p>
+                    <p className="text-2xl font-bold text-primary">
+                      {completedTimeBlocks}/{timeBlocks.length}
+                    </p>
+                  </div>
+                  <Calendar className="w-8 h-8 text-primary" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card border-border">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Habits</p>
+                    <p className="text-2xl font-bold text-primary">
+                      {completedHabits}/{habits.length}
+                    </p>
+                  </div>
+                  <CheckCircle2 className="w-8 h-8 text-primary" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card border-border">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Goals</p>
+                    <p className="text-2xl font-bold text-primary">
+                      {completedGoals}/{dailyGoals.length}
+                    </p>
+                  </div>
+                  <Target className="w-8 h-8 text-primary" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card border-border">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Overall</p>
+                    <p className="text-2xl font-bold text-primary">{overallProgress}%</p>
+                  </div>
+                  <TrendingUp className="w-8 h-8 text-primary" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Daily Quote */}
           <Card className="bg-card border-border">
             <CardContent className="p-4">
@@ -138,72 +210,9 @@ export default function DailyPlannerPage() {
           </Card>
         </div>
 
-        {/* Progress Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card className="bg-card border-border">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Habits</p>
-                  <p className="text-2xl font-bold text-primary">
-                    {completedHabits}/{habits.length}
-                  </p>
-                </div>
-                <Target className="w-8 h-8 text-primary" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Goals</p>
-                  <p className="text-2xl font-bold text-primary">
-                    {completedGoals}/{dailyGoals.length}
-                  </p>
-                </div>
-                <Sparkles className="w-8 h-8 text-primary" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Schedule</p>
-                  <p className="text-2xl font-bold text-primary">
-                    {completedTimeBlocks}/{timeBlocks.length}
-                  </p>
-                </div>
-                <Calendar className="w-8 h-8 text-primary" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Overall</p>
-                  <p className="text-2xl font-bold text-primary">{overallProgress}%</p>
-                </div>
-                <TrendingUp className="w-8 h-8 text-primary" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Main Content */}
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs defaultValue="agenda" className="w-full">
           <TabsList className="grid w-full grid-cols-6 mb-6 bg-card border-border">
-            <TabsTrigger
-              value="overview"
-              className="text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-            >
-              Overview
-            </TabsTrigger>
             <TabsTrigger
               value="agenda"
               className="text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
@@ -215,6 +224,12 @@ export default function DailyPlannerPage() {
               className="text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               Habits
+            </TabsTrigger>
+            <TabsTrigger
+              value="routine"
+              className="text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              Routine
             </TabsTrigger>
             <TabsTrigger
               value="goals"
@@ -236,54 +251,29 @@ export default function DailyPlannerPage() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-6 mt-0">
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <div className="space-y-6">
-                <DailyGoals
-                  goals={dailyGoals}
-                  onToggleGoal={handleToggleGoal}
-                  onAddGoal={handleAddGoal}
-                  successMessage={dailyPlannerData.successMessage}
-                />
-                <HabitTracker
-                  habits={habits}
-                  onToggleHabit={handleToggleHabit}
-                  onAddHabit={() => console.log("Add habit")}
-                />
-              </div>
-              <div className="space-y-6">
-                <DailyAgenda
-                  timeBlocks={timeBlocks}
-                  onToggleComplete={handleToggleTimeBlock}
-                  onAddTimeBlock={() => console.log("Add time block")}
-                />
-                <RoutineSelector
-                  routines={dailyPlannerData.routines}
-                  selectedRoutine={selectedRoutine}
-                  onSelectRoutine={setSelectedRoutine}
-                  onCreateCustom={() => console.log("Create custom routine")}
-                />
-              </div>
-            </div>
-          </TabsContent>
-
           <TabsContent value="agenda" className="mt-0">
             <div className="max-w-4xl">
               <DailyAgenda
                 timeBlocks={timeBlocks}
                 onToggleComplete={handleToggleTimeBlock}
-                onAddTimeBlock={() => console.log("Add time block")}
+                onAddTimeBlock={handleAddTimeBlock}
+                onDeleteTimeBlock={handleDeleteTimeBlock}
               />
             </div>
           </TabsContent>
 
           <TabsContent value="habits" className="mt-0">
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div className="max-w-4xl">
               <HabitTracker
                 habits={habits}
                 onToggleHabit={handleToggleHabit}
                 onAddHabit={() => console.log("Add habit")}
               />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="routine" className="mt-0">
+            <div className="max-w-4xl">
               <RoutineSelector
                 routines={dailyPlannerData.routines}
                 selectedRoutine={selectedRoutine}

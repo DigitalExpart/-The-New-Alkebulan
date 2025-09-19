@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { AdminGuard } from "@/components/admin/AdminGuard"
+import { UserModal } from "@/components/admin/UserModal"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -18,12 +19,16 @@ interface AdminUser {
   last_name?: string | null
   email?: string | null
   is_admin?: boolean | null
+  avatar_url?: string | null
+  created_at?: string | null
 }
 
 export default function AdminUsersPage() {
   const [query, setQuery] = useState("")
   const [loading, setLoading] = useState(true)
   const [users, setUsers] = useState<AdminUser[]>([])
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   const fetchUsers = async () => {
     if (!supabase) return
@@ -31,7 +36,7 @@ export default function AdminUsersPage() {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, first_name, last_name, email, is_admin")
+        .select("id, user_id, first_name, last_name, email, is_admin, avatar_url, created_at")
         .order("first_name", { ascending: true })
         .limit(100)
       if (error) throw error
@@ -58,7 +63,6 @@ export default function AdminUsersPage() {
   const toggleAdmin = async (id: string, next: boolean) => {
     if (!supabase) return
     try {
-      // Use returning select to verify the update actually happened (and not blocked by RLS)
       const { data, error } = await supabase
         .from("profiles")
         .update({ is_admin: next, updated_at: new Date().toISOString() })
@@ -77,12 +81,20 @@ export default function AdminUsersPage() {
         return (uid === id || uuser === id) ? { ...u, is_admin: data.is_admin ?? next } : u
       }))
       toast.success(next ? "Granted admin" : "Revoked admin")
-      // Refresh list to avoid stale state from concurrent updates
       fetchUsers()
     } catch (e: any) {
       console.error(e)
       toast.error(e?.message || "Update failed")
     }
+  }
+
+  const handleUserClick = (user: AdminUser) => {
+    setSelectedUser(user)
+    setIsModalOpen(true)
+  }
+
+  const handleToggleAdmin = (userId: string, isAdmin: boolean) => {
+    toggleAdmin(userId, isAdmin)
   }
 
   return (
@@ -95,7 +107,7 @@ export default function AdminUsersPage() {
                 <Shield className="w-5 h-5" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold">User Management</h1>
+                <h1 className="text-2xl font-bold text-foreground">User Management</h1>
                 <p className="text-muted-foreground">Search users and toggle admin access</p>
               </div>
             </div>
@@ -110,6 +122,7 @@ export default function AdminUsersPage() {
                   placeholder="Search by name or email"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
+                  className="bg-background"
                 />
                 <Button variant="outline" onClick={fetchUsers} disabled={loading}>
                   Refresh
@@ -124,12 +137,16 @@ export default function AdminUsersPage() {
               <p className="text-muted-foreground">No users found.</p>
             )}
             {!loading && filtered.map((u) => (
-              <Card key={u.id}>
+              <Card 
+                key={u.id} 
+                className="cursor-pointer hover:shadow-md transition-shadow bg-card border-border"
+                onClick={() => handleUserClick(u)}
+              >
                 <CardHeader>
-                  <CardTitle className="flex items-center justify-between text-base">
+                  <CardTitle className="flex items-center justify-between text-base text-foreground">
                     <span>{`${u.first_name || ""} ${u.last_name || ""}`.trim() || "Unnamed User"}</span>
                     {u.is_admin ? (
-                      <Badge>Admin</Badge>
+                      <Badge className="bg-primary">Admin</Badge>
                     ) : (
                       <Badge variant="secondary">Member</Badge>
                     )}
@@ -138,20 +155,29 @@ export default function AdminUsersPage() {
                 <CardContent className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">{u.email || "No email"}</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs">Admin</span>
+                    <span className="text-xs text-muted-foreground">Admin</span>
                     <Switch
                       checked={!!u.is_admin}
-                      onCheckedChange={(next) => toggleAdmin((u.id || u.user_id || ''), next)}
+                      onCheckedChange={(next) => {
+                        toggleAdmin((u.id || u.user_id || ''), next)
+                      }}
+                      onClick={(e) => e.stopPropagation()}
                     />
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
+
+          {/* User Modal */}
+          <UserModal 
+            user={selectedUser} 
+            open={isModalOpen} 
+            onOpenChange={setIsModalOpen}
+            onToggleAdmin={handleToggleAdmin}
+          />
         </div>
       </div>
     </AdminGuard>
   )
 }
-
-

@@ -398,8 +398,8 @@ export function Navbar() {
 
   return (
     <nav className="hidden lg:block dark:bg-background border-b border-border transition-all duration-300 py-2 bg-[#07370d] overflow-y-visible">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16 -gap-2">
+      <div className="container mx-auto px-">
+        <div className="flex items-center justify-between h-16 -gap-2 bg-blue-500">
           {/* Logo and Brand */}
         <div className="flex items-center gap-1">
           <button

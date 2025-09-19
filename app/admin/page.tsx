@@ -123,7 +123,12 @@ export default function AdminDashboardPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-sm text-muted-foreground">Approve, suspend, or elevate user roles.</p>
-                  <div className="text-xs text-muted-foreground">Total users: {counts.users}</div>
+                  <div className="text-xs text-muted-foreground flex justify-between items-center"><span>Total users: {counts.users}</span>
+                    <span className="flex items-center gap-1 text-green-600">
+                    <TrendingUp className="w-3 h-3" />
+                    +12% this week
+                    </span>
+                  </div>
                   <div className="flex gap-2">
                     <Button asChild size="sm"><Link href="/admin/users">Open</Link></Button>
                     <Button asChild variant="outline" size="sm"><Link href="/profile/role-management">Role Settings</Link></Button>

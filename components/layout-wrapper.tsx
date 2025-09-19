@@ -751,7 +751,7 @@ export function LayoutWrapper({ children }: LayoutWrapperProps) {
         </header>
         
         {/* Fixed section below header */}
-        <div className="w-full h-16 bg-background border-b border-border sticky top-16 z-30 max-md:hidden md:visible">
+        <div className="w-full h-16 bg-background border-b border-border sticky top-16 z-30 max-md:hidden md:visible bg-[#07370d]">
           <div className="container mx-auto px-4">
             <div className="flex h-16 items-center justify-between">
               {/* Left side - Sidebar toggle */}
