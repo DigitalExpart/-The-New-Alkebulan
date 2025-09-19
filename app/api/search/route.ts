@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase'
+import { getSupabaseClient } from '@/lib/supabase'
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ results: [] })
     }
 
-    const supabase = createClient()
+    const supabase = getSupabaseClient()
     let results: any[] = []
 
     if (category === 'all' || category === 'post') {
@@ -114,14 +114,14 @@ export async function GET(request: NextRequest) {
 
     if (comments && (category === 'all' || category === 'post')) {
       // Search comments
-      const { data: comments, error: commentsError } = await supabase
+      const { data: commentsData, error: commentsError } = await supabase
         .from('comments')
         .select('id, content, post_id, user_id, created_at, user:user_id(first_name, last_name), post:post_id(title)')
         .ilike('content', `%${query}%`)
         .limit(10)
 
-      if (!commentsError && comments) {
-        results.push(...comments.map(comment => ({
+      if (!commentsError && commentsData) {
+        results.push(...commentsData.map(comment => ({
           id: comment.id,
           type: 'comment',
           title: `Comment on: ${comment.post?.title || 'Unknown Post'}`,

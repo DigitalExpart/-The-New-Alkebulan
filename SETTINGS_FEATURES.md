@@ -1,231 +1,449 @@
-# Profile Settings Features
+"use client"
 
-## Overview
-The Profile Settings page provides users with comprehensive control over their account security, notifications, and privacy preferences. This document outlines all the features and functionality available in the settings system.
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import { useRouter } from "next/navigation"
+import { supabase, isSupabaseConfigured } from "@/lib/supabase"
+import type { AuthState, SignUpData, SignInData, ResetPasswordData } from "@/types/auth"
+import { toast } from "sonner"
 
-## 🚀 **Features Implemented**
 
-### 1. **Security Settings**
+interface AuthContextType extends AuthState {
+  profile: any | null
+  signUp: (data: SignUpData) => Promise<void>
+  signIn: (data: SignInData) => Promise<void>
+  signInWithProvider: (provider: 'google' | 'facebook' | 'github') => Promise<void>
+  signOut: () => Promise<void>
+  resetPassword: (data: ResetPasswordData) => Promise<void>
+  refreshProfile: () => Promise<void>
+  forceRefreshProfile: () => Promise<void>
+}
 
-#### **Change Password**
-- **Current Password**: Required to verify user identity
-- **New Password**: Must be at least 8 characters long
-- **Confirm Password**: Must match the new password
-- **Security Features**:
-  - Password visibility toggle (eye icon)
-  - Real-time validation
-  - Secure password update via Supabase Auth
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-#### **Two-Factor Authentication (2FA)**
-- **Toggle Switch**: Enable/disable 2FA
-- **Status Badge**: Shows current 2FA status (Enabled/Disabled)
-- **Security Note**: 2FA setup requires additional configuration
-- **Database Integration**: Stores 2FA status in user profile
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const router = useRouter()
+  const [state, setState] = useState<AuthState>({
+    user: null,
+    loading: true,
+    error: null,
+  })
+  const [profile, setProfile] = useState<any | null>(null)
 
-#### **Single Sign-On (SSO) Integrations**
-- **Google**: Sign in with Google account
-- **Facebook**: Sign in with Facebook account  
-- **Apple**: Sign in with Apple ID
-- **Features**:
-  - Individual toggle switches for each provider
-  - OAuth integration via Supabase
-  - Status persistence in database
+  // Debug: Log profile changes in real-time
+  useEffect(() => {
+    console.log('🔍 PROFILE STATE CHANGED:', {
+      profile,
+      business_enabled: profile?.business_enabled,
+      investor_enabled: profile?.investor_enabled,
+      mentor_enabled: profile?.mentor_enabled,
+      creator_enabled: profile?.creator_enabled,
+      selected_roles: profile?.selected_roles,
+      timestamp: new Date().toISOString()
+    })
+  }, [profile])
 
-### 2. **Notification Settings**
+  const fetchProfile = async (userId: string, userMetadata?: any) => {
+    if (!isSupabaseConfigured() || !supabase) return null
+    try {
+      console.log('Fetching profile for user ID:', userId)
+      console.log('User metadata:', userMetadata)
 
-#### **Core Notifications**
-- **Email Notifications**: Receive notifications via email
-- **Push Notifications**: Receive push notifications
-- **Marketing Emails**: Receive promotional content
-- **Security Alerts**: Important security notifications
-- **Community Updates**: News and updates from the community
-- **Business Opportunities**: Business and investment opportunities
+      // Prefer latest by updated_at to avoid multiple-row errors
+      let { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle()
 
-#### **Features**
-- **Real-time Toggle**: Instant enable/disable of each notification type
-- **Database Persistence**: Settings saved immediately to user profile
-- **User Feedback**: Toast notifications for successful updates
-- **Default Values**: Sensible defaults for new users
+      // If not found by user_id, try by id
+      if ((!data && !error) || (error && (error as any).code === 'PGRST116')) {
+        console.log('Profile not found by user_id, trying by id...')
+        const { data: dataById, error: errorById } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .order('updated_at', { ascending: false, nullsFirst: false })
+          .limit(1)
+          .maybeSingle()
+        if (errorById) {
+          console.error('Error fetching profile by id:', errorById)
+          return null
+        }
+        if (dataById) return dataById
+      }
 
-### 3. **Privacy Settings**
+      if (error) {
+        console.error('Error fetching profile by user_id:', error)
+      }
+      if (data) return data
 
-#### **Profile Visibility**
-- **Public**: Profile visible to everyone
-- **Friends Only**: Profile visible only to friends (future feature)
-- **Private**: Profile hidden from public view
+      console.log('No existing profile found, creating new profile based on user metadata...')
+      const selectedRoles = userMetadata?.selected_roles || ['business']
+      console.log('Creating profile with selected roles from metadata:', selectedRoles)
 
-#### **Online Status & Activity**
-- **Show Online Status**: Let others see when you're online
-- **Show Last Seen**: Show when you were last active
+      const defaultProfile = {
+        id: userId,
+        user_id: userId,
+        business_enabled: selectedRoles.includes('business'),
+        investor_enabled: selectedRoles.includes('investor'),
+        mentor_enabled: selectedRoles.includes('mentor'),
+        creator_enabled: selectedRoles.includes('creator'),
+        selected_roles: selectedRoles,
+        account_type: selectedRoles.includes('business') ? 'business' : 'buyer',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
 
-#### **Interaction Controls**
-- **Allow Friend Requests**: Let others send you friend requests
-- **Allow Messages**: Let others send you messages
+      console.log('Creating default profile with data:', defaultProfile)
 
-#### **Contact Information Privacy**
-- **Show Email Address**: Display email on profile
-- **Show Phone Number**: Display phone on profile
+      const { data: newProfile, error: createError } = await supabase
+        .from('profiles')
+        .insert(defaultProfile)
+        .select()
+        .maybeSingle()
 
-## 🗄️ **Database Schema**
+      if (createError) {
+        console.error('Error creating default profile:', createError)
+        return null
+      }
+      return newProfile
+    } catch (error) {
+      console.error('Error fetching profile:', error)
+      return null
+    }
+  }
 
-### **New Columns Added to `profiles` Table**
+  const refreshProfile = async () => {
+    if (state.user && supabase) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const userMetadata = {
+          account_type: session?.user?.user_metadata?.account_type || 'buyer'
+        }
+        console.log('🔄 Refreshing profile...')
+        const profileData = await fetchProfile(state.user.id, userMetadata)
+        if (profileData) {
+          console.log('✅ Profile refreshed successfully:', profileData)
+          setProfile(profileData)
+          setState(prev => ({ ...prev }))
+        } else {
+          console.log('⚠️ No profile data returned from refresh')
+        }
+        // Allow multiple roles - don't enforce single-role system
+        console.log('✅ Profile supports multiple roles:', {
+          business_enabled: profileData?.business_enabled,
+          buyer_enabled: profileData?.buyer_enabled,
+          account_type: profileData?.account_type
+        })
+      } catch (error) {
+        console.error('Error refreshing profile:', error)
+      }
+    }
+  }
 
-```sql
--- Security
-two_factor_enabled BOOLEAN DEFAULT FALSE
+  const forceRefreshProfile = async () => {
+    console.log('🔄 Force refreshing profile...')
+    await refreshProfile()
+  }
 
--- SSO Integrations  
-sso_integrations JSONB DEFAULT '{"google": false, "facebook": false, "apple": false}'
+  const signUp = async (data: SignUpData) => {
+    if (!isSupabaseConfigured() || !supabase) {
+      toast.error("Authentication not configured. Please add Supabase integration.")
+      return
+    }
 
--- Notification Settings
-notification_settings JSONB DEFAULT '{
-  "emailNotifications": true,
-  "pushNotifications": true, 
-  "marketingEmails": false,
-  "securityAlerts": true,
-  "communityUpdates": true,
-  "businessOpportunities": false
-}'
+    setState((prev) => ({ ...prev, loading: true, error: null }))
 
--- Privacy Settings
-privacy_settings JSONB DEFAULT '{
-  "profileVisibility": "public",
-  "showOnlineStatus": true,
-  "showLastSeen": true,
-  "allowFriendRequests": true,
-  "allowMessages": true,
-  "showEmail": false,
-  "showPhone": false
-}'
-```
+    try {
+      console.log('🚀 Starting signup process with data:', data)
+      const { data: signUpData, error } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          data: {
+            first_name: data.first_name,
+            last_name: data.last_name,
+            username: data.username,
+            country: data.country,
+            selected_roles: data.selected_roles,
+          },
+        },
+      })
 
-### **Database Features**
-- **JSONB Validation**: Custom functions validate JSON structure
-- **Indexes**: GIN indexes for fast JSON queries
-- **Constraints**: CHECK constraints ensure data integrity
-- **RLS Policies**: Row-level security for user data protection
-- **Update Functions**: Optimized functions for settings updates
+      if (error) throw error
 
-## 🔧 **Technical Implementation**
+      if (signUpData.user) {
+        console.log('✅ User account created successfully:', signUpData.user.id)
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        const profileData = await fetchProfile(signUpData.user.id, {
+          selected_roles: data.selected_roles
+        })
+        if (profileData) {
+          console.log('✅ Profile fetched successfully:', profileData)
+          setProfile(profileData)
+          toast.success("Account created successfully! Welcome to your dashboard.")
+        } else {
+          console.warn('⚠️ Profile not found, may need manual creation')
+          const minimalProfile = {
+            id: signUpData.user.id,
+            user_id: signUpData.user.id,
+            first_name: data.first_name,
+            last_name: data.last_name,
+            username: data.username,
+            country: data.country,
+            email: data.email,
+            account_type: data.selected_roles.includes('business') ? 'business' : 'buyer',
+            buyer_enabled: !data.selected_roles.includes('business'),
+            business_enabled: data.selected_roles.includes('business'),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert(minimalProfile)
+          if (profileError) {
+            console.error('❌ Error creating profile:', profileError)
+            toast.error("Account created but profile setup failed. Please contact support.")
+          } else {
+            console.log('✅ Profile created manually')
+            setProfile(minimalProfile)
+            toast.success("Account created successfully! Welcome to your dashboard.")
+          }
+        }
+        setState((prev) => ({ ...prev, user: signUpData.user, loading: false }))
+        router.push('/dashboard')
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "An error occurred"
+      setState((prev) => ({ ...prev, error: message }))
+      toast.error(message)
+    } finally {
+      setState((prev) => ({ ...prev, loading: false }))
+    }
+  }
 
-### **Frontend Components**
-- **Settings Page**: `/app/profile/settings/page.tsx`
-- **UI Components**: Uses shadcn/ui components (Card, Switch, Select, etc.)
-- **State Management**: React hooks for local state and form management
-- **Form Validation**: Client-side validation with user feedback
+  const signIn = async (data: SignInData) => {
+    if (!isSupabaseConfigured() || !supabase) {
+      toast.error("Authentication not configured. Please add Supabase integration.")
+      return
+    }
 
-### **Backend Integration**
-- **Supabase Client**: Direct database operations
-- **Real-time Updates**: Immediate database persistence
-- **Error Handling**: Comprehensive error handling with user feedback
-- **Authentication**: Secure access control via Supabase Auth
+    setState((prev) => ({ ...prev, loading: true, error: null }))
 
-### **Data Flow**
-1. **Load Settings**: Fetch user settings from database on page load
-2. **User Interaction**: User toggles switches or changes values
-3. **Immediate Update**: Settings saved to database in real-time
-4. **User Feedback**: Toast notifications confirm successful updates
-5. **State Sync**: Local state synchronized with database
+    try {
+      const { data: signInData, error } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      })
 
-## 🎯 **User Experience Features**
+      if (error) throw error
 
-### **Loading States**
-- **Page Load**: Spinner while fetching settings
-- **Save Operations**: Loading indicators during database operations
-- **2FA Operations**: Loading state during 2FA toggle
+      if (signInData.user) {
+        setState((prev) => ({ ...prev, user: signInData.user, loading: false }))
+        const profileData = await fetchProfile(signInData.user.id, {
+          selected_roles: signInData.user.user_metadata?.selected_roles || ['buyer']
+        })
+        if (profileData) {
+          setProfile(profileData)
+        }
+        toast.success("Signed in successfully")
+        router.push('/dashboard')
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "An error occurred"
+      setState((prev) => ({ ...prev, error: message }))
+      toast.error(message)
+    } finally {
+      setState((prev) => ({ ...prev, loading: false }))
+    }
+  }
 
-### **User Feedback**
-- **Success Messages**: Toast notifications for successful operations
-- **Error Messages**: Clear error messages for failed operations
-- **Validation**: Real-time form validation with helpful messages
+  const signOut = async () => {
+    if (!isSupabaseConfigured() || !supabase) {
+      return
+    }
 
-### **Navigation**
-- **Back Button**: Easy return to profile page
-- **Breadcrumb**: Clear navigation context
-- **Responsive Design**: Works on all device sizes
+    setState((prev) => ({ ...prev, loading: true }))
 
-## 🔒 **Security Features**
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+      setProfile(null)
+      toast.success("Signed out successfully")
+      // Explicitly redirect and refresh on sign out to clear state
+      router.push('/')
+      router.refresh()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "An error occurred"
+      toast.error(message)
+    } finally {
+      setState((prev) => ({ ...prev, loading: false }))
+    }
+  }
 
-### **Authentication**
-- **User Verification**: Only authenticated users can access settings
-- **Session Validation**: Supabase session management
-- **Password Security**: Secure password change via Supabase Auth
+  const resetPassword = async (data: ResetPasswordData) => {
+    if (!isSupabaseConfigured() || !supabase) {
+      toast.error("Authentication not configured. Please add Supabase integration.")
+      return
+    }
 
-### **Data Protection**
-- **Row Level Security**: Database-level access control
-- **User Isolation**: Users can only access their own settings
-- **Input Validation**: Server-side and client-side validation
+    setState((prev) => ({ ...prev, loading: true, error: null }))
 
-### **Privacy Controls**
-- **Granular Settings**: Fine-grained control over data visibility
-- **Default Privacy**: Sensible privacy defaults for new users
-- **Profile Views**: Public profile respects privacy settings
+    try {
+      // Use the production website URL for password reset redirect
+      const redirectUrl = typeof window !== 'undefined' 
+        ? `https://thenewalkebulan.com/auth/callback`
+        : 'https://thenewalkebulan.com/auth/callback'
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
+        redirectTo: redirectUrl
+      })
+      if (error) throw error
+      toast.success("Password reset email sent! Check your inbox.")
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "An error occurred"
+      setState((prev) => ({ ...prev, error: message }))
+      toast.error(message)
+    } finally {
+      setState((prev) => ({ ...prev, loading: false }))
+    }
+  }
 
-## 🚀 **Future Enhancements**
+  const signInWithProvider = async (provider: 'google' | 'facebook' | 'github') => {
+    if (!isSupabaseConfigured() || !supabase) {
+      toast.error("Authentication not configured. Please add Supabase integration.")
+      return
+    }
 
-### **Planned Features**
-- **Advanced 2FA**: TOTP setup with QR codes
-- **Notification Channels**: SMS, webhook, and custom integrations
-- **Privacy Presets**: Quick privacy configuration templates
-- **Audit Logs**: Track settings changes over time
-- **Bulk Operations**: Import/export settings
+    setState((prev) => ({ ...prev, loading: true, error: null }))
 
-### **Integration Opportunities**
-- **Email Service**: Integration with email providers
-- **Push Notifications**: Mobile push notification service
-- **Analytics**: Settings usage analytics
-- **A/B Testing**: Settings optimization based on user behavior
+    try {
+      const redirectUrl = 'https://thenewalkebulan.com/auth/callback'
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: redirectUrl },
+      })
+      if (error) throw error
+      toast.success(`Signing in with ${provider}...`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "An error occurred"
+      setState((prev) => ({ ...prev, error: message }))
+      toast.error(message)
+    } finally {
+      setState((prev) => ({ ...prev, loading: false }))
+    }
+  }
 
-## 📱 **Mobile Responsiveness**
+  useEffect(() => {
+    const getInitialSession = async () => {
+      if (!isSupabaseConfigured() || !supabase) return
+      try {
+        if (!navigator.onLine) {
+          console.log('🌐 Network is offline, skipping session fetch')
+          setState(prev => ({ ...prev, loading: false }))
+          return
+        }
+        console.log('🔄 Getting initial session...')
+        const { data: { session }, error } = await supabase!.auth.getSession()
+        if (error) {
+          console.error('❌ Error getting initial session:', error)
+          if (error.message.includes('Failed to fetch')) {
+            console.log('🌐 Network error detected, will retry on reconnection')
+          }
+        } else if (session) {
+          console.log('✅ Initial session found:', session.user.id)
+          setState(prev => ({ ...prev, user: session.user, loading: false }))
+          const profileData = await fetchProfile(session.user.id, {
+            account_type: session.user.user_metadata?.account_type || 'buyer'
+          })
+          if (profileData) {
+            setProfile(profileData)
+          }
+        } else {
+          console.log('ℹ️ No initial session found')
+          setState(prev => ({ ...prev, loading: false }))
+        }
+      } catch (error) {
+        console.error('❌ Error in getInitialSession:', error)
+        if (error instanceof Error && error.message.includes('Failed to fetch')) {
+          console.log('🌐 Network error in initial session fetch')
+        }
+        setState(prev => ({ ...prev, loading: false }))
+      }
+    }
 
-### **Design Features**
-- **Responsive Grid**: Adapts to different screen sizes
-- **Touch-Friendly**: Optimized for mobile devices
-- **Mobile Navigation**: Easy navigation on small screens
-- **Progressive Enhancement**: Works on all device capabilities
+    const handleOnline = () => {
+      console.log('🌐 Network is back online, retrying session fetch')
+      getInitialSession()
+    }
+    const handleOffline = () => {
+      console.log('🌐 Network is offline')
+    }
 
-## 🧪 **Testing & Quality Assurance**
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    getInitialSession()
 
-### **Validation**
-- **Client-side**: Real-time form validation
-- **Server-side**: Database constraints and validation functions
-- **Type Safety**: TypeScript interfaces for all data structures
+    const { data: { subscription } } = supabase!.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('🔄 Auth state changed:', event, session?.user?.id)
+        if (event === 'SIGNED_IN' && session) {
+          console.log('✅ User signed in:', session.user.id)
+          setState(prev => ({ ...prev, user: session.user, loading: false }))
+          const profileData = await fetchProfile(session.user.id, {
+            account_type: session.user.user_metadata?.account_type || 'buyer'
+          })
+          if (profileData) {
+            setProfile(profileData)
+          }
+          // The crucial line to fix the navigation issue:
+          router.refresh()
+        } else if (event === 'SIGNED_OUT') {
+          console.log('👋 User signed out')
+          setState(prev => ({ ...prev, user: null, loading: false }))
+          setProfile(null)
+          // The crucial line to fix the navigation issue:
+          router.refresh()
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          console.log('🔄 Token refreshed for user:', session.user.id)
+          setState(prev => ({ ...prev, user: session.user }))
+          router.refresh()
+        }
+      }
+    )
 
-### **Error Handling**
-- **Network Errors**: Graceful handling of connection issues
-- **Validation Errors**: Clear feedback for invalid inputs
-- **Database Errors**: User-friendly error messages
+    return () => {
+      subscription.unsubscribe()
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [router])
 
-## 📚 **Usage Instructions**
+  return (
+    <AuthContext.Provider
+      value={{
+        ...state,
+        profile,
+        signUp,
+        signIn,
+        signInWithProvider,
+        signOut,
+        resetPassword,
+        refreshProfile,
+        forceRefreshProfile,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  )
+}
 
-### **For Users**
-1. **Access Settings**: Click "Settings" button on profile page
-2. **Navigate Sections**: Use the organized sections for different setting types
-3. **Toggle Settings**: Use switches to enable/disable features
-4. **Save Changes**: Changes are saved automatically
-5. **Return to Profile**: Use "Back to Profile" button
-
-### **For Developers**
-1. **Database Setup**: Run the SQL migration script
-2. **Environment Variables**: Ensure Supabase configuration is correct
-3. **Component Usage**: Import and use the settings page component
-4. **Customization**: Modify settings structure in the types file
-
-## 🔍 **Troubleshooting**
-
-### **Common Issues**
-- **Settings Not Loading**: Check user authentication status
-- **Save Failures**: Verify database connection and permissions
-- **2FA Not Working**: Ensure proper Supabase configuration
-- **SSO Issues**: Check OAuth provider configuration
-
-### **Debug Information**
-- **Console Logs**: Check browser console for error details
-- **Network Tab**: Monitor API requests and responses
-- **Database Logs**: Check Supabase logs for backend issues
-
----
-
-**Last Updated**: December 2024  
-**Version**: 1.0.0  
-**Maintainer**: Development Team
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider")
+  }
+  return context
+}

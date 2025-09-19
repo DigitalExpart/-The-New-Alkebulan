@@ -1,0 +1,38 @@
+name: Security CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  audit-and-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Ensure pnpm is available on PATH before any caching/setup that may rely on it
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          # Remove pnpm cache linkage to avoid requiring pnpm pre-install during this step
+          cache: 'none'
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: npm audit (informational)
+        run: pnpm audit || true
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

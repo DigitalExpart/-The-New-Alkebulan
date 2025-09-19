@@ -242,14 +242,39 @@ export function PostCard({ post, onPostUpdated, onPostDeleted }: PostCardProps) 
             {post.content}
           </p>
 
-          {/* Post Image */}
-          {post.image_url && (
-            <div className="rounded-lg overflow-hidden">
-              <img
-                src={post.image_url}
-                alt="Post content"
-                className="w-full max-h-96 object-cover"
-              />
+          {/* Post Images */}
+          {(post.image_url || (post.metadata?.media_urls && post.metadata.media_urls.length > 0)) && (
+            <div className="space-y-2">
+              {/* Primary image */}
+              {post.image_url && (
+                <div className="rounded-lg overflow-hidden">
+                  <img
+                    src={post.image_url}
+                    alt="Post content"
+                    className="w-full max-h-96 object-cover"
+                  />
+                </div>
+              )}
+              
+              {/* Additional images from metadata */}
+              {post.metadata?.media_urls && post.metadata.media_urls.length > 0 && (
+                <div className={`grid gap-2 ${post.metadata.media_urls.length === 1 ? 'grid-cols-1' : post.metadata.media_urls.length === 2 ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-3'}`}>
+                  {post.metadata.media_urls.map((url: string, index: number) => {
+                    // Don't show the primary image again if it's already shown above
+                    if (url === post.image_url && post.image_url) return null;
+                    
+                    return (
+                      <div key={index} className="rounded-lg overflow-hidden">
+                        <img
+                          src={url}
+                          alt={`Post content ${index + 1}`}
+                          className="w-full h-40 object-cover"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>

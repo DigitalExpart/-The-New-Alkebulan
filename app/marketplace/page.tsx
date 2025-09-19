@@ -63,7 +63,7 @@ interface Seller {
   id: string
   first_name: string
   last_name: string
-  business_name?: string
+  company_name?: string
   location?: string
   product_count: number
   rating: number
@@ -97,6 +97,12 @@ export default function MarketplacePage() {
     try {
       setLoading(true)
       const supabase = getSupabaseClient()
+      
+      if (!supabase) {
+        console.error('Supabase client not available')
+        setLoading(false)
+        return
+      }
       
       // Debug: First check if products table exists and has any data
       console.log('🔍 Fetching marketplace data...')
@@ -162,8 +168,8 @@ export default function MarketplacePage() {
                 }
                 // Get the full URL for the image
                 const imageUrl = supabase.storage
-                  .from('product-media')
-                  .getPublicUrl(img.image_url).data.publicUrl // Changed from file_path to image_url
+                  .from('post-media') // Use post-media bucket (unified storage)
+                  .getPublicUrl(img.image_url).data.publicUrl
                 imagesByProduct[img.product_id].push(imageUrl)
               })
               setProductImages(imagesByProduct)
@@ -216,43 +222,95 @@ export default function MarketplacePage() {
         setSubcategories(subcategoriesData || [])
       }
       
-      // Fetch top sellers (users with most products)
-      const { data: sellersData, error: sellersError } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, business_name, location, business_enabled')
-        .eq('business_enabled', true)
-        .limit(6)
-      
-      console.log('👥 Sellers data:', sellersData)
-      console.log('❌ Sellers error:', sellersError)
-      
-      if (sellersError) {
-        console.error('Error fetching sellers:', sellersError)
-      } else {
-        // Calculate product counts for sellers
-        const sellersWithCounts = await Promise.all(
-          (sellersData || []).map(async (seller) => {
-            const { count } = await supabase
-              .from('products')
-              .select('*', { count: 'exact', head: true })
-              .eq('user_id', seller.id)
-              .eq('status', 'active')
-            
-            return {
-              ...seller,
-              product_count: count || 0,
-              total_sales: 0, // Will be calculated when orders table is available
-              rating: 4.5 // Mock rating for now
-            }
-          })
-        )
+      // Fetch top sellers (users with most products) - with comprehensive error handling
+      let finalSellersData: any[] = []
+      try {
+        console.log('🔍 Starting sellers fetch...')
         
-        setSellers(sellersWithCounts)
+        // Try to fetch sellers with correct columns
+        let { data: sellersData, error: sellersError } = await supabase
+          .from('profiles')
+          .select('id, user_id, first_name, last_name, company_name, location, business_enabled')
+          .eq('business_enabled', true)
+          .limit(6)
+        
+        console.log('👥 Business-enabled sellers result:', { sellersData, sellersError })
+        
+        // If no business-enabled users, try users with company names
+        if (sellersError || !sellersData || sellersData.length === 0) {
+          console.log('🔄 Trying users with company names...')
+          const fallbackQuery = await supabase
+            .from('profiles')
+            .select('id, user_id, first_name, last_name, company_name, location, business_enabled')
+            .not('company_name', 'is', null)
+            .limit(6)
+          
+          sellersData = fallbackQuery.data
+          sellersError = fallbackQuery.error
+          console.log('👥 Company name sellers result:', { sellersData, sellersError })
+        }
+        
+        // Final fallback: any users with names
+        if (sellersError || !sellersData || sellersData.length === 0) {
+          console.log('🔄 Final fallback: any users...')
+          const anyUsersQuery = await supabase
+            .from('profiles')
+            .select('id, user_id, first_name, last_name, company_name, location, business_enabled')
+            .not('first_name', 'is', null)
+            .limit(6)
+          
+          sellersData = anyUsersQuery.data
+          sellersError = anyUsersQuery.error
+          console.log('👥 Any users result:', { sellersData, sellersError })
+        }
+        
+        if (sellersError) {
+          console.error('❌ Final error fetching sellers:', sellersError)
+          setSellers([])
+        } else if (sellersData && sellersData.length > 0) {
+          // Calculate product counts for sellers
+          const sellersWithCounts = await Promise.all(
+            sellersData.map(async (seller) => {
+              try {
+                const { count } = await supabase
+                  .from('products')
+                  .select('*', { count: 'exact', head: true })
+                  .eq('user_id', seller.user_id || seller.id) // Try both user_id and id
+                  .eq('status', 'active')
+                
+                return {
+                  ...seller,
+                  product_count: count || 0,
+                  total_sales: 0, // Will be calculated when orders table is available
+                  rating: 4.5 // Mock rating for now
+                }
+              } catch (error) {
+                console.error('Error counting products for seller:', seller.id, error)
+                return {
+                  ...seller,
+                  product_count: 0,
+                  total_sales: 0,
+                  rating: 4.5
+                }
+              }
+            })
+          )
+          
+          finalSellersData = sellersWithCounts
+          setSellers(sellersWithCounts)
+          console.log('✅ Sellers successfully set:', sellersWithCounts.length)
+        } else {
+          console.log('ℹ️ No sellers found in database')
+          setSellers([])
+        }
+      } catch (sellersException) {
+        console.error('💥 Exception fetching sellers:', sellersException)
+        setSellers([]) // Set empty array on exception
       }
       
-      // Calculate stats
+      // Calculate stats using the correct data
       const activeProducts = productsData?.length || 0
-      const verifiedSellers = sellersData?.length || 0
+      const verifiedSellers = finalSellersData?.length || 0 // Use finalSellersData instead
       const totalSales = 0 // Will be calculated when orders table is available
       const growthRate = 15 // Mock growth rate for now
       
@@ -298,8 +356,19 @@ export default function MarketplacePage() {
       return images[0]
     }
     
-    // Fallback to placeholder if no images
-    return "/placeholder.svg?height=250&width=250"
+    // Check if product has a direct image_url field
+    if (product.image_url) {
+      return product.image_url
+    }
+    
+    // Check if product has images in metadata
+    if (product.metadata?.images && Array.isArray(product.metadata.images) && product.metadata.images.length > 0) {
+      return product.metadata.images[0]
+    }
+    
+    // Generate a nice placeholder with product-specific seed
+    const seed = product.name.replace(/\s+/g, '-').toLowerCase()
+    return `https://picsum.photos/seed/${seed}/400/300`
   }
 
   const getProductBadge = (product: Product) => {
@@ -607,7 +676,7 @@ export default function MarketplacePage() {
                         </div>
                         <div>
                           <h3 className="font-semibold text-foreground">
-                            {seller.business_name || `${seller.first_name} ${seller.last_name}`}
+                            {seller.company_name || `${seller.first_name} ${seller.last_name}`}
                           </h3>
                           <div className="flex items-center justify-center text-sm text-muted-foreground">
                             <MapPin className="mr-1 h-3 w-3" />

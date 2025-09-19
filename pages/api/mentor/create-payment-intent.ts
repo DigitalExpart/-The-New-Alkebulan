@@ -1,6 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from "next"
 import Stripe from "stripe"
 import { createClient } from "@supabase/supabase-js"
+import { z } from "zod"
+import { requireAuth } from "../../../lib/auth"
+
+const BodySchema = z.object({
+  mentorSessionId: z.string().min(1),
+})
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -8,12 +14,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return
   }
 
+  const user = await requireAuth(req, res)
+  if (!user) return
+
   try {
-    const { mentorSessionId } = req.body as { mentorSessionId?: string }
-    if (!mentorSessionId) {
-      res.status(400).json({ error: "mentorSessionId is required" })
+    const parsed = BodySchema.safeParse(req.body)
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request" })
       return
     }
+    const { mentorSessionId } = parsed.data
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string | undefined
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string | undefined
@@ -71,7 +81,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       amount: amountCents,
       currency: "usd",
       payment_method_types: ["card"],
-      metadata: { mentor_session_id: mentorSessionId },
+      metadata: { mentor_session_id: mentorSessionId, user_id: user.id },
+    }, {
+      idempotencyKey: `pi:${user.id}:${mentorSessionId}`,
     })
 
     res.status(200).json({ clientSecret: intent.client_secret })

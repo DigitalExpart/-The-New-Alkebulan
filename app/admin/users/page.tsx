@@ -1,101 +1,248 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState, useEffect } from "react"
 import { AdminGuard } from "@/components/admin/AdminGuard"
 import { UserModal } from "@/components/admin/UserModal"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
-import { Shield, Search } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { 
+  Users, 
+  Search, 
+  Shield, 
+  AlertTriangle, 
+  Ban, 
+  CheckCircle, 
+  XCircle,
+  MoreHorizontal,
+  UserCheck,
+  UserX,
+  Clock
+} from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
+import { formatDistanceToNow } from "date-fns"
 
-interface AdminUser {
-  id?: string | null
-  user_id?: string | null
-  first_name?: string | null
-  last_name?: string | null
-  email?: string | null
-  is_admin?: boolean | null
-  avatar_url?: string | null
-  created_at?: string | null
+interface User {
+  id: string
+  email: string
+  first_name?: string
+  last_name?: string
+  avatar_url?: string
+  created_at: string
+  last_sign_in_at?: string
+  is_admin?: boolean
+  business_enabled?: boolean
+  moderation_status?: string
+  report_count?: number
+}
+
+interface UserReport {
+  id: string
+  reporter_email: string
+  reported_user_email: string
+  report_type: string
+  description: string
+  status: string
+  priority: string
+  created_at: string
 }
 
 export default function AdminUsersPage() {
-  const [query, setQuery] = useState("")
+  const [users, setUsers] = useState<User[]>([])
+  const [reports, setReports] = useState<UserReport[]>([])
   const [loading, setLoading] = useState(true)
-  const [users, setUsers] = useState<AdminUser[]>([])
-  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedTab, setSelectedTab] = useState("users")
 
   const fetchUsers = async () => {
-    if (!supabase) return
-    setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, user_id, first_name, last_name, email, is_admin, avatar_url, created_at")
-        .order("first_name", { ascending: true })
+    setLoading(true)
+      
+      if (!supabase) {
+        toast.error('Database connection not available')
+        return
+      }
+      
+      // Fetch users with profile data
+      const { data: usersData, error: usersError } = await supabase
+        .from('profiles')
+        .select(`
+          id,
+          user_id,
+          first_name,
+          last_name,
+          avatar_url,
+          is_admin,
+          business_enabled,
+          created_at
+        `)
+        .order('created_at', { ascending: false })
         .limit(100)
-      if (error) throw error
-      setUsers(data || [])
-    } catch (e) {
-      console.error(e)
-      toast.error("Failed to load users")
+
+      if (usersError) {
+        console.error('Error fetching users:', usersError)
+        toast.error('Failed to load users')
+        return
+      }
+
+      // Get auth data for users (if available)
+      let authUsers: any = null
+      try {
+        if (supabase?.auth?.admin) {
+          const { data, error: authError } = await supabase.auth.admin.listUsers()
+          if (authError) {
+            console.error('Error fetching auth users:', authError)
+          } else {
+            authUsers = data
+          }
+        }
+      } catch (error) {
+        console.log('Auth admin API not available:', error)
+      }
+
+      // Combine profile and auth data
+      const combinedUsers: User[] = (usersData || []).map(profile => {
+        const authUser = authUsers?.users?.find((u: any) => u.id === profile.user_id)
+        return {
+          id: profile.user_id,
+          email: authUser?.email || `user-${profile.user_id.slice(0, 8)}@example.com`,
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+          avatar_url: profile.avatar_url,
+          created_at: profile.created_at,
+          last_sign_in_at: authUser?.last_sign_in_at,
+          is_admin: profile.is_admin,
+          business_enabled: profile.business_enabled,
+          moderation_status: 'active', // Will be enhanced with actual moderation data
+          report_count: 0 // Will be enhanced with actual report counts
+        }
+      })
+
+      setUsers(combinedUsers)
+    } catch (error) {
+      console.error('Error in fetchUsers:', error)
+      toast.error('Failed to load users')
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => {
-    fetchUsers()
-  }, [])
-
-  const filtered = users.filter((u) => {
-    const name = `${u.first_name || ""} ${u.last_name || ""}`.toLowerCase()
-    const email = (u.email || "").toLowerCase()
-    const q = query.toLowerCase().trim()
-    return !q || name.includes(q) || email.includes(q)
-  })
-
-  const toggleAdmin = async (id: string, next: boolean) => {
-    if (!supabase) return
+  const fetchReports = async () => {
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .update({ is_admin: next, updated_at: new Date().toISOString() })
-        .eq("id", id)
-        .select("id, user_id, is_admin")
-        .maybeSingle()
+      if (!supabase) return
 
-      if (error) throw error
-      if (!data) {
-        throw new Error("No rows updated. You might not have permission to change this user.")
+      const { data: reportsData, error: reportsError } = await supabase
+        .from('user_reports')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50)
+
+      if (reportsError) {
+        console.error('Error fetching reports:', reportsError)
+        return
       }
 
-      setUsers((prev) => prev.map((u) => {
-        const uid = u.id ?? ''
-        const uuser = u.user_id ?? ''
-        return (uid === id || uuser === id) ? { ...u, is_admin: data.is_admin ?? next } : u
+      const mappedReports: UserReport[] = (reportsData || []).map(report => ({
+        id: report.id,
+        reporter_email: 'Unknown', // Will be enhanced with proper joins
+        reported_user_email: 'Unknown', // Will be enhanced with proper joins
+        report_type: report.report_type,
+        description: report.description,
+        status: report.status,
+        priority: report.priority,
+        created_at: report.created_at
       }))
-      toast.success(next ? "Granted admin" : "Revoked admin")
-      fetchUsers()
-    } catch (e: any) {
-      console.error(e)
-      toast.error(e?.message || "Update failed")
+
+      setReports(mappedReports)
+    } catch (error) {
+      console.error('Error in fetchReports:', error)
     }
   }
 
-  const handleUserClick = (user: AdminUser) => {
-    setSelectedUser(user)
-    setIsModalOpen(true)
+  const handleUserAction = async (userId: string, action: string) => {
+    try {
+      let updateData: any = {}
+      let actionType = ''
+
+      switch (action) {
+        case 'suspend':
+          actionType = 'user_suspend'
+          // Add suspension logic here
+          break
+        case 'activate':
+          actionType = 'user_activate'
+          // Add activation logic here
+          break
+        case 'make_admin':
+          updateData = { is_admin: true }
+          actionType = 'role_change'
+          break
+        case 'remove_admin':
+          updateData = { is_admin: false }
+          actionType = 'role_change'
+          break
+        case 'enable_business':
+          updateData = { business_enabled: true }
+          actionType = 'business_enable'
+          break
+        case 'disable_business':
+          updateData = { business_enabled: false }
+          actionType = 'business_disable'
+          break
+      }
+
+      if (Object.keys(updateData).length > 0 && supabase) {
+        const { error } = await supabase
+          .from('profiles')
+          .update(updateData)
+          .eq('user_id', userId)
+
+        if (error) {
+          console.error('Error updating user:', error)
+          toast.error('Failed to update user')
+          return
+        }
+      }
+
+      // Log admin action
+      if (supabase) {
+        await supabase
+          .from('admin_actions')
+          .insert({
+            action_type: actionType,
+            target_user_id: userId,
+            target_resource_type: 'user',
+            action_details: updateData
+          })
+      }
+
+      toast.success('User updated successfully')
+      fetchUsers() // Refresh the list
+    } catch (error) {
+      console.error('Error in handleUserAction:', error)
+      toast.error('Failed to update user')
+    }
   }
 
-  const handleToggleAdmin = (userId: string, isAdmin: boolean) => {
-    toggleAdmin(userId, isAdmin)
-  }
+  useEffect(() => {
+    fetchUsers()
+    fetchReports()
+  }, [])
+
+  const filteredUsers = users.filter(user => 
+    user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    `${user.first_name} ${user.last_name}`.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   return (
     <AdminGuard>
@@ -104,78 +251,204 @@ export default function AdminUsersPage() {
           <div className="mb-6 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                <Shield className="w-5 h-5" />
+                <Users className="w-5 h-5" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-foreground">User Management</h1>
-                <p className="text-muted-foreground">Search users and toggle admin access</p>
+                <h1 className="text-2xl font-bold">User Management</h1>
+                <p className="text-muted-foreground">Manage users, roles, and moderation</p>
               </div>
             </div>
-            <Badge variant="outline">Total: {users.length}</Badge>
+            <Button variant="outline" onClick={() => { fetchUsers(); fetchReports(); }}>
+              Refresh
+            </Button>
           </div>
 
-          <Card className="mb-4">
-            <CardContent className="pt-6">
+          <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
+            <TabsList>
+              <TabsTrigger value="users">All Users</TabsTrigger>
+              <TabsTrigger value="reports">Reports</TabsTrigger>
+              <TabsTrigger value="moderation">Moderation</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="users" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>Users ({users.length})</span>
               <div className="flex items-center gap-2">
                 <Search className="w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by name or email"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  className="bg-background"
-                />
-                <Button variant="outline" onClick={fetchUsers} disabled={loading}>
-                  Refresh
+                        placeholder="Search users..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-64"
+                      />
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loading ? (
+                    <div className="text-center py-8">Loading users...</div>
+                  ) : (
+                    <div className="space-y-4">
+                      {filteredUsers.map(user => (
+                        <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <Avatar>
+                              <AvatarImage src={user.avatar_url} />
+                              <AvatarFallback>
+                                {user.first_name?.charAt(0) || user.email.charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">
+                                  {user.first_name && user.last_name 
+                                    ? `${user.first_name} ${user.last_name}`
+                                    : user.email
+                                  }
+                                </span>
+                                {user.is_admin && <Badge variant="destructive">Admin</Badge>}
+                                {user.business_enabled && <Badge variant="secondary">Business</Badge>}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {user.email} • Joined {formatDistanceToNow(new Date(user.created_at), { addSuffix: true })}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {!user.is_admin ? (
+                                <DropdownMenuItem onClick={() => handleUserAction(user.id, 'make_admin')}>
+                                  <Shield className="w-4 h-4 mr-2" />
+                                  Make Admin
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem onClick={() => handleUserAction(user.id, 'remove_admin')}>
+                                  <UserX className="w-4 h-4 mr-2" />
+                                  Remove Admin
+                                </DropdownMenuItem>
+                              )}
+                              
+                              {!user.business_enabled ? (
+                                <DropdownMenuItem onClick={() => handleUserAction(user.id, 'enable_business')}>
+                                  <UserCheck className="w-4 h-4 mr-2" />
+                                  Enable Business
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem onClick={() => handleUserAction(user.id, 'disable_business')}>
+                                  <Ban className="w-4 h-4 mr-2" />
+                                  Disable Business
+                                </DropdownMenuItem>
+                              )}
+                              
+                              <DropdownMenuItem onClick={() => handleUserAction(user.id, 'suspend')}>
+                                <AlertTriangle className="w-4 h-4 mr-2" />
+                                Suspend User
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="reports" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>User Reports ({reports.length})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {reports.map(report => (
+                      <div key={report.id} className="p-4 border rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Badge variant={report.priority === 'high' ? 'destructive' : 'secondary'}>
+                              {report.priority}
+                            </Badge>
+                            <Badge variant="outline">{report.report_type}</Badge>
+                            <Badge variant={report.status === 'pending' ? 'default' : 'secondary'}>
+                              {report.status}
+                            </Badge>
+                          </div>
+                          <span className="text-sm text-muted-foreground">
+                            {formatDistanceToNow(new Date(report.created_at), { addSuffix: true })}
+                          </span>
+                        </div>
+                        <div className="text-sm">
+                          <strong>{report.reporter_email}</strong> reported <strong>{report.reported_user_email}</strong>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">{report.description}</p>
+                        <div className="flex gap-2 mt-3">
+                          <Button size="sm" variant="outline">
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Resolve
+                          </Button>
+                          <Button size="sm" variant="outline">
+                            <XCircle className="w-4 h-4 mr-2" />
+                            Dismiss
                 </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {reports.length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        No reports to review
+                      </div>
+                    )}
               </div>
             </CardContent>
           </Card>
+            </TabsContent>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {loading && <p className="text-muted-foreground">Loading users...</p>}
-            {!loading && filtered.length === 0 && (
-              <p className="text-muted-foreground">No users found.</p>
-            )}
-            {!loading && filtered.map((u) => (
-              <Card 
-                key={u.id} 
-                className="cursor-pointer hover:shadow-md transition-shadow bg-card border-border"
-                onClick={() => handleUserClick(u)}
-              >
+            <TabsContent value="moderation">
+              <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center justify-between text-base text-foreground">
-                    <span>{`${u.first_name || ""} ${u.last_name || ""}`.trim() || "Unnamed User"}</span>
-                    {u.is_admin ? (
-                      <Badge className="bg-primary">Admin</Badge>
-                    ) : (
-                      <Badge variant="secondary">Member</Badge>
-                    )}
-                  </CardTitle>
+                  <CardTitle>Moderation Actions</CardTitle>
                 </CardHeader>
-                <CardContent className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">{u.email || "No email"}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Admin</span>
-                    <Switch
-                      checked={!!u.is_admin}
-                      onCheckedChange={(next) => {
-                        toggleAdmin((u.id || u.user_id || ''), next)
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    />
+                <CardContent>
+                  <div className="text-center py-8 text-muted-foreground">
+                    Moderation history will appear here
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
+            </TabsContent>
 
-          {/* User Modal */}
-          <UserModal 
-            user={selectedUser} 
-            open={isModalOpen} 
-            onOpenChange={setIsModalOpen}
-            onToggleAdmin={handleToggleAdmin}
-          />
+            <TabsContent value="analytics">
+              <Card>
+                <CardHeader>
+                  <CardTitle>User Analytics</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-2xl font-bold">{users.length}</div>
+                      <div className="text-sm text-muted-foreground">Total Users</div>
+                    </div>
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-2xl font-bold">{users.filter(u => u.is_admin).length}</div>
+                      <div className="text-sm text-muted-foreground">Admins</div>
+                    </div>
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-2xl font-bold">{users.filter(u => u.business_enabled).length}</div>
+                      <div className="text-sm text-muted-foreground">Business Users</div>
+          </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </AdminGuard>

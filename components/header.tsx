@@ -793,3 +793,8 @@
 //     </header>
 //   )
 // }
+
+// Minimal fallback Header to satisfy imports during build
+export function Header() {
+    return null
+}

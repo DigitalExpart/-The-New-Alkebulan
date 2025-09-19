@@ -65,7 +65,7 @@ export function LayoutWrapper({ children }: LayoutWrapperProps) {
 
   // Check which section we're in
   const isHomePage = pathname === '/'
-  const isCommunityPage = pathname?.startsWith('/community') || pathname === '/messages'
+  const isCommunityPage = pathname?.startsWith('/community') || pathname?.startsWith('/communities') || pathname === '/messages'
   const isMarketplacePage = pathname?.startsWith('/marketplace')
   const isGrowthPage = pathname?.startsWith('/growth') || pathname?.startsWith('/dashboard/my-manifesting')
   const isInvestingPage = pathname?.startsWith('/investing') || pathname?.startsWith('/funding') || pathname?.startsWith('/dashboard/investments')
@@ -76,7 +76,6 @@ export function LayoutWrapper({ children }: LayoutWrapperProps) {
     { title: "My Friends", href: "/community/my-friends", icon: UserPlus },
     { title: "My Communities", href: "/community/my-communities", icon: Building2 },
     { title: "My Alkebulan", href: "/community/my-alkebulan", icon: Globe },
-    { title: "Messenger", href: "/messages", icon: MessageCircle },
     { title: "Events", href: "/community/events", icon: Calendar }
   ]
 
@@ -106,12 +105,12 @@ export function LayoutWrapper({ children }: LayoutWrapperProps) {
 
   // Get current navigation items based on page type
   const getCurrentNavItems = () => {
-    if (isHomePage) return investingNavItems // No navigation items for Home page
+    if (isHomePage) return []
     if (isCommunityPage) return communityNavItems
     if (isMarketplacePage) return marketplaceNavItems
     if (isGrowthPage) return growthNavItems
     if (isInvestingPage) return investingNavItems
-    return investingNavItems
+    return []
   }
 
   const currentNavItems = getCurrentNavItems()
@@ -440,14 +439,6 @@ export function LayoutWrapper({ children }: LayoutWrapperProps) {
                         </a>
                       </DropdownMenuItem>
                       
-                      {/* Dashboard */}
-                      <DropdownMenuItem asChild>
-                        <a href="/dashboard" className="cursor-pointer flex items-center gap-2">
-                          <Monitor className="w-4 h-4" />
-                          <span>Dashboard</span>
-                        </a>
-                      </DropdownMenuItem>
-                      
                       {/* Profile */}
                       <DropdownMenuItem asChild>
                         <a href="/profile" className="cursor-pointer flex items-center gap-2">
@@ -456,11 +447,11 @@ export function LayoutWrapper({ children }: LayoutWrapperProps) {
                         </a>
                       </DropdownMenuItem>
                       
-                      {/* Edit Profile */}
+                      {/* Dashboard */}
                       <DropdownMenuItem asChild>
-                        <a href="/profile/edit" className="cursor-pointer flex items-center gap-2">
-                          <UserCheck className="w-4 h-4" />
-                          <span>Edit Profile</span>
+                        <a href="/dashboard" className="cursor-pointer flex items-center gap-2">
+                          <Monitor className="w-4 h-4" />
+                          <span>Dashboard</span>
                         </a>
                       </DropdownMenuItem>
                       

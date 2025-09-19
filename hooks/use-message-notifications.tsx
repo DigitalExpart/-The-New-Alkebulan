@@ -38,48 +38,59 @@ export function useMessageNotifications() {
 
         const conversationIds = conversations.map(c => c.conversation_id)
 
-        // Count unread messages in these conversations
-        // First try with is_read column, fallback to counting all messages if column doesn't exist
-        let unreadMessages: any[] = []
-        let msgError: any = null
+        // Detect if the messages table has an is_read column
+        let hasIsRead = true
+        const { error: isReadTestError } = await supabase
+          .from('messages')
+          .select('is_read')
+          .limit(1)
 
-        try {
-          const { data, error } = await supabase
-            .from('messages')
-            .select('id')
-            .in('conversation_id', conversationIds)
-            .eq('is_read', false)
-            .neq('sender_id', user.id) // Don't count messages sent by current user
-
-          unreadMessages = data || []
-          msgError = error
-        } catch (catchError) {
-          console.warn('is_read column might not exist, trying alternative approach:', catchError)
-          // Fallback: count all messages not sent by current user
-          const { data, error: fallbackError } = await supabase
-            .from('messages')
-            .select('id')
-            .in('conversation_id', conversationIds)
-            .neq('sender_id', user.id)
-
-          unreadMessages = data || []
-          msgError = fallbackError
+        if (isReadTestError) {
+          // If Postgres says the column does not exist (code 42703), disable is_read usage
+          const msg = (isReadTestError as any)?.message || ''
+          if ((isReadTestError as any)?.code === '42703' || /column\s+.*is_read.*\s+does not exist/i.test(msg)) {
+            hasIsRead = false
+          }
         }
 
-        if (msgError) {
-          console.error('Error fetching unread messages:', msgError)
-          console.error('Error details:', {
-            message: msgError.message,
-            details: msgError.details,
-            hint: msgError.hint,
-            code: msgError.code
-          })
-          return
+        // Use count-only queries for efficiency with robust fallback
+        const countFallback = async () => {
+          // Fallback A: try excluding sender_id (some schemas may not have it)
+          const tryA = await supabase
+            .from('messages')
+            .select('id', { count: 'exact', head: true })
+            .in('conversation_id', conversationIds)
+          if (!tryA.error) {
+            setUnreadCount(tryA.count ?? 0)
+            return
+          }
+
+          // Fallback B: last-resort zero without logging noisy empty errors
+          setUnreadCount(0)
         }
 
-        // For now, just count all messages not sent by current user
-        // This will be refined once we confirm the table structure
-        setUnreadCount(unreadMessages?.length || 0)
+        if (hasIsRead) {
+          try {
+            const { count, error } = await supabase
+              .from('messages')
+              .select('id', { count: 'exact', head: true })
+              .in('conversation_id', conversationIds)
+              .eq('is_read', false)
+              .neq('sender_id', user.id)
+
+            if (error) {
+              console.warn('Unread count query (is_read) failed; falling back.')
+              await countFallback()
+            } else {
+              setUnreadCount(count ?? 0)
+            }
+          } catch (err) {
+            console.warn('Unread count using is_read failed, falling back:', err)
+            await countFallback()
+          }
+        } else {
+          await countFallback()
+        }
       } catch (error) {
         console.error('Error in fetchUnreadCount:', error)
       } finally {

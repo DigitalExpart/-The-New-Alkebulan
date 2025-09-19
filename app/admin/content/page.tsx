@@ -16,6 +16,7 @@ interface PostLite { id: string; title?: string | null; content?: string | null 
 export default function AdminContentPage() {
   const [communities, setCommunities] = useState<CommunityLite[]>([])
   const [posts, setPosts] = useState<PostLite[]>([])
+  const [reports, setReports] = useState<any[]>([])
 
   const load = async () => {
     if (!supabase) return
@@ -36,6 +37,14 @@ export default function AdminContentPage() {
     } catch {
       toast.message("Posts table may be missing; this is a placeholder.")
     }
+    try {
+      const { data: r } = await supabase
+        .from('reports')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50)
+      setReports(r || [])
+    } catch {}
   }
 
   useEffect(() => {
@@ -63,6 +72,7 @@ export default function AdminContentPage() {
             <TabsList>
               <TabsTrigger value="communities">Communities</TabsTrigger>
               <TabsTrigger value="posts">Posts</TabsTrigger>
+              <TabsTrigger value="reports">Reports</TabsTrigger>
             </TabsList>
 
             <TabsContent value="communities">
@@ -78,14 +88,94 @@ export default function AdminContentPage() {
                       <Badge variant="secondary">ID: {c.id.slice(0, 8)}...</Badge>
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline">View</Button>
-                        <Button size="sm" variant="destructive" onClick={async () => {
-                          const { error } = await supabase.from('communities').delete().eq('id', c.id)
-                          if (error) { toast.error('Delete failed') } else { toast.success('Deleted'); load() }
-                        }}>Remove</Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={async () => {
+                            if (!supabase) {
+                              toast.error('Supabase not initialized');
+                              return;
+                            }
+                            const { error } = await supabase
+                              .from('communities')
+                              .delete()
+                              .eq('id', c.id);
+                            if (error) {
+                              toast.error('Delete failed');
+                            } else {
+                              toast.success('Deleted');
+                              load();
+                            }
+                          }}
+                        >
+                          Remove
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
                 ))}
+              </div>
+            </TabsContent>
+            <TabsContent value="reports">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {reports.map((r) => (
+                  <Card key={r.id}>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Flag className="w-4 h-4" /> {r.target_type} report
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                      <Badge variant="secondary">Status: {r.status}</Badge>
+                      <div>Reason: {r.reason || 'N/A'}</div>
+                      <div className="flex gap-2 pt-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={async () => {
+                            if (!supabase) {
+                              toast.error('Supabase not initialized');
+                              return;
+                            }
+                            const { error } = await supabase
+                              .from('reports')
+                              .update({ status: 'reviewed' })
+                              .eq('id', r.id);
+                            if (error) {
+                              toast.error('Update failed');
+                            } else {
+                              toast.success('Marked reviewed');
+                              load();
+                            }
+                          }}
+                        >
+                          Mark Reviewed
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={async () => {
+                          const sb = supabase;
+                          if (!sb) { toast.error('Supabase not initialized'); return; }
+                          const { error } = await sb
+                            .from('reports')
+                            .update({ status: 'action_taken' })
+                            .eq('id', r.id)
+                          if (error) { toast.error('Update failed') } else { toast.success('Action recorded'); load() }
+                        }}>Action Taken</Button>
+                        <Button size="sm" variant="destructive" onClick={async () => {
+                          const sb = supabase;
+                          if (!sb) { toast.error('Supabase not initialized'); return; }
+                          const { error } = await sb
+                            .from('reports')
+                            .delete()
+                            .eq('id', r.id)
+                          if (error) { toast.error('Delete failed') } else { toast.success('Deleted'); load() }
+                        }}>Delete</Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                {reports.length === 0 && (
+                  <p className="text-muted-foreground">No reports yet.</p>
+                )}
               </div>
             </TabsContent>
 
@@ -103,11 +193,15 @@ export default function AdminContentPage() {
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline">View</Button>
                         <Button size="sm" variant="outline" onClick={async () => {
-                          const { error } = await supabase.from('posts').update({ is_published: !(p as any).is_published }).eq('id', p.id)
+                          const sb = supabase;
+                          if (!sb) { toast.error('Supabase not initialized'); return; }
+                          const { error } = await sb.from('posts').update({ is_published: !(p as any).is_published }).eq('id', p.id)
                           if (error) { toast.error('Update failed') } else { toast.success('Toggled'); load() }
                         }}>{(p as any).is_published ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</Button>
                         <Button size="sm" variant="destructive" onClick={async () => {
-                          const { error } = await supabase.from('posts').delete().eq('id', p.id)
+                          const sb = supabase;
+                          if (!sb) { toast.error('Supabase not initialized'); return; }
+                          const { error } = await sb.from('posts').delete().eq('id', p.id)
                           if (error) { toast.error('Delete failed') } else { toast.success('Deleted'); load() }
                         }}><Trash2 className="w-4 h-4" /></Button>
                       </div>

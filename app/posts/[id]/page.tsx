@@ -376,6 +376,7 @@ export default function PostDetailPage() {
             open={showCommentsModal}
             onOpenChange={setShowCommentsModal}
             postId={post.id}
+            postType="social"
           />
         )}
       </div>

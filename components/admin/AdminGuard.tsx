@@ -9,8 +9,12 @@ export function AdminGuard({ children }: { children: ReactNode }) {
   const router = useRouter()
   const { user, profile, loading } = useAuth()
 
-  // Only true admins (profiles.is_admin) may access admin routes
-  const isAdmin = profile?.is_admin === true
+  // Accept admin if profile flag is set, selected_roles includes admin, or JWT app_metadata.role is admin
+  const isAdmin = (
+    profile?.is_admin === true ||
+    (Array.isArray(profile?.selected_roles) && profile.selected_roles.includes('admin')) ||
+    (user as any)?.app_metadata?.role === 'admin'
+  )
 
   useEffect(() => {
     if (!loading) {

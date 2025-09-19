@@ -55,18 +55,27 @@ export default function AdminLoginPage() {
       if (error) throw error
       if (!signInData.user) throw new Error('No user returned')
 
-      // Fetch profile and verify admin
+      // Accept admin if JWT app_metadata already has role=admin
+      const tokenRole = (signInData.user as any)?.app_metadata?.role
+      if (tokenRole === 'admin') {
+        toast.success('Welcome, Admin')
+        router.replace('/admin')
+        return
+      }
+
+      // Otherwise, fetch profile to confirm admin via DB flags
       const { data: profByUser, error: profErr } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', signInData.user.id)
-        .single()
+        .order('updated_at', { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle()
       if (profErr) throw profErr
 
       if (!isAdminProfile(profByUser)) {
         toast.error('This account is not an admin')
-        // Optional: sign out to avoid leaving a normal session here
-        await supabase.auth.signOut()
+        // Do NOT sign out automatically; allow users to continue as non-admin
         return
       }
       toast.success('Welcome, Admin')

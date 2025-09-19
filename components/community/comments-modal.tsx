@@ -26,6 +26,7 @@ interface Comment {
     first_name: string
     last_name: string
     avatar_url?: string
+    full_name?: string // Add full_name for easier display
   }
 }
 
@@ -33,9 +34,10 @@ interface CommentsModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   postId: string
+  postType?: 'social' | 'community' // New prop to specify which type of post
 }
 
-export default function CommentsModal({ open, onOpenChange, postId }: CommentsModalProps) {
+function CommentsModal({ open, onOpenChange, postId, postType = 'community' }: CommentsModalProps) {
   const { user, profile } = useAuth()
   const [comments, setComments] = useState<Comment[]>([])
   const [newComment, setNewComment] = useState("")
@@ -46,7 +48,7 @@ export default function CommentsModal({ open, onOpenChange, postId }: CommentsMo
     if (open) {
       fetchComments()
     }
-  }, [open, postId])
+  }, [open, postId, postType])
 
   const fetchComments = async () => {
     setLoadingComments(true)
@@ -54,35 +56,32 @@ export default function CommentsModal({ open, onOpenChange, postId }: CommentsMo
       const sb = getSupabaseClient()
       if (!sb) return
 
+      // Use the unified comments view
       const { data: commentsData, error } = await sb
-        .from('post_comments')
-        .select(`
-          id,
-          content,
-          created_at,
-          user_id,
-          profiles!post_comments_user_id_fkey (
-            first_name,
-            last_name,
-            avatar_url
-          )
-        `)
+        .from('all_comments_unified')
+        .select('*')
         .eq('post_id', postId)
+        .eq('post_type', postType)
         .order('created_at', { ascending: true })
 
       if (error) throw error
 
-      const mappedComments: Comment[] = (commentsData || []).map((c: any) => ({
-        id: c.id,
-        content: c.content,
-        created_at: c.created_at,
-        user_id: c.user_id,
-        user: {
-          first_name: c.profiles?.first_name || 'User',
-          last_name: c.profiles?.last_name || '',
-          avatar_url: c.profiles?.avatar_url || ''
+      const mappedComments: Comment[] = (commentsData || []).map((c: any) => {
+        const fullName = c.author_name || 'User'
+        const nameParts = fullName.split(' ')
+        return {
+          id: c.id,
+          content: c.content,
+          created_at: c.created_at,
+          user_id: c.user_id,
+          user: {
+            first_name: nameParts[0] || 'User',
+            last_name: nameParts.slice(1).join(' ') || '',
+            full_name: fullName,
+            avatar_url: c.author_avatar || ''
+          }
         }
-      }))
+      })
       setComments(mappedComments)
     } catch (error) {
       console.error("Error fetching comments:", error)
@@ -105,9 +104,10 @@ export default function CommentsModal({ open, onOpenChange, postId }: CommentsMo
       if (!sb) return
 
       const { data, error } = await sb
-        .from('post_comments')
+        .from('unified_comments')
         .insert({
           post_id: postId,
+          post_type: postType,
           user_id: user.id,
           content: newComment.trim(),
         })
@@ -117,6 +117,10 @@ export default function CommentsModal({ open, onOpenChange, postId }: CommentsMo
       if (error) throw error
 
       // Optimistically add the new comment to the list
+      const fullName = profile.first_name && profile.last_name 
+        ? `${profile.first_name} ${profile.last_name}`.trim()
+        : profile.first_name || profile.last_name || 'User'
+      
       const newMappedComment: Comment = {
         id: data.id,
         content: data.content,
@@ -125,6 +129,7 @@ export default function CommentsModal({ open, onOpenChange, postId }: CommentsMo
         user: {
           first_name: profile.first_name || 'User',
           last_name: profile.last_name || '',
+          full_name: fullName,
           avatar_url: profile.avatar_url || ''
         }
       }
@@ -159,12 +164,19 @@ export default function CommentsModal({ open, onOpenChange, postId }: CommentsMo
             comments.map((comment) => (
               <div key={comment.id} className="flex items-start gap-3">
                 <Avatar className="h-9 w-9">
-                  <AvatarImage src={comment.user.avatar_url} />
-                  <AvatarFallback>{comment.user.first_name[0]}{comment.user.last_name[0]}</AvatarFallback>
+                  <AvatarImage src={comment.user.avatar_url} alt={comment.user.full_name || comment.user.first_name} />
+                  <AvatarFallback>
+                    {comment.user.full_name 
+                      ? comment.user.full_name.charAt(0).toUpperCase()
+                      : comment.user.first_name.charAt(0).toUpperCase()
+                    }
+                  </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 bg-muted rounded-xl p-3">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-semibold text-sm">{comment.user.first_name} {comment.user.last_name}</span>
+                    <span className="font-semibold text-sm">
+                      {comment.user.full_name || `${comment.user.first_name} ${comment.user.last_name}`.trim()}
+                    </span>
                     <span className="text-xs text-muted-foreground">
                       {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
                     </span>
@@ -177,8 +189,12 @@ export default function CommentsModal({ open, onOpenChange, postId }: CommentsMo
         </div>
         <form onSubmit={handleSubmitComment} className="flex gap-2 pt-4 border-t">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={profile?.avatar_url} />
-            <AvatarFallback>{profile?.first_name?.[0]}{profile?.last_name?.[0]}</AvatarFallback>
+            <AvatarImage src={profile?.avatar_url} alt={profile?.first_name || 'User'} />
+            <AvatarFallback>
+              {profile?.first_name?.charAt(0)?.toUpperCase() || 
+               profile?.last_name?.charAt(0)?.toUpperCase() || 
+               user?.email?.charAt(0)?.toUpperCase() || 'U'}
+            </AvatarFallback>
           </Avatar>
           <Textarea
             placeholder="Write a comment..."
@@ -202,3 +218,4 @@ export default function CommentsModal({ open, onOpenChange, postId }: CommentsMo
   )
 }
 
+export default CommentsModal;

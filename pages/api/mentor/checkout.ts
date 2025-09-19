@@ -1,22 +1,34 @@
 import type { NextApiRequest, NextApiResponse } from "next"
 import Stripe from "stripe"
 import { createClient } from "@supabase/supabase-js"
+import { z } from "zod"
+import { requireAuth } from "../../../lib/auth"
 
 // Creates a Stripe Checkout session for a single mentor session
 // Expects: { mentorSessionId: string, customerEmail?: string }
 // Redirects client to Stripe-hosted payment page and returns { url }
+
+const BodySchema = z.object({
+  mentorSessionId: z.string().min(1),
+  customerEmail: z.string().email().optional(),
+})
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" })
     return
   }
 
+  const user = await requireAuth(req, res)
+  if (!user) return
+
   try {
-    const { mentorSessionId, customerEmail } = req.body as { mentorSessionId?: string; customerEmail?: string }
-    if (!mentorSessionId) {
-      res.status(400).json({ error: "mentorSessionId is required" })
+    const parsed = BodySchema.safeParse(req.body)
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request" })
       return
     }
+    const { mentorSessionId, customerEmail } = parsed.data
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string | undefined
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string | undefined
@@ -68,7 +80,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       cancel_url: `${appUrl}/mentor/book/${mentorSessionId}?payment=cancelled`,
       metadata: {
         mentor_session_id: mentorSessionId,
+        user_id: user.id,
       },
+    }, {
+      idempotencyKey: `cs:${user.id}:${mentorSessionId}`,
     })
 
     res.status(200).json({ url: session.url })
